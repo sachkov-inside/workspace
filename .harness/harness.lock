@@ -1,0 +1,52 @@
+{
+  "version": "4.1.0",
+  "stacks": [
+    "content"
+  ],
+  "base_branch": "main",
+  "generated": {
+    ".harness/deny-commands.txt": {
+      "pkg": "636c13b7c5c24bd2",
+      "live": "636c13b7c5c24bd2"
+    },
+    ".harness/gates/pre-bash-guard.sh": {
+      "pkg": "1d65ebd84f85f2ea",
+      "live": "1d65ebd84f85f2ea"
+    },
+    ".harness/gates/rules-inject.py": {
+      "pkg": "a0d8ea106dd771ff",
+      "live": "a0d8ea106dd771ff"
+    },
+    ".harness/gates/runtime_payload.py": {
+      "pkg": "875217177d78db8d",
+      "live": "875217177d78db8d"
+    },
+    ".harness/rules/content-delivery.md": {
+      "pkg": "dd48718811d6cc55",
+      "live": "dd48718811d6cc55"
+    },
+    ".harness/rules/doc-maintenance.md": {
+      "pkg": "1e95a8833644cb3a",
+      "live": "1e95a8833644cb3a"
+    },
+    ".harness/rules/local-runtime.md": {
+      "pkg": "8719a1a15b2ce87c",
+      "live": "8719a1a15b2ce87c"
+    },
+    ".serena/.gitignore": {
+      "pkg": "21d5dcb497df8b25",
+      "live": "21d5dcb497df8b25"
+    },
+    ".serena/project.yml": {
+      "pkg": "35f79dcad91ed9b7",
+      "live": "35f79dcad91ed9b7"
+    }
+  },
+  "rendered": {
+    "AGENTS.md": "ddaefb489a564b59",
+    "CLAUDE.md": "b282179442924df5",
+    ".claude/settings.json": "46153834fc86ee8c",
+    ".codex/hooks.json": "894ea4149512c1a3"
+  },
+  "customized": {}
+}

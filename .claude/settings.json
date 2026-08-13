@@ -1,0 +1,24 @@
+{
+  "_comment": "Обвязка Claude Code над safety gate. Path-scoped guidance Claude загружает нативно через .claude/rules -> ../.harness/rules. Quality verification запускается явно, не из hooks.",
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(rg *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.harness/gates/pre-bash-guard.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
