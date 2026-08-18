@@ -3,11 +3,11 @@
 Канон этого репозитория. Источник правды для **всех** агентов (Claude Code, Codex, Kimi Code, Hermes).
 Рантайм-мосты (`CLAUDE.md`) содержательных правил не несут, только указывают сюда.
 
-Харнес развёрнут из пакета `sachkov-os/harness`, версия и стек записаны в
-`.harness/harness.lock`. Файлы, помеченные там как `generated`, правятся в пакете, а не здесь.
+`.harness/skills` содержит один pinned clean public suite и project-only skills. Один snapshot
+открыт всем coding runtime через `.agents/skills` и `.claude/skills`.
 
-Этот файл не раздувается: только самое главное и указатели. Подробности складывай в
-`.harness/rules/`, `docs/` и per-module `AGENTS.md`, а здесь оставляй ссылку на них.
+Этот файл не раздувается: только самое главное и указатели. Подробности складывай в `docs/` и
+per-module `AGENTS.md`, а здесь оставляй ссылку на них.
 
 ## Что это за проект
 
@@ -23,8 +23,8 @@ Production-артефакты контента остаются в `sachkov-cont
 
 Provider и точные native-команды трекера: [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 Проверки и review-контракт проекта: [`docs/agents/testing-profile.md`](docs/agents/testing-profile.md)
-и [`docs/agents/review-profile.md`](docs/agents/review-profile.md). Глобальные lifecycle skills
-используются из мозга и не копируются в `.harness/skills`.
+и [`docs/agents/review-profile.md`](docs/agents/review-profile.md). Workflow выбирается из clean
+project skills по смыслу задачи, без отдельного private lifecycle.
 
 ## Команды
 
@@ -70,13 +70,12 @@ git diff --check                                              # lint измен�
 - `bash scripts/verify-workspace.sh` и `git diff --check` проходят.
 - Issue и все затронутые связи прочитаны обратно после записи.
 - Внешние действия имеют отдельный owner GO и сохранённое безопасное evidence.
-- Полный итог записан один раз в канонической поверхности задачи через `project-task-report`.
+- Полный итог записан один раз в канонической GitHub Issue или PR.
 
 ## Политика мержа
 
 Агент доводит task-ветку и pull request до merge-ready и останавливается. Merge в `main` делает
-владелец после просмотра. Явный AFK для одного ticket разрешает merge только этого ticket после
-всех gates; публикация, платежи, приглашения и другие внешние действия всё равно требуют
+владелец после просмотра. Публикация, платежи, приглашения и другие внешние действия требуют
 отдельного owner GO.
 
 По умолчанию для проектов с кодом: агент доводит ветку до merge-ready (зелёный CI на
@@ -85,45 +84,26 @@ git diff --check                                              # lint измен�
 независимое code review не требуется, если работа не меняет продуктовый код. Агент проверяет
 артефакт и останавливается перед owner merge.
 
-Явная команда владельца выполнить точный ticket в AFK-режиме является ограниченным разрешением
-смержить и закрыть именно этот ticket после всех gates. Она не разрешает release, production или
-работу над другими tickets.
-
-Checkout, branch и необходимость linked worktree выбирает активный workflow skill или явная
-команда владельца. Харнес не вводит отдельный запрет записи в primary или protected branch.
+Checkout, branch и необходимость linked worktree выбираются по задаче или явной команде владельца.
 
 После owner merge или отказа агент сам проверяет merged/clean state, удаляет task worktree и
 локальную/remote ветку и сообщает о выполненном cleanup. Чужой или живой worktree не трогает.
 
-## Runtime-механика
+## Agent harness
 
-Claude читает `.harness/rules` через native symlink `.claude/rules`; Codex и Kimi получают
-их через `rules-inject.py`. `pre-bash-guard.sh` блокирует только deny-команды. Quality
-verification запускается явно по Test Plan задачи, а не из tool hooks.
-
-| Гейт | Когда | Что делает |
-|---|---|---|
-| `rules-inject.py` | перед правкой в Codex/Kimi | подставляет правила из `.harness/rules/`, подходящие по пути |
-| `pre-bash-guard.sh` | перед bash-командой | блокирует deny-команды из `.harness/deny-commands*.txt` |
-
-## Правила по путям
-
-Лежат в `.harness/rules/*.md`, каждое с `paths:` во фронтматтере. Подставляются автоматически,
-когда агент правит подходящий файл. Общий список:
-
-- [Content delivery](.harness/rules/content-delivery.md) — task worktree, owner merge и защита
-  артефактов, которые владелец менял руками.
-- [Documentation](.harness/rules/doc-maintenance.md) — один канон и проверяемые утверждения.
-- [Local runtime](.harness/rules/local-runtime.md) — Docker/runtime safety, если такой слой
-  когда-либо появится.
+- `.harness/harness.lock` управляет только public skill snapshot. Public-managed skill files не
+  правятся локально; project-only skill names принадлежат этому репозиторию.
+- Project hooks, hidden rule injection и user-level development suite не используются. Safety,
+  external-action gates и verification находятся в этом `AGENTS.md` и project docs.
+- Upstream explicit-only skills остаются explicit-only. Остальные skills могут вызываться моделью
+  по их native description.
 
 ## Связь с мозгом
 
 - Задачи от Hermes с `project: sachkov-inside` промоутятся в github project `KirillSachkov/sachkov-inside`.
 - Durable кросс-проектные факты и решения идут в мозг (`memory/`, `wiki/`), не в этот
   репозиторий. Расположение мозга разрешается через `harness/bin/brain-root`.
-- Отчёт по завершении проектной задачи делается по скиллу `project-task-report`, ровно одна
-  полная копия в канонической поверхности задачи.
+- Итог проектной задачи записывается один раз в канонической GitHub Issue или PR.
 
 ## Известные грабли
 
