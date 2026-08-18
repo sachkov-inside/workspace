@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "package_version": "1.0.0",
-  "source_revision": "69ee3ea9c22a8267c38df45cff95b474d4a5f2a6",
+  "source_revision": "9b53624c4f308eb5697ab46508f56f43f283bff9",
   "capabilities": [
     "mattpocock-suite"
   ],
