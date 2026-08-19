@@ -4,7 +4,7 @@
 
 | Repository | Local path | Visibility | Назначение |
 |---|---|---|---|
-| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `.` | private | Product docs, исследования и cross-repo решения |
+| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `.` | private | Product docs и cross-repo решения |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `repositories/landing` | public | Публичный landing Inside |
 | [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `repositories/platform` | private | Membership-платформа |
 | [`sachkov-inside/telegram-bot`](https://github.com/sachkov-inside/telegram-bot) | `repositories/telegram-bot` | private | Telegram-интеграция |

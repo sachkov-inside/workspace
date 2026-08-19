@@ -236,7 +236,3 @@ production-инциденты внутрь материалов не попад�
   [#5](https://github.com/sachkov-inside/workspace/issues/5) и
   [#6](https://github.com/sachkov-inside/workspace/issues/6) — незакрытые owner decisions по
   kickoff pack, build-series и публичному offer.
-- `../research/engineering-membership-positioning-and-price.md` — market evidence и рабочая
-  формулировка позиционирования; исследование не утверждает offer или цену.
-- `../research/tribute-telegram-subscription-access.md` — operational evidence и launch blockers;
-  исследование не выбирает provider и не разрешает запуск.
