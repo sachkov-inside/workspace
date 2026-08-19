@@ -14,8 +14,8 @@
 
 ## Текущее состояние
 
-- Активная topology: `workspace`, `inside-landing`, `platform`. Существующий `telegram-bot` не
-  входит в текущий план и не показывается в Workspace.
+- Активная topology: `workspace`, `inside-landing`, `platform`. Repository `telegram-bot` в
+  организации отсутствует и не входит в текущий план.
 - Общий product harness `inside-engineering 0.2.0` установлен во все три активных repositories.
 - В Workspace уже используются GitHub Issues и есть product map
   [`workspace#1`](https://github.com/sachkov-inside/workspace/issues/1).
@@ -47,6 +47,11 @@ GitHub Project: Inside
 Issue хранится в repository, который владеет результатом. GitHub Project только агрегирует работу
 и не становится новым источником требований. Workspace не превращается в центральный backlog для
 всех code changes.
+
+Branch model — trunk-based: один `main` и короткие issue branches. Landing сохраняет текущий
+`main → production`; у Platform deployment environments отделены от branches, а `release/*`
+появляются только при нескольких поддерживаемых versions, release freeze/certification или
+release train. Основания: [`harness/research/production-branching-strategies.md`](harness/research/production-branching-strategies.md).
 
 ## Этап 0. Завершить rollout базового harness — выполнено 2026-08-19
 
@@ -98,9 +103,11 @@ Issue хранится в repository, который владеет резуль
 1. Product discovery, owner decisions и cross-repo initiatives создаются в Workspace.
 2. Implementation, bugs и технический долг создаются в repository, где меняется продукт.
 3. Cross-repo initiative имеет parent issue в Workspace и repo-local sub-issues.
-4. `Status` хранится в Project, а не одновременно в Project и workflow labels.
-5. Labels описывают тип работы и режим исполнения: decision, research, feature, task, bug, HITL или
-   agent-ready. Набор labels должен быть одинаковым и небольшим во всех repositories.
+4. Project `Status` хранит delivery stage. Канонические Matt Pocock labels отдельно хранят triage
+   readiness (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) и не
+   заменяются Project field.
+5. Triage categories (`bug`, `enhancement`) и Wayfinder labels должны иметь одинаковый смысл во
+   всех repositories. Дополнительные labels появляются только из повторяющейся потребности.
 6. Документ и issue не дублируют друг друга: issue управляет работой, документ хранит устойчивое
    знание и принятое решение.
 7. В Project попадает только сформулированная работа. Сырые идеи остаются в Inbox без детализации
@@ -118,18 +125,20 @@ Issue хранится в repository, который владеет резуль
 Готово, когда каждая активная задача существует ровно один раз, видна в общем обзоре и при этом
 принадлежит правильному repository.
 
-## Этап 3. Зафиксировать рабочий lifecycle задачи
+## Этап 3. Использовать Developer Pipeline
+
+Канонический contract находится в [`WORKFLOW.md`](WORKFLOW.md).
 
 Для содержательной разработки использовать одну последовательность:
 
 ```text
 idea / problem
-  → issue или questionnaire
-  → подтверждённая граница
-  → spec при необходимости
-  → repo-local implementation issue
-  → branch и PR
-  → review и проверки
+  → repo-local issue
+  → grill-with-docs и условные research / questionnaire / prototype / wayfinder
+  → to-spec и to-tickets для multi-session delivery
+  → branch <type>/<issue>-<slug>
+  → implement, проверки и code-review
+  → PR
   → merge по решению владельца
   → обновление durable docs, если изменилось решение
 ```

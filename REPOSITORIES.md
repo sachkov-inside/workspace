@@ -2,11 +2,14 @@
 
 Проверено: 2026-08-19.
 
-| Repository | Local path | Visibility | Назначение |
-|---|---|---|---|
-| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `.` | private | Product docs и cross-repo решения |
-| [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `repositories/landing` | public | Публичный landing Inside |
-| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `repositories/platform` | private | Membership-платформа |
+| Repository | Owner | Local path | Visibility | Назначение |
+|---|---|---|---|---|
+| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Product docs, Developer Pipeline и cross-repo решения |
+| [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Публичный landing Inside |
+| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа |
+
+В организации нет repository `telegram-bot`. Это направление не входит в активную topology;
+repository для него не создаётся и не резервируется до отдельного owner decision.
 
 ## Правила границ
 

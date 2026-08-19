@@ -1,5 +1,36 @@
 # inside
 
+## Repository role
+
+Workspace owns product documents, cross-repository decisions, Developer Pipeline and the canonical
+source of the shared product harness. Application code, application ADRs, build and deploy remain
+in the repository that owns the application.
+
+## Developer Pipeline
+
+For issue routing, discovery/spec boundaries, branch/PR lifecycle, readiness, completion and merge
+gates, read `WORKFLOW.md`. Every PR starts from a repo-local issue. Merge remains owner-controlled.
+
+Engineering skills read repository-local configuration from:
+
+- `docs/agents/issue-tracker.md` for GitHub issue and Wayfinder operations;
+- `docs/agents/triage-labels.md` for canonical triage roles;
+- `docs/agents/domain.md` for product vocabulary and ADR boundaries.
+
+## Verification
+
+Run from the Workspace root:
+
+```bash
+python3 -m unittest discover -s harness/tests -v
+harness/bin/inside-harness health .
+harness/bin/inside-harness diff .
+```
+
+For a harness release or rollout, also run `health` and `diff` against each target repository.
+Keep product/cross-repo documents outside managed harness directories; change shared skills only in
+`harness/packages/inside-engineering/` and distribute them through the harness lifecycle.
+
 <!-- inside-product-harness:start -->
 ## Inside product harness
 

@@ -69,7 +69,7 @@ application scaffold.
   которые не требуют платного тарифа.
 - Готово, когда настройки не отличаются без явной причины.
 
-### ORG-07. Записать общий workflow разработки
+### ORG-07. Записать Developer Pipeline
 
 - Repository: `workspace`.
 - Создать короткий `WORKFLOW.md` со следующими правилами:
@@ -136,12 +136,14 @@ Views:
 
 Минимальный каталог:
 
-- тип: `type::decision`, `type::research`, `type::feature`, `type::task`, `type::bug`;
-- режим: `hitl`, `afk`;
-- специальные labels добавляются только при повторяющейся необходимости.
+- triage category: `bug`, `enhancement`;
+- triage readiness: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`;
+- Wayfinder: `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`,
+  `wayfinder:grilling`, `wayfinder:task`;
+- дополнительные labels добавляются только при повторяющейся необходимости.
 
-`workflow::*` labels постепенно убрать после переноса статуса в GitHub Project. Не хранить один и
-тот же статус одновременно в label и Project field.
+Старые `workflow::*`, `type::*`, `hitl` и `afk` мигрировать после переноса текущих issues. Project
+`Status` хранит delivery stage, triage labels — readiness role; это разные оси.
 
 Готово, когда одинаковые labels имеют одинаковый смысл во всех repositories.
 
