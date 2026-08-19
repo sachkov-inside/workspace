@@ -1,6 +1,6 @@
 # Sachkov Inside — продуктовый brief
 
-Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-08-15. Документ
+Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-08-19. Документ
 отделяет ядро Membership от гипотез и открытых решений и служит общей исходной точкой для
 позиционирования, визуального стиля, лендинга, Telegram-запуска и контентного портфеля.
 
@@ -92,9 +92,10 @@ Inside не рассчитан на человека, которому снач�
 4. versioned состояние приватного live repository с read-only доступом для участников после его
    появления.
 
-Название будущего приложения, его MVP, billing, stack, архитектура, design system и repository не
-определяются заранее. Они становятся настоящими решениями Кирилла внутри серии. Участники видят
-не только реализацию, но и то, как формируется сам продукт.
+Первая продуктовая граница приложения зафиксирована в
+[`platform-mvp-brief.md`](platform-mvp-brief.md). Billing, stack, архитектура, design system и
+repository не определяются заранее. Они становятся настоящими решениями Кирилла внутри серии.
+Участники видят не только реализацию, но и то, как формируется сам продукт.
 
 Build-series — флагманская линия, но не всё обещание Inside. Membership не должна превращаться в
 доступ только к одному сериалу.
@@ -205,7 +206,8 @@ production-инциденты внутрь материалов не попад�
 - launch price, скидки и точные commercial terms;
 - гарантированная cadence материалов, эфиров или разборов;
 - Tribute или другой payment/access provider до закрытия operational blockers;
-- функции, архитектура и визуальный стиль будущего Inside-приложения.
+- детали функций за границей подтверждённого platform MVP, архитектура и визуальный стиль
+  будущего Inside-приложения.
 
 Существующая pixel-art пара Telegram-аватаров является рабочим launch-направлением, а не
 утверждённым brand book и не ограничивает отдельную работу над визуальным стилем.
@@ -224,13 +226,15 @@ production-инциденты внутрь материалов не попад�
 
 ## Источники решений
 
-- GitHub task [#10](https://github.com/KirillSachkov/sachkov-inside/issues/10) — owner decisions
+- [`platform-mvp-brief.md`](platform-mvp-brief.md) — подтверждённая продуктовая граница первой
+  версии будущего Inside-приложения и открытые решения перед bootstrap.
+- GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions
   2026-08-15 и acceptance этого master-документа.
-- GitHub Map [#1](https://github.com/KirillSachkov/sachkov-inside/issues/1) — актуальная граница и
+- GitHub Map [#1](https://github.com/sachkov-inside/workspace/issues/1) — актуальная граница и
   decision graph продукта.
-- Issues [#4](https://github.com/KirillSachkov/sachkov-inside/issues/4),
-  [#5](https://github.com/KirillSachkov/sachkov-inside/issues/5) и
-  [#6](https://github.com/KirillSachkov/sachkov-inside/issues/6) — незакрытые owner decisions по
+- Issues [#4](https://github.com/sachkov-inside/workspace/issues/4),
+  [#5](https://github.com/sachkov-inside/workspace/issues/5) и
+  [#6](https://github.com/sachkov-inside/workspace/issues/6) — незакрытые owner decisions по
   kickoff pack, build-series и публичному offer.
 - `../research/engineering-membership-positioning-and-price.md` — market evidence и рабочая
   формулировка позиционирования; исследование не утверждает offer или цену.

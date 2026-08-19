@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "Inside Workspace",
+      "path": "."
+    },
+    {
+      "name": "Landing",
+      "path": "repositories/landing"
+    },
+    {
+      "name": "Platform",
+      "path": "repositories/platform"
+    },
+    {
+      "name": "Telegram Bot",
+      "path": "repositories/telegram-bot"
+    }
+  ],
+  "settings": {
+    "git.autoRepositoryDetection": "subFolders",
+    "git.repositoryScanMaxDepth": 3,
+    "files.exclude": {
+      "repositories": true
+    },
+    "search.exclude": {
+      "repositories": true
+    }
+  }
+}
