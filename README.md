@@ -17,6 +17,8 @@ harness. Build, test и deploy дочернего repository не должны �
 
 Общий product harness хранится в [`harness/`](harness/) и устанавливается в каждый repository
 управляемой project-local копией. Архитектура и lifecycle описаны в [`HARNESS.md`](HARNESS.md).
+Следующие этапы организации repositories, task tracker и технического discovery описаны в
+[`DEVELOPMENT-ORGANIZATION-PLAN.md`](DEVELOPMENT-ORGANIZATION-PLAN.md).
 
 ## VS Code
 
