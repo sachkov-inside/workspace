@@ -1,14 +1,15 @@
 # Harness Sachkov Inside
 
-Статус: первая версия реализована локально. Изменения ещё не закоммичены и release tag не создан.
+Текущая версия: `inside-engineering 0.2.0`. Canonical source выпускается tag
+`inside-engineering-v0.2.0` и устанавливается в Workspace, Landing и Platform.
 
 ## Итоговая модель
 
 У harness три независимых уровня:
 
 ```text
-Личный user-level harness на устройстве
-  └─ личные настройки и универсальные skills; Inside его не изменяет
+Устройство
+  └─ native runtime + минимальный personal profile; project capabilities не предполагаются
 
 Inside Workspace
   └─ canonical source общего product harness
@@ -22,12 +23,12 @@ Inside Workspace
 
 Каждый repository
   ├─ управляемая копия общего product harness
-  └─ собственные instructions, skills, build/test/run/deploy
+  └─ собственные instructions, skills, MCP/hooks при необходимости, build/test/run/deploy
 ```
 
 Workspace является единственным местом, где редактируется общий набор. Установленные копии
 коммитятся в каждый repository, поэтому repository работает автономно: без соседнего Workspace,
-абсолютных machine-local путей и symlinks.
+абсолютных machine-local путей, symlinks и предположений о user-level skills/MCP/plugins/hooks.
 
 ## Что реализовано
 
@@ -103,6 +104,7 @@ Rollback читает package и adapters из выбранного Git ref Work
 5. После подтверждения владельца закоммитить Workspace и создать release tag.
 6. Обновить остальные repositories отдельными reviewable changes.
 
-Upstream не обновляется автоматически. Profiles, сложный lock-файл, MCP, hooks и автоматические
-runtime changes в первую версию не входят. Repo-specific harness platform и landing проектируются
-отдельно, когда появятся подтверждённые повторяющиеся задачи.
+Upstream не обновляется автоматически. User-level profiles, MCP, hooks и автоматические runtime
+changes в product harness не входят. Если integration становится recurring, она добавляется в
+конкретный repository через native project config и проверяется его `health`; credentials остаются
+в native auth или environment.
