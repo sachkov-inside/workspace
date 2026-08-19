@@ -2,6 +2,10 @@
 
 Дата проверки: 2026-08-19.
 
+> Runtime boundary updated later the same day: user-level Serena, Docker MCP and Graphify
+> integrations were retired. Any future use described below is project-owned and must not assume
+> device registration.
+
 ## Критерий
 
 Обязательная часть product harness должна работать без платной подписки, биллинга и обязательного
@@ -18,7 +22,7 @@ Landing достаточно мал и уже обслуживается native 
 
 | Tool | Бесплатность | Польза | Решение сейчас |
 | --- | --- | --- | --- |
-| [Serena](https://github.com/oraios/serena) | MIT; LSP backend бесплатен, JetBrains backend платный | Live symbol navigation, references, diagnostics и semantic edits | Не добавлять: уже установлена глобально; сначала исправить lifecycle и провести ограниченный пилот |
+| [Serena](https://github.com/oraios/serena) | MIT; LSP backend бесплатен, JetBrains backend платный | Live symbol navigation, references, diagnostics и semantic edits | Не добавлять сейчас; при доказанной нужде подключить только в project harness |
 | [Graphify](https://github.com/Graphify-Labs/graphify) | Code-only работает локально; repository содержит MIT/Apache license files | Статический knowledge graph по code/docs | Не ставить; вернуться при реальной большой multi-repo архитектуре |
 | [Context7](https://github.com/upstash/context7) | MIT MCP client, но hosted freemium service | Актуальная version-specific документация библиотек | Не делать обязательным; optional только если free-tier считается допустимым |
 | [GitHub MCP](https://github.com/github/github-mcp-server) | MIT server; GitHub account/API limits остаются | Issues, PR, Actions и releases | Позже, после выбора GitHub как task tracker и collaboration surface |
@@ -32,8 +36,7 @@ semantic editing. Бесплатный LSP backend поддерживает C#, 
 Serena официально интегрируется через MCP и рекомендует устанавливать её по собственному Quick
 Start, а не из marketplace. Источник: [Serena README](https://github.com/oraios/serena#the-ide-for-your-coding-agent).
 
-Но Serena уже зарегистрирована на этой машине для Codex, Claude Code, Kimi и OpenCode через
-`/Users/dev/.local/bin/serena`. Текущая проверка выявила:
+Исторический device-wide pilot выявил:
 
 - 19 процессов `serena-agent start-mcp-server`, 49 language-server процессов и один dashboard;
 - процессы живут от нескольких часов до нескольких дней;
@@ -41,9 +44,9 @@ Start, а не из marketplace. Источник: [Serena README](https://githu
 - committed Landing config содержит только `bash`, хотя приложение использует Astro/TypeScript;
 - Serena уже создавала лишний `.serena` state в Workspace при обычном agent run.
 
-Поэтому повторная установка в product harness не нужна. Если вернуться к Serena:
+User-level registrations после пилота сняты. Если вернуться к Serena:
 
-1. Сначала привести в порядок существующий user-level runtime и завершение дочерних процессов.
+1. Зарегистрировать Serena project-local, а не в user scope.
 2. Использовать только бесплатный LSP backend и pinned release.
 3. Оставить только symbol navigation, references, diagnostics и semantic refactoring; отключить
    дублирующие file, shell и memory tools, dashboard и prompt overrides.
@@ -83,15 +86,11 @@ Context7 хорошо решает поиск актуальной докуме�
 
 ## Какие MCP рассматривать дальше
 
-### Уже есть
+### Общей базы нет
 
-Общий user-level Docker MCP gateway уже подключён к Codex, Claude Code, Kimi и OpenCode и содержит:
-
-- Docker Docs remote MCP;
-- Microsoft Learn remote MCP.
-
-Они уже покрывают актуальные Docker и .NET/Microsoft docs. Это user-level runtime, а не часть
-product harness; не следует регистрировать дублирующие servers в каждом repository.
+User-level Docker MCP gateway снят с Codex, Claude Code, Kimi и OpenCode. Для актуальной Docker и
+.NET документации агент использует official web docs. Если частые задачи докажут пользу MCP,
+конкретный repository добавляет reviewed project registration без дублирования в user scope.
 
 ### Позже по фактической потребности
 
@@ -118,15 +117,14 @@ Sequential Thinking и Time как reference implementations, а не обяза
 
 ## Как интегрировать MCP в harness, когда появится необходимость
 
-1. Product Workspace хранит reviewed catalog: capability, source, pinned version, license,
+1. Product Workspace может хранить reviewed templates: capability, source, pinned version, license,
    required permissions и бесплатность.
 2. MCP включается только opt-in, отдельно от skills package.
-3. Один server binary используется всеми runtime adapters; конфиги Codex, Claude, Kimi и OpenCode
-   генерируются согласно их native formats.
+3. Конкретный repository хранит native project configs нужных runtimes; установленный binary может
+   быть device prerequisite, но не активной user-scope registration.
 4. Secrets остаются в environment/native auth и никогда не попадают в repository.
 5. Никаких `@latest`, floating Git branches, plugins или marketplace installers.
 6. `health` проверяет version, connection, tool allow-list, process cleanup и отсутствие лишнего
    repository state.
 7. Каждый новый server сначала проходит пилот в одном repository; затем принимается отдельное
    решение о product-wide распространении.
-
