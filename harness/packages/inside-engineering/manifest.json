@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "name": "inside-engineering",
+  "version": "0.2.0",
+  "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
+  "source": {
+    "repository": "https://github.com/mattpocock/skills",
+    "release": "v1.2.3",
+    "commit": "885e2ca4d842d139e9aef4e48d366c63cb1b8013"
+  },
+  "additionalSources": {
+    "frontend-design": {
+      "repository": "https://github.com/anthropics/skills",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "impeccable": {
+      "repository": "https://github.com/pbakaus/impeccable",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "karpathy-guidelines": {
+      "origin": "https://x.com/karpathy/status/2015883857489522876",
+      "landingSnapshot": "bdd0177905df723ca4e4e2fb9288a4d8dc95701b"
+    },
+    "modern-web-guidance": {
+      "repository": "https://github.com/GoogleChrome/modern-web-guidance-src",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "playwright-cli": {
+      "repository": "https://github.com/microsoft/playwright-cli",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "vercel-react-best-practices": {
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "web-design-guidelines": {
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    }
+  },
+  "skills": [
+    "ask-matt",
+    "code-review",
+    "codebase-design",
+    "diagnosing-bugs",
+    "domain-modeling",
+    "frontend-design",
+    "grill-me",
+    "grill-with-docs",
+    "grilling",
+    "handoff",
+    "impeccable",
+    "implement",
+    "improve-codebase-architecture",
+    "karpathy-guidelines",
+    "modern-web-guidance",
+    "playwright-cli",
+    "prototype",
+    "research",
+    "resolving-merge-conflicts",
+    "setup-matt-pocock-skills",
+    "tdd",
+    "teach",
+    "to-questionnaire",
+    "to-spec",
+    "to-tickets",
+    "triage",
+    "vercel-react-best-practices",
+    "wait-what",
+    "wayfinder",
+    "web-design-guidelines",
+    "wizard",
+    "writing-for-agents"
+  ]
+}

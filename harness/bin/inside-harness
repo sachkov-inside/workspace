@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""Install and verify the Sachkov Inside product harness."""
+
+from __future__ import annotations
+
+import argparse
+import filecmp
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve()
+WORKSPACE = SCRIPT.parents[2]
+DEFAULT_PACKAGE = WORKSPACE / "harness/packages/inside-engineering"
+DEFAULT_ADAPTERS = WORKSPACE / "harness/adapters"
+STATE_REL = Path(".inside-harness/product-harness.json")
+PORTABLE_REL = Path(".agents/skills")
+CLAUDE_SKILLS_REL = Path(".claude/skills")
+AGENTS_REL = Path("AGENTS.md")
+CLAUDE_MD_REL = Path("CLAUDE.md")
+PACKAGE_NAME = "inside-engineering"
+AGENTS_START = "<!-- inside-product-harness:start -->"
+AGENTS_END = "<!-- inside-product-harness:end -->"
+
+
+class HarnessError(RuntimeError):
+    pass
+
+
+def run(command: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
+    if check and result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise HarnessError(f"Command failed: {' '.join(command)}\n{detail}")
+    return result
+
+
+def repository_root(value: str) -> Path:
+    candidate = Path(value).expanduser().resolve()
+    result = run(["git", "-C", str(candidate), "rev-parse", "--show-toplevel"])
+    return Path(result.stdout.strip()).resolve()
+
+
+def load_manifest(package: Path) -> dict:
+    path = package / "manifest.json"
+    try:
+        manifest = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise HarnessError(f"Invalid package manifest {path}: {error}") from error
+    expected = {"schemaVersion", "name", "version", "skills"}
+    missing = expected - set(manifest)
+    if missing:
+        raise HarnessError(f"Package manifest misses: {', '.join(sorted(missing))}")
+    if manifest["name"] != PACKAGE_NAME:
+        raise HarnessError(f"Unsupported package name: {manifest['name']}")
+    skills = manifest["skills"]
+    if not isinstance(skills, list) or not skills or len(skills) != len(set(skills)):
+        raise HarnessError("Package skills must be a non-empty unique list")
+    return manifest
+
+
+def read_frontmatter(skill_file: Path) -> dict[str, str]:
+    text = skill_file.read_text()
+    if not text.startswith("---\n"):
+        raise HarnessError(f"Missing YAML frontmatter: {skill_file}")
+    end = text.find("\n---", 4)
+    if end < 0:
+        raise HarnessError(f"Unclosed YAML frontmatter: {skill_file}")
+    values: dict[str, str] = {}
+    for line in text[4:end].splitlines():
+        match = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
+        if match:
+            values[match.group(1)] = match.group(2).strip().strip("\"")
+    return values
+
+
+def validate_package(package: Path, manifest: dict) -> None:
+    skill_root = package / "skills"
+    declared = set(manifest["skills"])
+    present = {path.name for path in skill_root.iterdir() if path.is_dir()}
+    if present != declared:
+        raise HarnessError(
+            f"Package skill directories differ from manifest: missing={sorted(declared - present)}, "
+            f"extra={sorted(present - declared)}"
+        )
+    for path in package.rglob("*"):
+        if path.is_symlink():
+            raise HarnessError(f"Canonical package must not contain symlinks: {path}")
+    seen_names: set[str] = set()
+    for name in manifest["skills"]:
+        metadata = read_frontmatter(skill_root / name / "SKILL.md")
+        actual_name = metadata.get("name")
+        description = metadata.get("description")
+        if actual_name != name:
+            raise HarnessError(f"Skill name mismatch at {name}: {actual_name!r}")
+        if not description:
+            raise HarnessError(f"Skill description is missing: {name}")
+        if actual_name in seen_names:
+            raise HarnessError(f"Duplicate skill name: {actual_name}")
+        seen_names.add(actual_name)
+
+
+def files(root: Path) -> dict[Path, Path]:
+    if not root.exists():
+        return {}
+    return {path.relative_to(root): path for path in root.rglob("*") if path.is_file()}
+
+
+def tree_diff(source: Path, target: Path) -> list[str]:
+    left = files(source)
+    right = files(target)
+    changes: list[str] = []
+    for rel in sorted(left.keys() | right.keys()):
+        if rel not in right:
+            changes.append(f"A {rel}")
+        elif rel not in left:
+            changes.append(f"D {rel}")
+        elif not filecmp.cmp(left[rel], right[rel], shallow=False):
+            changes.append(f"M {rel}")
+    return changes
+
+
+def exact_copy(source: Path, target: Path) -> None:
+    if target.is_symlink():
+        raise HarnessError(f"Refusing to replace symlink target: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f".{target.name}-", dir=target.parent) as temp_value:
+        staged = Path(temp_value) / target.name
+        shutil.copytree(source, staged)
+        if target.exists():
+            shutil.rmtree(target)
+        staged.rename(target)
+
+
+def git_changes(repo: Path, paths: list[Path]) -> list[str]:
+    args = ["git", "-C", str(repo), "status", "--porcelain", "--"]
+    args.extend(str(path) for path in paths)
+    result = run(args)
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def load_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise HarnessError(f"Invalid JSON file {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise HarnessError(f"Expected a JSON object: {path}")
+    return value
+
+
+def write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rendered = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
+    if path.exists() and path.read_text() == rendered:
+        return
+    path.write_text(rendered)
+
+
+def replace_managed_block(path: Path, snippet: str, *, default_heading: str | None = None) -> None:
+    content = path.read_text() if path.exists() else ""
+    start = content.find(AGENTS_START)
+    end = content.find(AGENTS_END)
+    if (start >= 0) != (end >= 0):
+        raise HarnessError(f"Incomplete product-harness block in {path}")
+    if start >= 0:
+        end += len(AGENTS_END)
+        content = content[:start].rstrip() + "\n\n" + snippet.strip() + content[end:]
+    else:
+        if not content and default_heading:
+            content = default_heading.rstrip() + "\n"
+        content = content.rstrip() + "\n\n" + snippet.strip() + "\n"
+    path.write_text(content.lstrip() if not default_heading else content)
+
+
+def write_entrypoints(repo: Path, adapters: Path) -> None:
+    agents_snippet = (adapters / "AGENTS.product.md").read_text()
+    claude_snippet = (adapters / "CLAUDE.product.md").read_text()
+    replace_managed_block(repo / AGENTS_REL, agents_snippet, default_heading=f"# {repo.name}\n")
+    replace_managed_block(repo / CLAUDE_MD_REL, claude_snippet)
+
+
+def state_value(manifest: dict) -> dict:
+    return {
+        "schemaVersion": 1,
+        "package": manifest["name"],
+        "version": manifest["version"],
+        "managedSkills": manifest["skills"],
+        "targets": {
+            "portable": str(PORTABLE_REL),
+            "claude": str(CLAUDE_SKILLS_REL),
+        },
+    }
+
+
+def target_diffs(repo: Path, package: Path, manifest: dict) -> list[str]:
+    changes: list[str] = []
+    for name in manifest["skills"]:
+        source = package / "skills" / name
+        portable = repo / PORTABLE_REL / name
+        claude = repo / CLAUDE_SKILLS_REL / name
+        changes.extend(f"portable/{name}/{item}" for item in tree_diff(source, portable))
+        changes.extend(f"claude/{name}/{item}" for item in tree_diff(source, claude))
+    return changes
+
+
+def managed_paths(repo: Path, manifest: dict) -> list[Path]:
+    result = [STATE_REL, AGENTS_REL, CLAUDE_MD_REL]
+    result.extend(PORTABLE_REL / name for name in manifest["skills"])
+    result.extend(CLAUDE_SKILLS_REL / name for name in manifest["skills"])
+    return result
+
+
+def install_or_update(
+    repo: Path,
+    package: Path,
+    adapters: Path,
+    *,
+    adopt_existing: bool = False,
+    initial_only: bool = False,
+) -> None:
+    manifest = load_manifest(package)
+    validate_package(package, manifest)
+    state_path = repo / STATE_REL
+    old_state = load_json(state_path)
+    if initial_only and old_state:
+        print(f"Already installed in {repo}; checking for an idempotent update.")
+    if old_state and old_state.get("package") != manifest["name"]:
+        raise HarnessError(f"Another harness package owns {state_path}")
+    conflicts: list[str] = []
+    if not old_state:
+        for name in manifest["skills"]:
+            for candidate in (repo / PORTABLE_REL / name, repo / CLAUDE_SKILLS_REL / name):
+                if candidate.exists() or candidate.is_symlink():
+                    conflicts.append(str(candidate.relative_to(repo)))
+        if conflicts and not adopt_existing:
+            rendered = "\n  - ".join(conflicts)
+            raise HarnessError(
+                "Existing skills conflict with the managed package:\n  - "
+                + rendered
+                + "\nRe-run install with --adopt-existing only after reviewing these directories."
+            )
+
+    changes = target_diffs(repo, package, manifest)
+    if old_state and changes:
+        previously_managed = set(old_state.get("managedSkills", []))
+        additions_only = all(
+            change.split("/", 2)[1] not in previously_managed
+            and change.split("/", 2)[2].startswith("A ")
+            for change in changes
+        )
+        dirty = git_changes(repo, managed_paths(repo, manifest)) if not additions_only else []
+        if dirty:
+            raise HarnessError(
+                "Managed files differ from the package and have uncommitted changes; refusing to overwrite:\n"
+                + "\n".join(dirty)
+            )
+
+    for name in manifest["skills"]:
+        source = package / "skills" / name
+        for target in (
+            repo / PORTABLE_REL / name,
+            repo / CLAUDE_SKILLS_REL / name,
+        ):
+            if tree_diff(source, target):
+                exact_copy(source, target)
+
+    write_entrypoints(repo, adapters)
+    write_json(state_path, state_value(manifest))
+    action = "Installed" if not old_state else "Updated"
+    print(f"{action} {manifest['name']} {manifest['version']} in {repo}")
+
+
+def diff_command(repo: Path, package: Path) -> int:
+    manifest = load_manifest(package)
+    validate_package(package, manifest)
+    changes = target_diffs(repo, package, manifest)
+    if changes:
+        print("\n".join(changes))
+        return 1
+    print(f"No managed skill drift in {repo}")
+    return 0
+
+
+def require_managed_block(path: Path, expected: str) -> None:
+    if not path.exists():
+        raise HarnessError(f"Missing entrypoint: {path}")
+    content = path.read_text()
+    if expected.strip() not in content:
+        raise HarnessError(f"Managed entrypoint block differs: {path}")
+
+
+def health_command(repo: Path, package: Path, adapters: Path) -> None:
+    manifest = load_manifest(package)
+    validate_package(package, manifest)
+    state = load_json(repo / STATE_REL)
+    if state != state_value(manifest):
+        raise HarnessError(f"Installed state differs from package: {repo / STATE_REL}")
+    changes = target_diffs(repo, package, manifest)
+    if changes:
+        raise HarnessError("Managed skill drift detected:\n" + "\n".join(changes))
+
+    require_managed_block(repo / AGENTS_REL, (adapters / "AGENTS.product.md").read_text())
+    require_managed_block(repo / CLAUDE_MD_REL, (adapters / "CLAUDE.product.md").read_text())
+    print(
+        f"Healthy: {manifest['name']} {manifest['version']} in {repo}\n"
+        f"  Codex/Kimi/OpenCode: {PORTABLE_REL}\n"
+        f"  Claude Code: {CLAUDE_SKILLS_REL}\n"
+        f"  Skills: {len(manifest['skills'])} unique"
+    )
+
+
+def rollback_command(repo: Path, git_ref: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="inside-harness-rollback-") as temp_value:
+        archive = Path(temp_value) / "harness.tar"
+        result = run(
+            [
+                "git",
+                "-C",
+                str(WORKSPACE),
+                "archive",
+                "--format=tar",
+                "--output",
+                str(archive),
+                git_ref,
+                "harness/packages/inside-engineering",
+                "harness/adapters",
+            ],
+            check=False,
+        )
+        if result.returncode != 0:
+            raise HarnessError(
+                f"Cannot read product harness from Workspace ref {git_ref!r}: "
+                f"{result.stderr.strip() or result.stdout.strip()}"
+            )
+        extracted = Path(temp_value) / "source"
+        extracted.mkdir()
+        with tarfile.open(archive) as bundle:
+            bundle.extractall(extracted, filter="data")
+        package = extracted / "harness/packages/inside-engineering"
+        adapters = extracted / "harness/adapters"
+        install_or_update(repo, package, adapters)
+        print(f"Rolled back using Workspace ref {git_ref}")
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    subcommands = result.add_subparsers(dest="command", required=True)
+    install = subcommands.add_parser("install", help="Install the current product harness")
+    install.add_argument("repository")
+    install.add_argument("--adopt-existing", action="store_true")
+    for name, help_text in (
+        ("update", "Update managed files to the current package"),
+        ("diff", "Compare installed skills with the current package"),
+        ("health", "Validate package, installation, and runtime adapters"),
+    ):
+        command = subcommands.add_parser(name, help=help_text)
+        command.add_argument("repository")
+    rollback = subcommands.add_parser("rollback", help="Install a package from an older Workspace ref")
+    rollback.add_argument("repository")
+    rollback.add_argument("--to", required=True, dest="git_ref")
+    return result
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        repo = repository_root(args.repository)
+        if args.command == "install":
+            install_or_update(
+                repo,
+                DEFAULT_PACKAGE,
+                DEFAULT_ADAPTERS,
+                adopt_existing=args.adopt_existing,
+                initial_only=True,
+            )
+        elif args.command == "update":
+            install_or_update(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
+        elif args.command == "diff":
+            return diff_command(repo, DEFAULT_PACKAGE)
+        elif args.command == "health":
+            health_command(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
+        elif args.command == "rollback":
+            rollback_command(repo, args.git_ref)
+        return 0
+    except HarnessError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
