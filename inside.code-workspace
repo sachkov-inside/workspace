@@ -11,10 +11,6 @@
     {
       "name": "Platform",
       "path": "repositories/platform"
-    },
-    {
-      "name": "Telegram Bot",
-      "path": "repositories/telegram-bot"
     }
   ],
   "settings": {
