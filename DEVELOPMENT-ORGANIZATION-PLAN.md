@@ -20,7 +20,8 @@
 - В Workspace уже используются GitHub Issues и есть product map
   [`workspace#1`](https://github.com/sachkov-inside/workspace/issues/1).
 - У Landing и Platform пока нет issues. Organization-level GitHub Project ещё не создан.
-- Базовый harness опубликован в отдельных branches; merge и release tag ещё не выполнены.
+- `inside-engineering 0.2.0` выпущен tag `inside-engineering-v0.2.0` и установлен в `main`
+  Workspace, Landing и Platform.
 
 ## Целевая модель
 
@@ -47,7 +48,7 @@ Issue хранится в repository, который владеет резуль
 и не становится новым источником требований. Workspace не превращается в центральный backlog для
 всех code changes.
 
-## Этап 0. Завершить rollout базового harness
+## Этап 0. Завершить rollout базового harness — выполнено 2026-08-19
 
 1. Проверить и merge Workspace PR
    [`#16`](https://github.com/sachkov-inside/workspace/pull/16).
@@ -188,8 +189,7 @@ idea / problem
 
 ## Ближайшая последовательность
 
-1. Завершить PR и release базового harness.
-2. Подтвердить модель GitHub Project и настроить tracker.
-3. Зафиксировать repository и task lifecycle в коротких project instructions.
-4. Начать product discovery Platform вопросами по контенту и ролям.
-5. После подтверждённого MVP перейти к stack и архитектуре.
+1. Подтвердить модель GitHub Project и настроить tracker.
+2. Зафиксировать repository и task lifecycle в коротких project instructions.
+3. Начать product discovery Platform вопросами по контенту и ролям.
+4. После подтверждённого MVP перейти к stack и архитектуре.

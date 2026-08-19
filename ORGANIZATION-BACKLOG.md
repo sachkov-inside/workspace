@@ -7,13 +7,17 @@ application scaffold.
 
 ## Точка старта
 
-- Workspace harness смержен в `main`.
-- Harness-ветки Landing и Platform опубликованы, но PR ещё не созданы и в `main` не смержены.
+- `inside-engineering 0.2.0` выпущен tag `inside-engineering-v0.2.0`.
+- Workspace, Landing и Platform содержат release boundary в `main` и проходят `health`/`diff` без
+  drift.
 - Общий GitHub Project для организации `sachkov-inside` ещё не создан.
 - Активные product repositories: `workspace`, `inside-landing`, `platform`.
 - `telegram-bot` не входит в текущую topology и backlog.
 
-## P0 — завершить rollout базового harness
+## P0 — завершить rollout базового harness — выполнено 2026-08-19
+
+Выполнено через Workspace PR #17, Landing PR #2 и Platform PR #2. Release опубликован в
+`sachkov-inside/workspace`.
 
 ### ORG-01. Создать и проверить PR для Landing
 
@@ -237,4 +241,3 @@ Views:
 - Не выбирать framework, database, auth provider или search engine до DISC-07.
 - Не добавлять MCP, hooks, profiles и автоматизацию «на будущее».
 - Не создавать полный backlog будущей большой платформы до проверки первого MVP flow.
-
