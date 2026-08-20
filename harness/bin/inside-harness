@@ -92,6 +92,26 @@ def validate_package(package: Path, manifest: dict) -> None:
     for path in package.rglob("*"):
         if path.is_symlink():
             raise HarnessError(f"Canonical package must not contain symlinks: {path}")
+    managed_files = manifest.get("managedFiles", [])
+    if not isinstance(managed_files, list):
+        raise HarnessError("Package managedFiles must be a list")
+    sources: set[Path] = set()
+    targets: set[Path] = set()
+    reserved_targets = {STATE_REL, AGENTS_REL, CLAUDE_MD_REL}
+    for item in managed_files:
+        if not isinstance(item, dict) or set(item) != {"source", "target"}:
+            raise HarnessError("Each managed file must define only source and target")
+        source = safe_relative_path(item["source"], "managed file source")
+        target = safe_relative_path(item["target"], "managed file target")
+        if source in sources or target in targets:
+            raise HarnessError("Managed file sources and targets must be unique")
+        if target in reserved_targets or target.parts[0] in {PORTABLE_REL.parts[0], CLAUDE_SKILLS_REL.parts[0]}:
+            raise HarnessError(f"Managed file target conflicts with a reserved harness path: {target}")
+        source_path = package / source
+        if not source_path.is_file():
+            raise HarnessError(f"Managed file source is missing or not a file: {source_path}")
+        sources.add(source)
+        targets.add(target)
     seen_names: set[str] = set()
     for name in manifest["skills"]:
         metadata = read_frontmatter(skill_root / name / "SKILL.md")
@@ -104,6 +124,25 @@ def validate_package(package: Path, manifest: dict) -> None:
         if actual_name in seen_names:
             raise HarnessError(f"Duplicate skill name: {actual_name}")
         seen_names.add(actual_name)
+
+
+def safe_relative_path(value: object, label: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise HarnessError(f"Invalid {label}: {value!r}")
+    path = Path(value)
+    if path.is_absolute() or path == Path(".") or ".." in path.parts or path.parts[0] == ".git":
+        raise HarnessError(f"Unsafe {label}: {value!r}")
+    return path
+
+
+def managed_files(manifest: dict) -> list[tuple[Path, Path]]:
+    return [
+        (
+            safe_relative_path(item["source"], "managed file source"),
+            safe_relative_path(item["target"], "managed file target"),
+        )
+        for item in manifest.get("managedFiles", [])
+    ]
 
 
 def files(root: Path) -> dict[Path, Path]:
@@ -136,6 +175,18 @@ def exact_copy(source: Path, target: Path) -> None:
         if target.exists():
             shutil.rmtree(target)
         staged.rename(target)
+
+
+def exact_file_copy(source: Path, target: Path) -> None:
+    if target.is_symlink():
+        raise HarnessError(f"Refusing to replace symlink target: {target}")
+    if target.exists() and not target.is_file():
+        raise HarnessError(f"Refusing to replace non-file target: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f".{target.name}-", dir=target.parent) as temp_value:
+        staged = Path(temp_value) / target.name
+        shutil.copy2(source, staged)
+        staged.replace(target)
 
 
 def git_changes(repo: Path, paths: list[Path]) -> list[str]:
@@ -194,6 +245,7 @@ def state_value(manifest: dict) -> dict:
         "package": manifest["name"],
         "version": manifest["version"],
         "managedSkills": manifest["skills"],
+        "managedFiles": [str(target) for _, target in managed_files(manifest)],
         "targets": {
             "portable": str(PORTABLE_REL),
             "claude": str(CLAUDE_SKILLS_REL),
@@ -209,14 +261,60 @@ def target_diffs(repo: Path, package: Path, manifest: dict) -> list[str]:
         claude = repo / CLAUDE_SKILLS_REL / name
         changes.extend(f"portable/{name}/{item}" for item in tree_diff(source, portable))
         changes.extend(f"claude/{name}/{item}" for item in tree_diff(source, claude))
+    for source_rel, target_rel in managed_files(manifest):
+        source = package / source_rel
+        target = repo / target_rel
+        if not target.exists():
+            changes.append(f"file/{target_rel}/A")
+        elif target.is_symlink() or not target.is_file():
+            changes.append(f"file/{target_rel}/M")
+        elif not filecmp.cmp(source, target, shallow=False):
+            changes.append(f"file/{target_rel}/M")
     return changes
+
+
+def entrypoint_diffs(repo: Path, adapters: Path) -> list[str]:
+    changes: list[str] = []
+    for target_rel, source_name in (
+        (AGENTS_REL, "AGENTS.product.md"),
+        (CLAUDE_MD_REL, "CLAUDE.product.md"),
+    ):
+        target = repo / target_rel
+        expected = (adapters / source_name).read_text().strip()
+        if not target.exists():
+            changes.append(f"entrypoint/{target_rel}/A")
+        elif expected not in target.read_text():
+            changes.append(f"entrypoint/{target_rel}/M")
+    return changes
+
+
+def installation_diffs(repo: Path, package: Path, manifest: dict, adapters: Path) -> list[str]:
+    return target_diffs(repo, package, manifest) + entrypoint_diffs(repo, adapters)
 
 
 def managed_paths(repo: Path, manifest: dict) -> list[Path]:
     result = [STATE_REL, AGENTS_REL, CLAUDE_MD_REL]
     result.extend(PORTABLE_REL / name for name in manifest["skills"])
     result.extend(CLAUDE_SKILLS_REL / name for name in manifest["skills"])
+    result.extend(target for _, target in managed_files(manifest))
     return result
+
+
+def changes_add_only_new_content(changes: list[str], old_state: dict) -> bool:
+    previous_skills = set(old_state.get("managedSkills", []))
+    previous_files = set(old_state.get("managedFiles", []))
+    for change in changes:
+        parts = change.split("/")
+        if parts[0] in {"portable", "claude"}:
+            if len(parts) < 3 or parts[1] in previous_skills or not parts[2].startswith("A "):
+                return False
+        elif parts[0] == "file":
+            target = "/".join(parts[1:-1])
+            if parts[-1] != "A" or target in previous_files:
+                return False
+        else:
+            return False
+    return bool(changes)
 
 
 def install_or_update(
@@ -241,6 +339,15 @@ def install_or_update(
             for candidate in (repo / PORTABLE_REL / name, repo / CLAUDE_SKILLS_REL / name):
                 if candidate.exists() or candidate.is_symlink():
                     conflicts.append(str(candidate.relative_to(repo)))
+        for source_rel, target_rel in managed_files(manifest):
+            source = package / source_rel
+            target = repo / target_rel
+            if target.exists() or target.is_symlink():
+                identical = target.is_file() and not target.is_symlink() and filecmp.cmp(
+                    source, target, shallow=False
+                )
+                if not identical:
+                    conflicts.append(str(target_rel))
         if conflicts and not adopt_existing:
             rendered = "\n  - ".join(conflicts)
             raise HarnessError(
@@ -249,14 +356,9 @@ def install_or_update(
                 + "\nRe-run install with --adopt-existing only after reviewing these directories."
             )
 
-    changes = target_diffs(repo, package, manifest)
+    changes = installation_diffs(repo, package, manifest, adapters)
     if old_state and changes:
-        previously_managed = set(old_state.get("managedSkills", []))
-        additions_only = all(
-            change.split("/", 2)[1] not in previously_managed
-            and change.split("/", 2)[2].startswith("A ")
-            for change in changes
-        )
+        additions_only = changes_add_only_new_content(changes, old_state)
         dirty = git_changes(repo, managed_paths(repo, manifest)) if not additions_only else []
         if dirty:
             raise HarnessError(
@@ -273,20 +375,31 @@ def install_or_update(
             if tree_diff(source, target):
                 exact_copy(source, target)
 
+    for source_rel, target_rel in managed_files(manifest):
+        source = package / source_rel
+        target = repo / target_rel
+        if (
+            not target.exists()
+            or target.is_symlink()
+            or not target.is_file()
+            or not filecmp.cmp(source, target, shallow=False)
+        ):
+            exact_file_copy(source, target)
+
     write_entrypoints(repo, adapters)
     write_json(state_path, state_value(manifest))
     action = "Installed" if not old_state else "Updated"
     print(f"{action} {manifest['name']} {manifest['version']} in {repo}")
 
 
-def diff_command(repo: Path, package: Path) -> int:
+def diff_command(repo: Path, package: Path, adapters: Path) -> int:
     manifest = load_manifest(package)
     validate_package(package, manifest)
-    changes = target_diffs(repo, package, manifest)
+    changes = installation_diffs(repo, package, manifest, adapters)
     if changes:
         print("\n".join(changes))
         return 1
-    print(f"No managed skill drift in {repo}")
+    print(f"No managed harness drift in {repo}")
     return 0
 
 
@@ -306,7 +419,7 @@ def health_command(repo: Path, package: Path, adapters: Path) -> None:
         raise HarnessError(f"Installed state differs from package: {repo / STATE_REL}")
     changes = target_diffs(repo, package, manifest)
     if changes:
-        raise HarnessError("Managed skill drift detected:\n" + "\n".join(changes))
+        raise HarnessError("Managed harness drift detected:\n" + "\n".join(changes))
 
     require_managed_block(repo / AGENTS_REL, (adapters / "AGENTS.product.md").read_text())
     require_managed_block(repo / CLAUDE_MD_REL, (adapters / "CLAUDE.product.md").read_text())
@@ -385,7 +498,7 @@ def main() -> int:
         elif args.command == "update":
             install_or_update(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
         elif args.command == "diff":
-            return diff_command(repo, DEFAULT_PACKAGE)
+            return diff_command(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
         elif args.command == "health":
             health_command(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
         elif args.command == "rollback":

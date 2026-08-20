@@ -55,6 +55,17 @@ class HarnessCliTest(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertTrue((self.repo / ".agents/skills/implement/SKILL.md").is_file())
         self.assertTrue((self.repo / ".claude/skills/implement/SKILL.md").is_file())
+        self.assertEqual(
+            (self.repo / "WORKFLOW.md").read_text(),
+            (WORKSPACE / "harness/packages/inside-engineering/WORKFLOW.md").read_text(),
+        )
+        self.assertEqual(
+            (self.repo / "docs/agents/triage-labels.md").read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/docs/agents/triage-labels.md"
+            ).read_text(),
+        )
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
@@ -80,6 +91,22 @@ class HarnessCliTest(unittest.TestCase):
         self.assertIn("portable/implement/M SKILL.md", result.stdout)
         self.run_cli("health", str(self.repo), expected=2)
         self.run_cli("update", str(self.repo), expected=2)
+
+    def test_health_and_diff_detect_managed_workflow_drift(self) -> None:
+        self.install()
+        workflow = self.repo / "WORKFLOW.md"
+        workflow.write_text(workflow.read_text() + "\ndrift\n")
+        result = self.run_cli("diff", str(self.repo), expected=1)
+        self.assertIn("file/WORKFLOW.md/M", result.stdout)
+        self.run_cli("health", str(self.repo), expected=2)
+        self.run_cli("update", str(self.repo), expected=2)
+
+    def test_diff_detects_managed_entrypoint_drift(self) -> None:
+        self.install()
+        agents = self.repo / "AGENTS.md"
+        agents.write_text(agents.read_text().replace("owner-controlled merge", "merge"))
+        result = self.run_cli("diff", str(self.repo), expected=1)
+        self.assertIn("entrypoint/AGENTS.md/M", result.stdout)
 
     def test_update_allows_a_new_manifest_skill_in_an_uncommitted_install(self) -> None:
         self.install()

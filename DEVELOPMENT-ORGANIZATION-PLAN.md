@@ -17,11 +17,10 @@
 
 - Активная topology: `workspace`, `inside-landing`, `platform`. Repository `telegram-bot` в
   организации отсутствует и не входит в текущий план.
-- Общий product harness `inside-engineering 0.2.0` установлен во все три активных repositories.
-- В Workspace уже используются GitHub Issues и есть product map
-  [`workspace#1`](https://github.com/sachkov-inside/workspace/issues/1).
-- `inside-engineering 0.2.0` выпущен tag `inside-engineering-v0.2.0` и установлен в `main`
-  Workspace, Landing и Platform.
+- Общий product harness установлен во все три активных repositories. Текущая установленная версия
+  package — `inside-engineering 0.2.1`; последний опубликованный release — `0.2.0`.
+- Organization Project настроен и намеренно остаётся пустым до появления первой подтверждённой
+  работы, оформленной по Developer Pipeline.
 
 ## Целевая модель
 
@@ -116,10 +115,11 @@ release train. Основания: [`harness/research/production-branching-strat
 Первый rollout tracker:
 
 1. Создать Project и три views.
-2. Добавить существующие Workspace issues `#1`, `#4`, `#5`, `#6`, `#7`.
-3. Перенести их текущий workflow в поле `Status`.
-4. Проверить один cross-repo пример через parent issue и sub-issue, не создавая большой backlog.
-5. После недельного использования удалить поля, labels или views, которые не помогают принимать
+2. Оставить Project пустым до начала первой реально подтверждённой работы.
+3. Добавить первую готовую issue через repository automation и проверить её движение по `Status`.
+4. Проверить cross-repo parent issue и repo-local child issue только при появлении реальной
+   cross-repository инициативы.
+5. После периода реального использования удалить поля, labels или views, которые не помогают принимать
    решения.
 
 Готово, когда каждая активная задача существует ровно один раз, видна в общем обзоре и при этом

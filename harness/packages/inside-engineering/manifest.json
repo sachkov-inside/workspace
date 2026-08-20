@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",
@@ -38,6 +38,16 @@
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     }
   },
+  "managedFiles": [
+    {
+      "source": "WORKFLOW.md",
+      "target": "WORKFLOW.md"
+    },
+    {
+      "source": "docs/agents/triage-labels.md",
+      "target": "docs/agents/triage-labels.md"
+    }
+  ],
   "skills": [
     "ask-matt",
     "code-review",
