@@ -16,11 +16,9 @@ harness. Build, test и deploy дочернего repository не должны �
 на диске.
 
 Общий product harness хранится в [`harness/`](harness/) и устанавливается в каждый repository
-управляемой project-local копией. Архитектура и lifecycle описаны в [`HARNESS.md`](HARNESS.md).
-Следующие этапы организации repositories, task tracker и технического discovery описаны в
-[`DEVELOPMENT-ORGANIZATION-PLAN.md`](DEVELOPMENT-ORGANIZATION-PLAN.md).
-Исполнимый список задач находится в [`ORGANIZATION-BACKLOG.md`](ORGANIZATION-BACKLOG.md).
-Общий lifecycle от issue до owner-controlled merge описан в [`WORKFLOW.md`](WORKFLOW.md).
+управляемой project-local копией. Архитектура и release lifecycle описаны в
+[`HARNESS.md`](HARNESS.md), а общий путь от issue до owner-controlled merge — в
+[`WORKFLOW.md`](WORKFLOW.md).
 
 ## VS Code
 

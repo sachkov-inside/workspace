@@ -9,16 +9,16 @@ committed, project-local distribution and remains usable without the Workspace b
 - Claude Code discovers the same release at `.claude/skills/`.
 - `AGENTS.md` is the common instruction entrypoint. `CLAUDE.md` imports it for Claude Code.
 - `WORKFLOW.md` and `docs/agents/triage-labels.md` are shared managed documents.
-- Repository-specific skills stay beside the managed suite in `.agents/skills/` and are preserved.
+- Repository-specific skills stay in the shared snapshot under unique names and are preserved.
 
-The two runtime directories are managed copies of one canonical package, not independent sources.
-Discovery stays project-local and uses no symlinks, user-level installation, or custom prompt
-routing.
+The two runtime directories are repository-relative discovery links to one committed snapshot at
+`.inside-harness/skills/`. Discovery stays project-local and uses no machine-local link targets,
+user-level installation, or custom prompt routing.
 
 The harness assumes no user-level skills, MCP, plugins or hooks. A repository that needs an
 integration owns its native project config and health check; credentials remain outside Git.
 
-The current `inside-engineering 0.2.1` package contains the Developer Pipeline, triage labels, and
+The current `inside-engineering 0.3.0` package contains the Developer Pipeline, triage labels, and
 32 shared skills: Matt Pocock's complete stable suite of 25 plus 7 frontend and web-development
 skills. Their exact sources and licensing notes are recorded in
 `packages/inside-engineering/SOURCE.md`.
@@ -58,4 +58,4 @@ the chosen ref already contains this harness layout.
 5. Commit and tag the Workspace release only after owner approval.
 6. Update other repositories one at a time and review their Git diffs.
 
-There are no automatic upstream updates, symlinks, profiles, or complex lock files.
+There are no automatic upstream updates, machine-local links, profiles, or complex lock files.
