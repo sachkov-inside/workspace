@@ -20,6 +20,7 @@ harness. Build, test и deploy дочернего repository не должны �
 Следующие этапы организации repositories, task tracker и технического discovery описаны в
 [`DEVELOPMENT-ORGANIZATION-PLAN.md`](DEVELOPMENT-ORGANIZATION-PLAN.md).
 Исполнимый список задач находится в [`ORGANIZATION-BACKLOG.md`](ORGANIZATION-BACKLOG.md).
+Общий lifecycle от issue до owner-controlled merge описан в [`WORKFLOW.md`](WORKFLOW.md).
 
 ## VS Code
 

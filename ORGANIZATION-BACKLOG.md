@@ -69,24 +69,24 @@ application scaffold.
   которые не требуют платного тарифа.
 - Готово, когда настройки не отличаются без явной причины.
 
-### ORG-07. Записать общий workflow разработки
+### ORG-07. Записать Developer Pipeline
 
 - Repository: `workspace`.
 - Создать короткий `WORKFLOW.md` со следующими правилами:
   - где создавать product, cross-repo и repo-local issues;
-  - одна задача → одна branch → один PR;
+  - одна содержательная задача → одна branch → один PR;
   - branch naming;
-  - связь PR с issue;
-  - когда нужен questionnaire, spec, ADR или prototype;
+  - когда PR требует issue, а trivial docs/chore может идти без него;
   - Definition of Ready и Definition of Done;
   - owner-controlled merge.
+- Invocation и steps отдельных skills остаются в самих skills и не пересказываются здесь.
 - Готово, когда новый агент может выбрать правильный repository и следующий шаг без догадок.
 
 ### ORG-08. Добавить минимальный PR template
 
 - Repositories: все активные.
-- Поля: результат, связанный issue, что проверено, `Not tested`, screenshots для UI, отдельные owner
-  decisions.
+- Поля: результат, связанный issue when applicable, что проверено, `Not tested`, отдельные owner
+  decisions; Landing также запрашивает screenshots для UI changes.
 - Не добавлять большой checklist, пока реальные ошибки не покажут его необходимость.
 - Готово, когда новые PR используют одинаковый минимальный contract.
 
@@ -94,7 +94,8 @@ application scaffold.
 
 - `workspace`: команды unit tests, `inside-harness health`, граница product/cross-repo docs.
 - `inside-landing`: реальные install/build/test/deploy команды и UI Definition of Done.
-- `platform`: пока указать команды как `N/A`; заполнить их только после выбора stack.
+- `platform`: зафиксировать отсутствие application toolchain одной фразой; добавить реальные
+  команды только после выбора stack.
 - Не копировать общие skills повторно и не добавлять MCP или hooks без повторяющейся потребности.
 - Готово, когда `AGENTS.md` каждого repository описывает только его собственную работу поверх
   общего product harness.
@@ -136,12 +137,17 @@ Views:
 
 Минимальный каталог:
 
-- тип: `type::decision`, `type::research`, `type::feature`, `type::task`, `type::bug`;
-- режим: `hitl`, `afk`;
-- специальные labels добавляются только при повторяющейся необходимости.
+- optional category: `bug`, `enhancement`;
+- triage readiness: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`;
+- Wayfinder: `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`,
+  `wayfinder:grilling`, `wayfinder:task`;
+- дополнительные labels добавляются только при повторяющейся необходимости.
 
-`workflow::*` labels постепенно убрать после переноса статуса в GitHub Project. Не хранить один и
-тот же статус одновременно в label и Project field.
+Старые `workflow::*`, `type::*`, `hitl` и `afk` мигрировать после переноса текущих issues. Project
+`Status` хранит delivery stage, triage labels — readiness role; это разные оси.
+
+Канонические triage и Wayfinder labels установлены во всех трёх repositories 2026-08-20. До
+завершения TRK-03 остаются миграция legacy Workspace labels и проверка optional categories.
 
 Готово, когда одинаковые labels имеют одинаковый смысл во всех repositories.
 

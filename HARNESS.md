@@ -95,7 +95,7 @@ harness/bin/inside-harness rollback <repository> --to <workspace-git-ref>
 Rollback читает package и adapters из выбранного Git ref Workspace. Он станет доступен после
 первого commit/release, содержащего текущую структуру harness.
 
-## Как обновлять общий pipeline
+## Как обновлять общий product harness
 
 1. Изменить canonical package в Workspace.
 2. Обновить `manifest.json` и provenance, если изменился upstream.
@@ -108,3 +108,7 @@ Upstream не обновляется автоматически. User-level prof
 changes в product harness не входят. Если integration становится recurring, она добавляется в
 конкретный repository через native project config и проверяется его `health`; credentials остаются
 в native auth или environment.
+
+Общий delivery lifecycle называется Developer Pipeline и описан в [`WORKFLOW.md`](WORKFLOW.md).
+Product harness поставляет composable skills для него, но не владеет GitHub settings, branches,
+Project fields или owner-controlled merge policy.
