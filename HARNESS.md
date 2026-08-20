@@ -1,7 +1,7 @@
 # Harness Sachkov Inside
 
-Текущая версия: `inside-engineering 0.2.0`. Canonical source выпускается tag
-`inside-engineering-v0.2.0` и устанавливается в Workspace, Landing и Platform.
+Текущая установленная package-версия: `inside-engineering 0.2.1`. Последний опубликованный release
+— `inside-engineering-v0.2.0`; новый tag создаётся только после явного одобрения владельца.
 
 ## Итоговая модель
 
@@ -14,7 +14,7 @@
 Inside Workspace
   └─ canonical source общего product harness
        ├─ installer и проверки
-       ├─ inside-engineering 0.2.0
+       ├─ inside-engineering 0.2.1
        └─ adapters общих instructions
             │
             ├─ install/update → Workspace repository
@@ -44,14 +44,16 @@ harness/
 ├── packages/
 │   └── inside-engineering/
 │       ├── manifest.json
+│       ├── WORKFLOW.md
+│       ├── docs/agents/triage-labels.md
 │       ├── SOURCE.md
 │       ├── LICENSE
 │       └── skills/
 └── tests/
 ```
 
-`inside-engineering 0.2.0` содержит 32 skills: полный stable-набор Matt Pocock из 25 skills и 7
-общих frontend/web skills (`frontend-design`, `impeccable`, `karpathy-guidelines`,
+`inside-engineering 0.2.1` содержит общий Developer Pipeline, triage labels и 32 skills: полный
+stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills (`frontend-design`, `impeccable`, `karpathy-guidelines`,
 `modern-web-guidance`, `playwright-cli`, `vercel-react-best-practices`,
 `web-design-guidelines`). `in-progress` и `misc` Matt Pocock не импортированы. Источники и условия
 лицензирования зафиксированы в package metadata и `SOURCE.md`.
@@ -64,6 +66,8 @@ harness/
 .inside-harness/product-harness.json    # package и установленная версия
 AGENTS.md                               # общий entrypoint + repo-specific правила
 CLAUDE.md                               # импорт AGENTS.md
+WORKFLOW.md                             # общий Developer Pipeline
+docs/agents/triage-labels.md            # общие readiness-роли
 ```
 
 Обе runtime-директории являются управляемыми копиями одного package. Repo-specific skills можно
@@ -84,7 +88,7 @@ harness/bin/inside-harness rollback <repository> --to <workspace-git-ref>
 
 Первичная миграция существующих одноимённых skills требует явного `--adopt-existing`. Installer:
 
-- управляет только именами из package manifest и собственными blocks в entrypoints;
+- управляет только skills и files из package manifest и собственными blocks в entrypoints;
 - сохраняет неизвестные repo-specific skills и unrelated settings;
 - останавливается при конфликте или изменённом managed-файле; незакоммиченная установка принимает
   только новые skill-имена из следующей версии package;
