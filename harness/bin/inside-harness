@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import filecmp
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -20,8 +21,14 @@ WORKSPACE = SCRIPT.parents[2]
 DEFAULT_PACKAGE = WORKSPACE / "harness/packages/inside-engineering"
 DEFAULT_ADAPTERS = WORKSPACE / "harness/adapters"
 STATE_REL = Path(".inside-harness/product-harness.json")
+SNAPSHOT_REL = Path(".inside-harness/skills")
+REGISTRY_REL = SNAPSHOT_REL / "REGISTRY.md"
 PORTABLE_REL = Path(".agents/skills")
 CLAUDE_SKILLS_REL = Path(".claude/skills")
+DISCOVERY_LINKS = {
+    PORTABLE_REL: "../.inside-harness/skills",
+    CLAUDE_SKILLS_REL: "../.inside-harness/skills",
+}
 AGENTS_REL = Path("AGENTS.md")
 CLAUDE_MD_REL = Path("CLAUDE.md")
 PACKAGE_NAME = "inside-engineering"
@@ -73,10 +80,24 @@ def read_frontmatter(skill_file: Path) -> dict[str, str]:
     if end < 0:
         raise HarnessError(f"Unclosed YAML frontmatter: {skill_file}")
     values: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        match = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
-        if match:
-            values[match.group(1)] = match.group(2).strip().strip("\"")
+    lines = text[4:end].splitlines()
+    index = 0
+    while index < len(lines):
+        match = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*?)\s*$", lines[index])
+        if not match:
+            index += 1
+            continue
+        key, value = match.groups()
+        if value in {"|", ">"}:
+            block: list[str] = []
+            index += 1
+            while index < len(lines) and (not lines[index] or lines[index][0].isspace()):
+                block.append(lines[index].strip())
+                index += 1
+            values[key] = " ".join(part for part in block if part)
+            continue
+        values[key] = value.strip().strip("\"")
+        index += 1
     return values
 
 
@@ -110,6 +131,73 @@ def files(root: Path) -> dict[Path, Path]:
     if not root.exists():
         return {}
     return {path.relative_to(root): path for path in root.rglob("*") if path.is_file()}
+
+
+def registry_content(root: Path) -> str:
+    rows: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for directory in sorted(path for path in root.iterdir() if path.is_dir()):
+        metadata = read_frontmatter(directory / "SKILL.md")
+        name = metadata.get("name")
+        description = metadata.get("description")
+        if name != directory.name or not description:
+            raise HarnessError(f"Invalid project skill metadata: {directory}")
+        if name in seen:
+            raise HarnessError(f"Duplicate project skill name: {name}")
+        seen.add(name)
+        rows.append((name, description.replace("|", "\\|")))
+    lines = [
+        "# Project Skill Registry",
+        "",
+        "Search metadata here, then open only the exact matching `SKILL.md`.",
+        "",
+        "| Skill | Project path | When to use |",
+        "|---|---|---|",
+    ]
+    lines.extend(
+        f"| `{name}` | `.inside-harness/skills/{name}` | {description} |"
+        for name, description in rows
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_registry(repo: Path) -> None:
+    path = repo / REGISTRY_REL
+    path.write_text(registry_content(repo / SNAPSHOT_REL))
+
+
+def ensure_discovery_links(repo: Path) -> None:
+    for relative, target in DISCOVERY_LINKS.items():
+        path = repo / relative
+        if path.is_symlink() and os.readlink(path) == target:
+            continue
+        if path.exists() or path.is_symlink():
+            raise HarnessError(f"Discovery path is not the managed link: {path}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(target)
+
+
+def migrate_legacy_roots(repo: Path, manifest: dict) -> None:
+    snapshot = repo / SNAPSHOT_REL
+    snapshot.mkdir(parents=True, exist_ok=True)
+    managed = set(manifest["skills"])
+    for relative in DISCOVERY_LINKS:
+        root = repo / relative
+        if root.is_symlink() or not root.exists():
+            continue
+        if not root.is_dir():
+            raise HarnessError(f"Legacy discovery path is not a directory: {root}")
+        for child in sorted(root.iterdir()):
+            if not child.is_dir() or child.name in managed:
+                continue
+            target = snapshot / child.name
+            if target.exists():
+                if tree_diff(child, target):
+                    raise HarnessError(f"Conflicting project skill during migration: {child.name}")
+            else:
+                shutil.copytree(child, target)
+        shutil.rmtree(root)
+    ensure_discovery_links(repo)
 
 
 def tree_diff(source: Path, target: Path) -> list[str]:
@@ -190,10 +278,11 @@ def write_entrypoints(repo: Path, adapters: Path) -> None:
 
 def state_value(manifest: dict) -> dict:
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "package": manifest["name"],
         "version": manifest["version"],
         "managedSkills": manifest["skills"],
+        "snapshot": str(SNAPSHOT_REL),
         "targets": {
             "portable": str(PORTABLE_REL),
             "claude": str(CLAUDE_SKILLS_REL),
@@ -205,17 +294,14 @@ def target_diffs(repo: Path, package: Path, manifest: dict) -> list[str]:
     changes: list[str] = []
     for name in manifest["skills"]:
         source = package / "skills" / name
-        portable = repo / PORTABLE_REL / name
-        claude = repo / CLAUDE_SKILLS_REL / name
-        changes.extend(f"portable/{name}/{item}" for item in tree_diff(source, portable))
-        changes.extend(f"claude/{name}/{item}" for item in tree_diff(source, claude))
+        target = repo / SNAPSHOT_REL / name
+        changes.extend(f"snapshot/{name}/{item}" for item in tree_diff(source, target))
     return changes
 
 
 def managed_paths(repo: Path, manifest: dict) -> list[Path]:
-    result = [STATE_REL, AGENTS_REL, CLAUDE_MD_REL]
-    result.extend(PORTABLE_REL / name for name in manifest["skills"])
-    result.extend(CLAUDE_SKILLS_REL / name for name in manifest["skills"])
+    result = [STATE_REL, REGISTRY_REL, PORTABLE_REL, CLAUDE_SKILLS_REL, AGENTS_REL, CLAUDE_MD_REL]
+    result.extend(SNAPSHOT_REL / name for name in manifest["skills"])
     return result
 
 
@@ -238,7 +324,7 @@ def install_or_update(
     conflicts: list[str] = []
     if not old_state:
         for name in manifest["skills"]:
-            for candidate in (repo / PORTABLE_REL / name, repo / CLAUDE_SKILLS_REL / name):
+            for candidate in (repo / SNAPSHOT_REL / name, repo / PORTABLE_REL / name, repo / CLAUDE_SKILLS_REL / name):
                 if candidate.exists() or candidate.is_symlink():
                     conflicts.append(str(candidate.relative_to(repo)))
         if conflicts and not adopt_existing:
@@ -249,8 +335,27 @@ def install_or_update(
                 + "\nRe-run install with --adopt-existing only after reviewing these directories."
             )
 
+    migrated = False
+    if old_state and old_state.get("schemaVersion") == 1:
+        dirty = git_changes(repo, managed_paths(repo, manifest))
+        if dirty:
+            raise HarnessError(
+                "Legacy managed files have uncommitted changes; refusing to migrate:\n"
+                + "\n".join(dirty)
+            )
+        migrate_legacy_roots(repo, manifest)
+        migrated = True
+    elif not old_state and (
+        adopt_existing
+        or any((repo / relative).is_dir() and not (repo / relative).is_symlink() for relative in DISCOVERY_LINKS)
+    ):
+        migrate_legacy_roots(repo, manifest)
+        migrated = True
+    else:
+        ensure_discovery_links(repo)
+
     changes = target_diffs(repo, package, manifest)
-    if old_state and changes:
+    if old_state and changes and not migrated:
         previously_managed = set(old_state.get("managedSkills", []))
         additions_only = all(
             change.split("/", 2)[1] not in previously_managed
@@ -266,13 +371,11 @@ def install_or_update(
 
     for name in manifest["skills"]:
         source = package / "skills" / name
-        for target in (
-            repo / PORTABLE_REL / name,
-            repo / CLAUDE_SKILLS_REL / name,
-        ):
-            if tree_diff(source, target):
-                exact_copy(source, target)
+        target = repo / SNAPSHOT_REL / name
+        if tree_diff(source, target):
+            exact_copy(source, target)
 
+    write_registry(repo)
     write_entrypoints(repo, adapters)
     write_json(state_path, state_value(manifest))
     action = "Installed" if not old_state else "Updated"
@@ -307,13 +410,21 @@ def health_command(repo: Path, package: Path, adapters: Path) -> None:
     changes = target_diffs(repo, package, manifest)
     if changes:
         raise HarnessError("Managed skill drift detected:\n" + "\n".join(changes))
+    for relative, target in DISCOVERY_LINKS.items():
+        path = repo / relative
+        if not path.is_symlink() or os.readlink(path) != target:
+            raise HarnessError(f"Broken discovery link: {relative} -> {target}")
+    expected_registry = registry_content(repo / SNAPSHOT_REL)
+    registry = repo / REGISTRY_REL
+    if not registry.is_file() or registry.read_text() != expected_registry:
+        raise HarnessError(f"Project skill registry differs: {registry}")
 
     require_managed_block(repo / AGENTS_REL, (adapters / "AGENTS.product.md").read_text())
     require_managed_block(repo / CLAUDE_MD_REL, (adapters / "CLAUDE.product.md").read_text())
     print(
         f"Healthy: {manifest['name']} {manifest['version']} in {repo}\n"
-        f"  Codex/Kimi/OpenCode: {PORTABLE_REL}\n"
-        f"  Claude Code: {CLAUDE_SKILLS_REL}\n"
+        f"  Snapshot: {SNAPSHOT_REL}\n"
+        f"  Discovery: {PORTABLE_REL}, {CLAUDE_SKILLS_REL}\n"
         f"  Skills: {len(manifest['skills'])} unique"
     )
 

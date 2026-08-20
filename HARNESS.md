@@ -1,7 +1,7 @@
 # Harness Sachkov Inside
 
-Текущая версия: `inside-engineering 0.2.0`. Canonical source выпускается tag
-`inside-engineering-v0.2.0` и устанавливается в Workspace, Landing и Platform.
+Текущая версия: `inside-engineering 0.3.0`. Следующий canonical release tag —
+`inside-engineering-v0.3.0`; пакет устанавливается в Workspace, Landing и Platform.
 
 ## Итоговая модель
 
@@ -50,7 +50,7 @@ harness/
 └── tests/
 ```
 
-`inside-engineering 0.2.0` содержит 32 skills: полный stable-набор Matt Pocock из 25 skills и 7
+`inside-engineering 0.3.0` содержит 32 skills: полный stable-набор Matt Pocock из 25 skills и 7
 общих frontend/web skills (`frontend-design`, `impeccable`, `karpathy-guidelines`,
 `modern-web-guidance`, `playwright-cli`, `vercel-react-best-practices`,
 `web-design-guidelines`). `in-progress` и `misc` Matt Pocock не импортированы. Источники и условия
@@ -59,16 +59,18 @@ harness/
 В каждом repository installer создаёт:
 
 ```text
-.agents/skills/                         # Codex, Kimi Code, OpenCode
-.claude/skills/                         # Claude Code
-.inside-harness/product-harness.json    # package и установленная версия
+.inside-harness/skills/                 # единственный physical snapshot + REGISTRY.md
+.agents/skills -> ../.inside-harness/skills
+.claude/skills -> ../.inside-harness/skills
+.inside-harness/product-harness.json    # package, версия и managed skill names
 AGENTS.md                               # общий entrypoint + repo-specific правила
 CLAUDE.md                               # импорт AGENTS.md
 ```
 
-Обе runtime-директории являются управляемыми копиями одного package. Repo-specific skills можно
-добавлять рядом с ними под уникальными именами. После переноса frontend-набора у Landing остаётся
-один локальный skill: `add-reference`.
+Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
+OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они
+не входят в `managedSkills` package state. После переноса frontend-набора у Landing остаётся один
+локальный skill: `add-reference`.
 
 ## Рабочий цикл
 

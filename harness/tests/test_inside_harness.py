@@ -55,6 +55,9 @@ class HarnessCliTest(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertTrue((self.repo / ".agents/skills/implement/SKILL.md").is_file())
         self.assertTrue((self.repo / ".claude/skills/implement/SKILL.md").is_file())
+        self.assertTrue((self.repo / ".agents/skills").is_symlink())
+        self.assertTrue((self.repo / ".claude/skills").is_symlink())
+        self.assertTrue((self.repo / ".inside-harness/skills/REGISTRY.md").is_file())
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
@@ -74,10 +77,10 @@ class HarnessCliTest(unittest.TestCase):
 
     def test_health_and_diff_detect_drift(self) -> None:
         self.install()
-        target = self.repo / ".agents/skills/implement/SKILL.md"
+        target = self.repo / ".inside-harness/skills/implement/SKILL.md"
         target.write_text(target.read_text() + "\ndrift\n")
         result = self.run_cli("diff", str(self.repo), expected=1)
-        self.assertIn("portable/implement/M SKILL.md", result.stdout)
+        self.assertIn("snapshot/implement/M SKILL.md", result.stdout)
         self.run_cli("health", str(self.repo), expected=2)
         self.run_cli("update", str(self.repo), expected=2)
 
@@ -88,15 +91,14 @@ class HarnessCliTest(unittest.TestCase):
         state = json.loads(state_path.read_text())
         state["managedSkills"].remove(name)
         state_path.write_text(json.dumps(state, indent=2) + "\n")
-        shutil.rmtree(self.repo / ".agents/skills" / name)
-        shutil.rmtree(self.repo / ".claude/skills" / name)
+        shutil.rmtree(self.repo / ".inside-harness/skills" / name)
 
         self.run_cli("update", str(self.repo))
         self.run_cli("health", str(self.repo))
 
     def test_update_refuses_to_restore_a_deleted_managed_skill_in_a_dirty_install(self) -> None:
         self.install()
-        shutil.rmtree(self.repo / ".agents/skills/implement")
+        shutil.rmtree(self.repo / ".inside-harness/skills/implement")
         self.run_cli("update", str(self.repo), expected=2)
 
     def test_unrelated_claude_settings_are_untouched(self) -> None:
@@ -113,6 +115,22 @@ class HarnessCliTest(unittest.TestCase):
         claude = {path.name for path in (self.repo / ".claude/skills").iterdir() if path.is_dir()}
         self.assertEqual(portable, set(MANIFEST["skills"]))
         self.assertEqual(claude, set(MANIFEST["skills"]))
+        self.assertEqual(
+            (self.repo / ".agents/skills").resolve(),
+            (self.repo / ".claude/skills").resolve(),
+        )
+
+    def test_registry_folds_multiline_skill_descriptions(self) -> None:
+        self.install()
+        registry = (self.repo / ".inside-harness/skills/REGISTRY.md").read_text()
+        self.assertIn(
+            "Search tool for modern web development best practices. MANDATORY:",
+            registry,
+        )
+        self.assertNotIn(
+            "| `modern-web-guidance` | `.inside-harness/skills/modern-web-guidance` | \\| |",
+            registry,
+        )
 
 
 if __name__ == "__main__":
