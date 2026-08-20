@@ -58,4 +58,10 @@ the chosen ref already contains this harness layout.
 5. Commit and tag the Workspace release only after owner approval.
 6. Update other repositories one at a time and review their Git diffs.
 
+The version tag is required: it binds the package version to an exact Workspace commit and gives
+`rollback --to` a stable Git ref. A GitHub Release is optional and is useful only for separate
+release notes or downloadable assets. The current installer does not download GitHub Releases;
+`update` reads the canonical Workspace package and `rollback --to` reads the selected Workspace
+Git ref.
+
 There are no automatic upstream updates, machine-local links, profiles, or complex lock files.

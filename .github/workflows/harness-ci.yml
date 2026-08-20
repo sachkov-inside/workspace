@@ -1,0 +1,22 @@
+name: Harness CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python3 -m unittest discover -s harness/tests -v
+      - run: harness/bin/inside-harness health .
+      - run: harness/bin/inside-harness diff .
