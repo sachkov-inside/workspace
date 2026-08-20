@@ -19,6 +19,29 @@ The issue holds discussion and execution history; record confirmed durable knowl
 versioned document. When connected, GitHub Project remains a projection over issues and pull
 requests.
 
+## Tracker
+
+Use the organization-level [Inside project](https://github.com/orgs/sachkov-inside/projects/1) as
+the shared view. Keep requirements, discussion, and execution history in the owning repository
+issue.
+
+`Status` records delivery state:
+
+- `Inbox`: captured but not ready;
+- `Ready`: ready for implementation;
+- `In progress`: actively being worked;
+- `Review`: implementation is in pull request review;
+- `Blocked`: cannot advance without a dependency or owner decision;
+- `Done`: the issue is closed or the pull request is merged.
+
+`Priority` is `Now`, `Next`, or `Later`. `Area` is `Product`, `Platform`, `Landing`, or
+`Operations`. Triage and Wayfinder labels describe readiness and work shape; they do not duplicate
+delivery state or priority.
+
+Repository workflows add new and reopened issues and pull requests to the Project. Set `Area` and
+`Priority` during triage, move `Status` with the work, and treat the repository issue or pull
+request state as authoritative when it conflicts with the Project.
+
 ## Issues, branches, and pull requests
 
 Product work, bugs, architecture, and substantial documentation changes start from one primary

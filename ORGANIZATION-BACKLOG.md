@@ -1,8 +1,9 @@
 # Backlog организации работы Sachkov Inside
 
-Статус: следующий исполнимый план после merge Workspace PR #16, 2026-08-19.
+Статус: P2 выполнен; следующий этап — P3, 2026-08-20.
 
-Задачи выполняются по порядку. До завершения блоков P0–P2 не выбираем stack Platform и не создаём
+Задачи выполняются в порядке зависимостей; безопасные независимые изменения внутри этапа могут
+выполняться параллельно. До завершения блоков P0–P2 не выбираем stack Platform и не создаём
 application scaffold.
 
 ## Точка старта
@@ -10,7 +11,9 @@ application scaffold.
 - `inside-engineering 0.2.0` выпущен tag `inside-engineering-v0.2.0`.
 - Workspace, Landing и Platform содержат release boundary в `main` и проходят `health`/`diff` без
   drift.
-- Общий GitHub Project для организации `sachkov-inside` ещё не создан.
+- Organization-level GitHub Project
+  [`Inside`](https://github.com/orgs/sachkov-inside/projects/1) создан и содержит реальную текущую
+  работу.
 - Активные product repositories: `workspace`, `inside-landing`, `platform`.
 - `telegram-bot` не входит в текущую topology и backlog.
 
@@ -48,7 +51,9 @@ application scaffold.
 - Удалить локальные и remote feature branches только после подтверждённого merge.
 - Готово, когда все проверки проходят, а working trees чистые.
 
-## P1 — зафиксировать правила repositories
+## P1 — зафиксировать правила repositories — выполнено 2026-08-20
+
+Выполнено через Workspace PR #20 и #22, Landing PR #5 и Platform PR #5.
 
 ### ORG-05. Зафиксировать активную repository topology
 
@@ -108,16 +113,20 @@ application scaffold.
 - Зафиксировать только необходимые VS Code workspace settings; не коммитить личные editor settings.
 - Готово, когда из одного окна можно безопасно работать с тремя независимыми repositories.
 
-## P2 — настроить task tracker
+## P2 — настроить task tracker — выполнено 2026-08-20
 
-### TRK-01. Создать organization-level GitHub Project
+Выполнено через Workspace PR #24, Landing PR #8 и Platform PR #7. GitHub Project intake и
+переходы в `Done` проверены live workflow runs во всех трёх repositories; полный lifecycle
+проверен Workspace issue #26 и связанным pull request.
+
+### TRK-01. Создать organization-level GitHub Project — выполнено 2026-08-20
 
 - Owner: `sachkov-inside`.
 - Name: `Inside`.
 - Project агрегирует issues и PR из `workspace`, `inside-landing` и `platform`.
 - Готово, когда общий обзор работает без переноса всех issues в Workspace.
 
-### TRK-02. Настроить минимальные поля и views
+### TRK-02. Настроить минимальные поля и views — выполнено 2026-08-20
 
 Поля:
 
@@ -133,7 +142,7 @@ Views:
 
 Готово, когда любой активный item виден без дополнительных таблиц и документов.
 
-### TRK-03. Нормализовать labels во всех repositories
+### TRK-03. Нормализовать labels во всех repositories — выполнено 2026-08-20
 
 Минимальный каталог:
 
@@ -146,19 +155,20 @@ Views:
 Старые `workflow::*`, `type::*`, `hitl` и `afk` мигрировать после переноса текущих issues. Project
 `Status` хранит delivery stage, triage labels — readiness role; это разные оси.
 
-Канонические triage и Wayfinder labels установлены во всех трёх repositories 2026-08-20. До
-завершения TRK-03 остаются миграция legacy Workspace labels и проверка optional categories.
+Канонические triage и Wayfinder labels, а также optional categories `bug` и `enhancement`
+установлены во всех трёх repositories 2026-08-20. Legacy Workspace labels перенесены на
+канонические эквиваленты и удалены; неиспользуемые default labels удалены.
 
 Готово, когда одинаковые labels имеют одинаковый смысл во всех repositories.
 
-### TRK-04. Перенести текущую работу в Project
+### TRK-04. Перенести текущую работу в Project — выполнено 2026-08-20
 
 - Добавить Workspace issues `#1`, `#4`, `#5`, `#6`, `#7`.
 - Для каждого указать Status, Priority и Area.
 - Закрытые issues не переносить, если они не нужны для текущего обзора.
 - Готово, когда Project отражает реальную текущую работу, а не искусственно созданный backlog.
 
-### TRK-05. Зафиксировать routing новых issues
+### TRK-05. Зафиксировать routing новых issues — выполнено 2026-08-20
 
 - Product discovery, owner decisions и cross-repo initiatives → `workspace`.
 - Landing implementation и bugs → `inside-landing`.
@@ -166,14 +176,16 @@ Views:
 - Cross-repo initiative → parent issue в Workspace и repo-local sub-issues.
 - Готово, когда одна задача существует ровно в одном repository.
 
-### TRK-06. Настроить минимальную автоматизацию Project
+### TRK-06. Настроить минимальную автоматизацию Project — выполнено 2026-08-20
 
 - Автоматически добавлять новые issues и PR из трёх активных repositories.
 - Закрытый issue или merged PR переводить в Done.
-- Не добавлять custom bots, Actions или внешние платные сервисы.
+- Не добавлять custom bots или внешние платные сервисы. Repository-local GitHub Actions допустимы
+  только для multi-repository auto-add, который недоступен встроенной автоматизации бесплатного
+  Project; использовать официальный action, pinned на immutable commit.
 - Готово, когда типовые изменения статуса не требуют ручного дублирования.
 
-### TRK-07. Проверить tracker на одной реальной задаче
+### TRK-07. Проверить tracker на одной реальной задаче — выполнено 2026-08-20
 
 - Создать одну небольшую repo-local task.
 - Провести её через Inbox → Ready → In progress → Review → Done.
