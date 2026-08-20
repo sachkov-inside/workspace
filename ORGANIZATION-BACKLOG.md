@@ -1,6 +1,6 @@
 # Backlog организации работы Sachkov Inside
 
-Статус: P2 в работе, 2026-08-20.
+Статус: P2 выполнен; следующий этап — P3, 2026-08-20.
 
 Задачи выполняются в порядке зависимостей; безопасные независимые изменения внутри этапа могут
 выполняться параллельно. До завершения блоков P0–P2 не выбираем stack Platform и не создаём
@@ -113,7 +113,11 @@ application scaffold.
 - Зафиксировать только необходимые VS Code workspace settings; не коммитить личные editor settings.
 - Готово, когда из одного окна можно безопасно работать с тремя независимыми repositories.
 
-## P2 — настроить task tracker
+## P2 — настроить task tracker — выполнено 2026-08-20
+
+Выполнено через Workspace PR #24, Landing PR #8 и Platform PR #7. GitHub Project intake и
+переходы в `Done` проверены live workflow runs во всех трёх repositories; полный lifecycle
+проверен Workspace issue #26 и связанным pull request.
 
 ### TRK-01. Создать organization-level GitHub Project — выполнено 2026-08-20
 
@@ -172,7 +176,7 @@ Views:
 - Cross-repo initiative → parent issue в Workspace и repo-local sub-issues.
 - Готово, когда одна задача существует ровно в одном repository.
 
-### TRK-06. Настроить минимальную автоматизацию Project — в работе
+### TRK-06. Настроить минимальную автоматизацию Project — выполнено 2026-08-20
 
 - Автоматически добавлять новые issues и PR из трёх активных repositories.
 - Закрытый issue или merged PR переводить в Done.
@@ -181,7 +185,7 @@ Views:
   Project; использовать официальный action, pinned на immutable commit.
 - Готово, когда типовые изменения статуса не требуют ручного дублирования.
 
-### TRK-07. Проверить tracker на одной реальной задаче
+### TRK-07. Проверить tracker на одной реальной задаче — выполнено 2026-08-20
 
 - Создать одну небольшую repo-local task.
 - Провести её через Inbox → Ready → In progress → Review → Done.
