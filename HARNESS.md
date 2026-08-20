@@ -1,7 +1,8 @@
 # Harness Sachkov Inside
 
-Текущая версия и canonical release — `inside-engineering 0.3.0` / `inside-engineering-v0.3.0`.
-Пакет установлен в Workspace, Landing и Platform.
+Текущая package-версия — `inside-engineering 0.3.0`; её canonical release boundary — tag
+`inside-engineering-v0.3.0`. Package распространяется в Workspace, Landing и Platform через
+явный rollout lifecycle ниже.
 
 ## Итоговая модель
 
