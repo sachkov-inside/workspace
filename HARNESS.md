@@ -1,7 +1,8 @@
 # Harness Sachkov Inside
 
-Текущая установленная package-версия: `inside-engineering 0.2.1`. Последний опубликованный release
-— `inside-engineering-v0.2.0`; новый tag создаётся только после явного одобрения владельца.
+Текущая package-версия — `inside-engineering 0.3.0`; её canonical release boundary — tag
+`inside-engineering-v0.3.0`. Package распространяется в Workspace, Landing и Platform через
+явный rollout lifecycle ниже.
 
 ## Итоговая модель
 
@@ -14,7 +15,7 @@
 Inside Workspace
   └─ canonical source общего product harness
        ├─ installer и проверки
-       ├─ inside-engineering 0.2.1
+       ├─ inside-engineering 0.3.0
        └─ adapters общих instructions
             │
             ├─ install/update → Workspace repository
@@ -26,9 +27,10 @@ Inside Workspace
   └─ собственные instructions, skills, MCP/hooks при необходимости, build/test/run/deploy
 ```
 
-Workspace является единственным местом, где редактируется общий набор. Установленные копии
-коммитятся в каждый repository, поэтому repository работает автономно: без соседнего Workspace,
-абсолютных machine-local путей, symlinks и предположений о user-level skills/MCP/plugins/hooks.
+Workspace является единственным местом, где редактируется общий набор. Установленный snapshot и
+его repository-relative discovery links коммитятся в каждый repository, поэтому repository
+работает автономно: без соседнего Workspace, абсолютных machine-local путей и предположений о
+user-level skills/MCP/plugins/hooks.
 
 ## Что реализовано
 
@@ -52,8 +54,9 @@ harness/
 └── tests/
 ```
 
-`inside-engineering 0.2.1` содержит общий Developer Pipeline, triage labels и 32 skills: полный
-stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills (`frontend-design`, `impeccable`, `karpathy-guidelines`,
+`inside-engineering 0.3.0` содержит общий Developer Pipeline, triage labels и 32 skills: полный
+stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills (`frontend-design`,
+`impeccable`, `karpathy-guidelines`,
 `modern-web-guidance`, `playwright-cli`, `vercel-react-best-practices`,
 `web-design-guidelines`). `in-progress` и `misc` Matt Pocock не импортированы. Источники и условия
 лицензирования зафиксированы в package metadata и `SOURCE.md`.
@@ -61,18 +64,20 @@ stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills
 В каждом repository installer создаёт:
 
 ```text
-.agents/skills/                         # Codex, Kimi Code, OpenCode
-.claude/skills/                         # Claude Code
-.inside-harness/product-harness.json    # package и установленная версия
+.inside-harness/skills/                 # единственный physical snapshot + REGISTRY.md
+.agents/skills -> ../.inside-harness/skills
+.claude/skills -> ../.inside-harness/skills
+.inside-harness/product-harness.json    # package, версия и managed skill names
 AGENTS.md                               # общий entrypoint + repo-specific правила
 CLAUDE.md                               # импорт AGENTS.md
 WORKFLOW.md                             # общий Developer Pipeline
 docs/agents/triage-labels.md            # общие readiness-роли
 ```
 
-Обе runtime-директории являются управляемыми копиями одного package. Repo-specific skills можно
-добавлять рядом с ними под уникальными именами. После переноса frontend-набора у Landing остаётся
-один локальный skill: `add-reference`.
+Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
+OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они
+не входят в `managedSkills` package state. После переноса frontend-набора у Landing остаётся один
+локальный skill: `add-reference`.
 
 ## Рабочий цикл
 
