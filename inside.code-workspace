@@ -17,9 +17,11 @@
     "git.autoRepositoryDetection": "subFolders",
     "git.repositoryScanMaxDepth": 3,
     "files.exclude": {
+      "**/bin": false,
       "repositories": true
     },
     "search.exclude": {
+      "**/bin": false,
       "repositories": true
     }
   }
