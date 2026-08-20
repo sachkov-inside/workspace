@@ -1,7 +1,8 @@
 # План организации разработки Sachkov Inside
 
-Статус: рабочий план, 2026-08-19. Решения из следующих этапов подтверждаются владельцем перед
-реализацией.
+Фактический статус этапов ведётся в
+[`ORGANIZATION-BACKLOG.md`](ORGANIZATION-BACKLOG.md). Решения из следующих этапов подтверждаются
+владельцем перед реализацией.
 
 Конкретные задачи, порядок и критерии готовности вынесены в
 [`ORGANIZATION-BACKLOG.md`](ORGANIZATION-BACKLOG.md).
@@ -19,7 +20,6 @@
 - Общий product harness `inside-engineering 0.2.0` установлен во все три активных repositories.
 - В Workspace уже используются GitHub Issues и есть product map
   [`workspace#1`](https://github.com/sachkov-inside/workspace/issues/1).
-- У Landing и Platform пока нет issues. Organization-level GitHub Project ещё не создан.
 - `inside-engineering 0.2.0` выпущен tag `inside-engineering-v0.2.0` и установлен в `main`
   Workspace, Landing и Platform.
 
