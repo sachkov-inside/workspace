@@ -38,6 +38,16 @@
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     }
   },
+  "managedFiles": [
+    {
+      "source": "WORKFLOW.md",
+      "target": "WORKFLOW.md"
+    },
+    {
+      "source": "docs/agents/triage-labels.md",
+      "target": "docs/agents/triage-labels.md"
+    }
+  ],
   "skills": [
     "ask-matt",
     "code-review",

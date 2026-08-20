@@ -8,6 +8,7 @@ committed, project-local distribution and remains usable without the Workspace b
 - Codex, Kimi Code, and OpenCode discover the shared suite at `.agents/skills/`.
 - Claude Code discovers the same release at `.claude/skills/`.
 - `AGENTS.md` is the common instruction entrypoint. `CLAUDE.md` imports it for Claude Code.
+- `WORKFLOW.md` and `docs/agents/triage-labels.md` are shared managed documents.
 - Repository-specific skills stay beside the managed suite in `.agents/skills/` and are preserved.
 
 The two runtime directories are managed copies of one canonical package, not independent sources.
@@ -17,9 +18,10 @@ routing.
 The harness assumes no user-level skills, MCP, plugins or hooks. A repository that needs an
 integration owns its native project config and health check; credentials remain outside Git.
 
-The current `inside-engineering 0.2.0` package contains 32 shared skills: Matt Pocock's complete
-stable suite of 25 plus 7 frontend and web-development skills. Their exact sources and licensing
-notes are recorded in `packages/inside-engineering/SOURCE.md`.
+The current `inside-engineering 0.2.1` package contains the Developer Pipeline, triage labels, and
+32 shared skills: Matt Pocock's complete stable suite of 25 plus 7 frontend and web-development
+skills. Their exact sources and licensing notes are recorded in
+`packages/inside-engineering/SOURCE.md`.
 
 ## Commands
 
@@ -40,9 +42,9 @@ harness/bin/inside-harness rollback repositories/platform --to <workspace-git-re
 managed names and those directories are deliberately being brought under product-harness ownership.
 Unknown skills are never removed.
 
-`update` refuses to overwrite changed managed files. A package release that only adds new skill
-directories can be adopted safely before the initial installation diff is committed. A no-op
-update is safe and idempotent.
+`update` refuses to overwrite changed managed files. A package release that only adds new managed
+content can be adopted safely before the initial installation diff is committed. A no-op update is
+safe and idempotent.
 
 `rollback --to` reads the package and adapters from a previous Workspace Git ref. It requires that
 the chosen ref already contains this harness layout.

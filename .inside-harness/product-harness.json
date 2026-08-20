@@ -37,6 +37,10 @@
     "writing-for-agents"
   ],
   "snapshot": ".inside-harness/skills",
+  "managedFiles": [
+    "WORKFLOW.md",
+    "docs/agents/triage-labels.md"
+  ],
   "targets": {
     "portable": ".agents/skills",
     "claude": ".claude/skills"

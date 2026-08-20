@@ -230,9 +230,7 @@ production-инциденты внутрь материалов не попад�
   версии будущего Inside-приложения и открытые решения перед bootstrap.
 - GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions
   2026-08-15 и acceptance этого master-документа.
-- GitHub Map [#1](https://github.com/sachkov-inside/workspace/issues/1) — актуальная граница и
-  decision graph продукта.
-- Issues [#4](https://github.com/sachkov-inside/workspace/issues/4),
-  [#5](https://github.com/sachkov-inside/workspace/issues/5) и
-  [#6](https://github.com/sachkov-inside/workspace/issues/6) — незакрытые owner decisions по
-  kickoff pack, build-series и публичному offer.
+
+Новые GitHub issues по открытым решениям создаются только при начале реальной работы по Developer
+Pipeline; до этого подтверждённый контекст и открытые решения остаются в versioned product
+documents.
