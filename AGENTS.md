@@ -6,16 +6,12 @@ Workspace owns product documents, cross-repository decisions, Developer Pipeline
 source of the shared product harness. Application code, application ADRs, build and deploy remain
 in the repository that owns the application.
 
-## Developer Pipeline
+## Working agreements
 
-For issue routing, discovery/spec boundaries, branch/PR lifecycle, readiness, completion and merge
-gates, read `WORKFLOW.md`. Every PR starts from a repo-local issue. Merge remains owner-controlled.
-
-Engineering skills read repository-local configuration from:
-
-- `docs/agents/issue-tracker.md` for GitHub issue and Wayfinder operations;
-- `docs/agents/triage-labels.md` for canonical triage roles;
-- `docs/agents/domain.md` for product vocabulary and ADR boundaries.
+- For issue routing, branches, pull requests, readiness, delivery or merge, read `WORKFLOW.md`.
+- For GitHub triage or Wayfinder operations, read `docs/agents/issue-tracker.md` and
+  `docs/agents/triage-labels.md`.
+- For product terminology, repository ownership or ADR placement, read `docs/agents/domain.md`.
 
 ## Verification
 

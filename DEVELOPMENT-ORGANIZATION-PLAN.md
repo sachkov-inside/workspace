@@ -106,7 +106,7 @@ release train. Основания: [`harness/research/production-branching-strat
 4. Project `Status` хранит delivery stage. Канонические Matt Pocock labels отдельно хранят triage
    readiness (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) и не
    заменяются Project field.
-5. Triage categories (`bug`, `enhancement`) и Wayfinder labels должны иметь одинаковый смысл во
+5. Optional categories (`bug`, `enhancement`) и Wayfinder labels должны иметь одинаковый смысл во
    всех repositories. Дополнительные labels появляются только из повторяющейся потребности.
 6. Документ и issue не дублируют друг друга: issue управляет работой, документ хранит устойчивое
    знание и принятое решение.
@@ -127,24 +127,10 @@ release train. Основания: [`harness/research/production-branching-strat
 
 ## Этап 3. Использовать Developer Pipeline
 
-Канонический contract находится в [`WORKFLOW.md`](WORKFLOW.md).
-
-Для содержательной разработки использовать одну последовательность:
-
-```text
-idea / problem
-  → repo-local issue
-  → grill-with-docs и условные research / questionnaire / prototype / wayfinder
-  → to-spec и to-tickets для multi-session delivery
-  → branch <type>/<issue>-<slug>
-  → implement, проверки и code-review
-  → PR
-  → merge по решению владельца
-  → обновление durable docs, если изменилось решение
-```
-
-До начала implementation у задачи должны быть понятны результат, границы, acceptance criteria и
-необходимость owner decision. Не каждая небольшая правка требует отдельного большого spec.
+Канонический project-specific contract находится в [`WORKFLOW.md`](WORKFLOW.md). Invocation и steps
+установленных skills остаются в их собственных описаниях. Для содержательной разработки нужен
+repo-local issue; trivial docs/chore может идти напрямую в короткий PR. До implementation должны
+быть понятны результат, границы, acceptance criteria и необходимость owner decision.
 
 ## Этап 4. Провести product discovery Platform
 

@@ -2,11 +2,10 @@
 
 Workspace owns product language, cross-repository boundaries and shared decisions.
 
-Before product or cross-repository work, read the relevant local sources:
+For product terminology or cross-repository ownership, read the relevant local sources:
 
 - `product/README.md` and the relevant brief under `product/`;
 - `REPOSITORIES.md` for repository ownership;
-- `WORKFLOW.md` for Developer Pipeline;
 - `CONTEXT.md` and relevant `docs/adr/` entries when they exist.
 
 Use one `CONTEXT.md` and root `docs/adr/` unless real code or package boundaries later justify a
