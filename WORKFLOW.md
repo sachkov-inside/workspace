@@ -1,79 +1,81 @@
 # Developer Pipeline
 
-Это project-specific engineering agreement Sachkov Inside. Installed skills сами определяют свои
-invocation и steps; этот файл задаёт только общие правила repositories, branches, pull requests и
-owner gates.
+This is the project-specific engineering agreement for Sachkov Inside. Installed skills define
+their own invocation and steps; this file defines only the shared rules for repositories, branches,
+pull requests, and owner gates.
 
 ## Routing
 
-Issue создаётся в repository, которому принадлежит результат:
+Create an issue in the repository that owns the outcome:
 
-| Результат | Repository |
+| Outcome | Repository |
 |---|---|
-| Product discovery, owner decision, общий документ или cross-repo initiative | `workspace` |
-| Изменение или bug публичного landing | `inside-landing` |
-| Изменение или bug Membership-платформы | `platform` |
+| Product discovery, owner decision, shared document, or cross-repository initiative | `workspace` |
+| Change or bug in the public landing | `inside-landing` |
+| Change or bug in the Membership platform | `platform` |
 
-Cross-repo initiative имеет parent issue в Workspace и repo-local child issues. Issue хранит
-обсуждение и исполнение; подтверждённое устойчивое знание записывается один раз в versioned
-document. GitHub Project, когда он подключён, остаётся projection над issues и PR.
+A cross-repository initiative has a parent issue in Workspace and repository-local child issues.
+The issue holds discussion and execution history; record confirmed durable knowledge once in a
+versioned document. When connected, GitHub Project remains a projection over issues and pull
+requests.
 
-## Issue, branch и PR
+## Issues, branches, and pull requests
 
-Product work, bugs, architecture и нетривиальные изменения документации начинаются с одного
-primary repo-local issue. Trivial docs/chore может идти напрямую в короткий PR, если не требует
-обсуждения, tracking или owner decision.
+Product work, bugs, architecture, and substantial documentation changes start from one primary
+repository-local issue. Trivial docs or chore work may go directly to a short pull request when it
+needs no discussion, tracking, or owner decision.
 
-Branch создаётся от актуального `main`. Для tracked work имя имеет вид
-`<type>/<issue>-<slug>`; для trivial untracked work — `<type>/<slug>`. Используются types `feat`,
-`fix`, `docs`, `chore`, `research` и `prototype`.
+Create branches from the current `main`. Tracked work uses `<type>/<issue>-<slug>`; trivial
+untracked work uses `<type>/<slug>`. Supported types are `feat`, `fix`, `docs`, `chore`, `research`,
+and `prototype`.
 
-Одна содержательная задача использует одну branch и один PR. Для tracked work PR содержит
-`Closes #<issue>`. Каждый PR описывает результат, проверки, `Not tested` и открытые owner
-decisions; UI evidence добавляется только при изменении интерфейса. После merge GitHub удаляет
-head branch автоматически.
+One meaningful task uses one branch and one pull request. For tracked work, the pull request
+includes `Closes #<issue>`. Every pull request states the result, verification, `Not tested`, and
+open owner decisions. Add UI evidence only for interface changes. GitHub deletes the head branch
+after merge.
 
-### Long-lived branches и deployment
+### Long-lived branches and deployment
 
-`main` — единственная long-lived integration branch. Preview, staging и production являются
-deployment environments, а не branches.
+`main` is the only long-lived integration branch. Preview, staging, and production are deployment
+environments, not branches.
 
-Временная `release/<version>` появляется только при реальной maintenance boundary: одновременно
-поддерживаются несколько production versions, release candidate требует freeze или внешний
-calendar/certification требует release train. Для неё сразу записываются срок поддержки и условие
-удаления. Обычный hotfix идёт через `fix/<issue>-<slug>` в `main`; backport PR нужен только для
-активной release branch.
+Create a temporary `release/<version>` only for a real maintenance boundary: supporting multiple
+production versions, freezing a release candidate while `main` advances, or meeting an external
+calendar or certification requirement. Record its support period and deletion condition when it is
+created. A normal hotfix uses `fix/<issue>-<slug>` into `main`; use a backport pull request only for
+an active release branch.
 
-## Ready и Done
+## Ready and Done
 
-Tracked work готов к implementation, когда известны result, scope, acceptance criteria, blockers
-и owner decisions. Для multi-session delivery также согласованы decomposition и dependencies.
-Readiness roles берутся из repo-local `docs/agents/triage-labels.md`; Wayfinder structure — из
-`docs/agents/issue-tracker.md`.
+Tracked work is ready for implementation when the result, scope, acceptance criteria, blockers,
+and owner decisions are known. Multi-session delivery also requires an agreed decomposition and
+dependencies. Read readiness roles from the repository-local `docs/agents/triage-labels.md` and
+Wayfinder structure from `docs/agents/issue-tracker.md`.
 
-Работа готова к owner merge, когда:
+Work is ready for owner merge when:
 
-- acceptance criteria выполнены, а out-of-scope не расширен молча;
-- relevant focused checks и полная repository verification проходят;
-- durable docs и ADR обновлены, если изменилось подтверждённое решение;
-- PR заполнен по template, связан с issue when applicable и явно перечисляет `Not tested`;
-- UI change содержит mobile и desktop evidence и прошёл repo-specific UI DoD;
-- owner дал явный GO на merge.
+- acceptance criteria are met without silently expanding scope;
+- relevant focused checks and full repository verification pass;
+- durable documents and ADRs are updated when a confirmed decision changed;
+- the pull request follows its template, links an issue when applicable, and states `Not tested`;
+- a UI change includes mobile and desktop evidence and passes the repository-specific UI
+  Definition of Done;
+- the owner gives explicit merge approval.
 
-Implementation, spec и architecture changes проходят Standards + Spec `code-review` от
-согласованного fixed point. Для trivial docs/chore достаточно bounded diff review и relevant
+Implementation, specification, and architecture changes run Standards and Spec `code-review` from
+an agreed fixed point. Trivial docs or chore work needs only a bounded diff review and relevant
 verification.
 
 ## Owner gates
 
-Явный owner GO обязателен для:
+Explicit owner approval is required for:
 
-- product и visual decisions;
-- трудно обратимых ADR с реальным trade-off;
-- testing seams и ticket breakdown, когда выбранный skill требует согласования;
-- публикации, платежей, credentials, внешних сообщений и других рискованных external writes;
-- merge любого PR.
+- product and visual decisions;
+- hard-to-reverse ADRs with a real trade-off;
+- testing seams and ticket breakdown when the selected skill requires approval;
+- publishing, payments, credentials, external messages, and other risky external writes;
+- every pull request merge.
 
-Готовую `ready-for-agent` задачу агент реализует автономно внутри этих границ. Merge выполняется
-только владельцем или после его явного разрешения, методом squash; готовность PR сама по себе не
-является разрешением.
+An agent implements a `ready-for-agent` issue autonomously within these boundaries. Only the owner,
+or an agent acting after explicit owner approval, may squash-merge a pull request. Review readiness
+alone is not merge permission.
