@@ -102,7 +102,7 @@ Platform уже bootstrapped как pnpm workspace. Следующие реше�
 | Jobs | `pg-boss`; product queues создаются только вместе с первым durable job |
 | Search | PostgreSQL FTS, ranking и bounded RU/EN normalization; без отдельного engine |
 | Deployment | Docker Compose, Caddy, immutable OCI images и digest-pinned release manifest |
-| Assets | private/public objects во внешнем S3-compatible storage; provider выбирается owner |
+| Assets | private/public objects и retained video originals во внешнем S3-compatible storage; provider выбирается owner |
 | Video | Kinescope, существующие account и tariff; production adapter проходит credentialed proof |
 | Telemetry | structured JSON logs, OpenTelemetry/Prometheus-compatible collection и off-host alerts |
 | Backup | pgBackRest + continuous WAL archive/PITR; external object versioning |
@@ -113,7 +113,7 @@ Platform уже bootstrapped как pnpm workspace. Следующие реше�
 | Seam | Target | Fallback / no-go | Decision record |
 |---|---|---|---|
 | Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed UX, capacity, operations, restore или exit gate | Platform ADR после identity proof |
-| Data access | Kysely + `pg`, Kysely Migrator/`kysely-ctl`, generated DB types | Drizzle + `pg` на pinned stable line при failed migration/type-generation gate | Platform ADR после data proof |
+| Data access | Kysely + `pg`, Kysely Migrator/`kysely-ctl`, generated DB types | Drizzle + `pg` на pinned stable line при любом failed hard gate: transaction atomicity/escape, migrations/types/drift, FTS plan/ranking, parameterization/N+1, observability, overhead или operability | Platform ADR после data proof |
 | Content document | versioned ProseMirror JSON + Tiptap | остановка для отдельного Portable Text comparison только при failed round-trip/renderer/MCP gate | Platform ADR после content proof |
 
 Каждый implementing PR обновляет lockfile и фиксирует exact library versions. До зелёного proof
@@ -356,6 +356,8 @@ budget до production, а не исключает проверку.
 - release строится один раз и продвигается staging -> owner GO -> production по digest manifest;
 - migration contract expand/migrate/contract сохраняет `N-1 app + N schema` compatibility;
 - PostgreSQL + Logto state восстанавливаются pgBackRest/PITR; S3 objects имеют versioning/restore;
+- Kinescope source originals хранятся независимо от provider до доказанного recovery/export и
+  accepted retention policy; sample original восстанавливается и повторно ingest-ится в drill;
 - production target: observed `RPO <= 1 hour`, `RTO <= 4 hours`;
 - monthly database restore и quarterly/infra-change empty-VPS drill блокируют launch при failed
   coverage;
@@ -437,11 +439,13 @@ outage проходят credentialed staging proof. Closed access включае
 ### Stage 5 — complete delivery, MCP и member activity
 
 Результат: author/MCP управляют полным v1 document set, private assets/downloads и Kinescope upload
--> process -> preview -> publish -> play; member читает, скачивает, смотрит и получает read state /
-recent history. Provider callbacks и jobs idempotent/reconciled.
+-> process -> preview -> publish -> play; source original сохраняется независимо от Kinescope;
+member читает, скачивает, смотрит и получает read state / recent history. Provider callbacks и
+jobs idempotent/reconciled.
 
-Exit: strict Kinescope callback, continued-play bound, S3 private delivery, cross-revision mismatch,
-provider outage, MCP `409`/idempotency и reading-state access cases зелёные на staging.
+Exit: strict Kinescope callback, continued-play bound, provider recovery/export plus original
+restore/re-ingest, S3 private delivery, cross-revision mismatch, provider outage, MCP
+`409`/idempotency и reading-state access cases зелёные на staging.
 
 ### Stage 6 — content population и full user launch
 
@@ -453,7 +457,7 @@ Exit:
 
 - все v1 journeys, security/cache/a11y/performance budgets и provider acceptance зелёные;
 - production monitoring/alerts, backup retention cycle, monthly restore и empty-VPS recovery drill
-  доказывают RPO/RTO;
+  доказывают RPO/RTO, включая sample Kinescope original restore/re-ingest;
 - no-go при failed access, recovery, callback, migration или owner GO;
 - дальнейшая публикация full materials происходит в Platform, Telegram остаётся announcement и
   community surface.
@@ -498,8 +502,10 @@ upload/reconciliation может быть доказан author-only fixture р�
    `inside-telegram`. Создание private repository выполняется только на Stage 4 trigger и после
    owner confirmation имени; никакой messaging/admin scope не включается.
 
-GitHub issues и native dependencies создаются вместе с этой specification. Identity proof и Stage
-1 delivery ticket не получают `ready-for-agent`, пока owner не закроет входы из следующего раздела.
+GitHub issues и доступные native dependencies создаются вместе с этой specification. Для #60
+native `blocked_by` edge откладывается до появления конкретного Platform Stage 3 issue; сейчас
+Project `Blocked` и body #60 явно фиксируют future dependency. Identity proof и Stage 1 delivery
+ticket не получают `ready-for-agent`, пока owner не закроет входы из следующего раздела.
 
 ## 13. Open owner decisions и ADR inputs
 
@@ -518,6 +524,7 @@ GitHub issues и native dependencies создаются вместе с этой
 | Blue/green capacity vs accepted recreate downtime | Stage 1/6 | blue/green при measured capacity | record downtime before launch |
 | GitHub protected Environment reviewer vs owner-only `workflow_dispatch` | Stage 1/6 | protected Environment при доступном plan | production GO path blocked |
 | S3 versioning/restore/pgBackRest compatibility и retention cost | Stage 2/6 | provider proof before private assets/backups | delivery/launch blocked |
+| Kinescope original retention location/cost и provider recovery/export | Stage 5/6 | independent retained original + sample restore/re-ingest | video/launch blocked |
 | Repository name `inside-telegram` | Stage 4 bootstrap | confirm current working name | repository creation blocked |
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
 | Kinescope strict callback mechanics и acceptable continued-play window | Stage 5 | strict fail-closed; measure current plan | video remains unavailable |
