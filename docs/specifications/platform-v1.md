@@ -45,8 +45,7 @@ relation не входит в обязательный v1 scope. Первый Pl
 - MCP поверх тех же application commands и правил, что admin и REST;
 - PostgreSQL full-text search, metadata navigation и related materials;
 - reading state `прочитано / не прочитано` и минимальная history;
-- ручное создание актуальных материалов с опорой на Telegram как visual reference;
-- staging, production release, observability, backup и recovery contract.
+- ручное создание актуальных материалов с опорой на Telegram как visual reference.
 
 ### Не входит
 
@@ -57,10 +56,16 @@ relation не входит в обязательный v1 scope. Первый Pl
 - multi-author workflow, UGC, real-time collaboration, CRDT/Yjs;
 - AI search, autonomous publish, delegated member access для MCP;
 - Redis, отдельный search service, event bus или новые deployables без доказанного consumer;
-- instant recall уже доставленных bytes или выданной video license.
+- instant recall уже доставленных bytes или выданной video license;
+- production environments, deployment, release/rollback, capacity, domains, monitoring, secrets,
+  backup и recovery — они получат отдельную specification перед реальным release;
+- final visual language, information design, typography, palette, motion и component/UI library —
+  их до frontend implementation проектирует отдельная
+  [Platform specification #19](https://github.com/sachkov-inside/platform/issues/19).
 
-Промежуточные этапы не сокращают эту продуктовую границу. V1 считается выпущенной только после
-Stage 6 и полного пользовательского launch gate.
+Этапы ниже доводят v1 до feature-complete candidate в согласованной тестовой среде, но не объявляют
+его released. Production delivery начинается только из отдельной owner-approved release and
+infrastructure specification, созданной позже на основе измеренного application shape.
 
 ## 3. Канонические входы
 
@@ -78,9 +83,11 @@ Stage 6 и полного пользовательского launch gate.
   OIDC linking, `getChatMember` evidence и five-minute freshness;
 - [Kinescope lifecycle](../research/platform-kinescope-video-lifecycle.md) — выбранный provider,
   local Video identity, reconciliation и strict authorization adapter;
-- [ContentAccess](../research/platform-content-access.md) — единый provider-neutral policy module;
-- [delivery and recovery](../research/platform-delivery-recovery.md) — digest-pinned promotion,
-  off-host telemetry, pgBackRest/PITR, RPO и RTO.
+- [ContentAccess](../research/platform-content-access.md) — единый provider-neutral policy module.
+
+[Delivery and recovery research](../research/platform-delivery-recovery.md) остаётся evidence для
+будущей отдельной specification. Его environments, release, observability и recovery choices не
+являются scope или gate текущего delivery graph.
 
 Общий словарь `Principal`, Membership evidence/entitlement и `ContentAccess` находится в
 [`CONTEXT.md`](../../CONTEXT.md).
@@ -101,18 +108,15 @@ Platform уже bootstrapped как pnpm workspace. Следующие реше�
 | Transactional store | PostgreSQL 18; exact image pin принадлежит Platform repository |
 | Jobs | `pg-boss`; product queues создаются только вместе с первым durable job |
 | Search | PostgreSQL FTS, ranking и bounded RU/EN normalization; без отдельного engine |
-| Deployment | Docker Compose, Caddy, immutable OCI images и digest-pinned release manifest |
-| Assets | private/public objects и retained video originals во внешнем S3-compatible storage; provider выбирается owner |
-| Video | Kinescope, существующие account и tariff; production adapter проходит credentialed proof |
-| Telemetry | structured JSON logs, OpenTelemetry/Prometheus-compatible collection и off-host alerts |
-| Backup | pgBackRest + continuous WAL archive/PITR; external object versioning |
+| Assets | private/public object-storage seam; exact provider и operations выбираются позже |
+| Video | Kinescope, существующие account и tariff; application adapter проходит credentialed proof |
 
 Три choices остаются условными до Stage 0 proofs. Их fallback задан заранее, поэтому proof не
 превращается в новое широкое исследование:
 
 | Seam | Target | Fallback / no-go | Decision record |
 |---|---|---|---|
-| Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed UX, capacity, operations, restore или exit gate | Platform ADR после identity proof |
+| Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed application UX/protocol gate; operational acceptance остаётся в future infrastructure work | Platform ADR только после application и operational proofs |
 | Data access | Kysely + `pg`, Kysely Migrator/`kysely-ctl`, generated DB types | Drizzle + `pg` на pinned stable line при любом failed hard gate: transaction atomicity/escape, migrations/types/drift, FTS plan/ranking, parameterization/N+1, observability, overhead или operability | Platform ADR после data proof |
 | Content document | versioned ProseMirror JSON + Tiptap | остановка для отдельного Portable Text comparison только при failed round-trip/renderer/MCP gate | Platform ADR после content proof |
 
@@ -120,11 +124,15 @@ Platform уже bootstrapped как pnpm workspace. Следующие реше�
 условный target нельзя описывать как окончательно выбранный stack или использовать в последующих
 feature tickets.
 
+Visual stack намеренно не выбран здесь. Platform #19 сначала фиксирует UX structure и owner taste,
+сравнивает rendered concepts, а затем доказывает component/primitives strategy на принятом
+направлении. Production frontend feature code не начинается до этого UI gate.
+
 Будущий `inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY и
 PostgreSQL. Kysely + `pg` применяется там только после собственного bounded data proof; Platform и
 Telegram application не делят database, source package или migration history.
 
-## 5. System context и deployables
+## 5. System context и process boundaries
 
 ```mermaid
 flowchart LR
@@ -155,12 +163,17 @@ flowchart LR
 | `worker` | durable projection, reconciliation и provider jobs | отдельная domain model или write path |
 | `mcp` | authenticated MCP tools/resources поверх application interfaces | SQL, autonomous publish или borrowed browser Membership |
 
-Platform processes продвигаются одним release manifest. Они могут масштабироваться отдельно, но
-не становятся отдельными repositories/services до появления реального distribution seam.
+Process entrypoints используют одни application modules и могут проверяться отдельно. Их final
+deployment topology остаётся вне этой specification; новые repositories/services не создаются до
+появления реального distribution seam.
 
-`inside-telegram` — отдельный deployable, потому что владеет Telegram credentials, OIDC linking,
-Bot API calls и своим failure/recovery lifecycle. Platform вызывает его только через versioned,
-authenticated HTTP interface; tests используют in-memory adapter того же port.
+`inside-telegram` — отдельная application, потому что владеет Telegram credentials, OIDC linking и
+Bot API calls. Platform вызывает её только через versioned, authenticated HTTP interface; tests
+используют in-memory adapter того же port. Deployment shape обеих applications будет определён
+позже.
+
+Next.js process и его application seams являются техническим baseline, но visual structure и UI
+foundation принадлежат Platform #19.
 
 ## 6. Platform modules и seams
 
@@ -305,9 +318,8 @@ read/download/play path.
 - strict issuer/audience/expiry validation, short tokens, no secrets/tokens/raw sessions в logs;
 - safe server renderer без raw HTML/MDX; allowlisted URLs/nodes, CSP и bounded document limits;
 - closed bodies/objects физически или логически отделены от public projections/objects;
-- every protected allow/deny, preview и dependency failure auditable через opaque local IDs;
-- production/non-production secrets и databases разделены; plaintext secret не попадает в Git,
-  image, CI artifact или telemetry.
+- every protected allow/deny, preview и dependency failure получает safe correlation/audit facts
+  через opaque local IDs; final telemetry pipeline определяется позже.
 
 ### SEO
 
@@ -329,7 +341,7 @@ read/download/play path.
 
 ### Performance
 
-На production-like staging с зафиксированным fixture corpus:
+В repeatable agreed test environment с зафиксированным fixture corpus:
 
 - public page server response p95 не выше 800 ms, protected non-video page p95 не выше 1.5 s без
   учёта user email/Telegram interaction;
@@ -339,38 +351,26 @@ read/download/play path.
 - API/worker pool limits, query plans и payload/document limits измерены; Redis не добавляется как
   лечение непроверенного bottleneck.
 
-Если staging profile или corpus делает budget нерепрезентативным, owner принимает новый measured
-budget до production, а не исключает проверку.
+Если profile или corpus делает budget нерепрезентативным, owner принимает новый measured budget до
+UI implementation. Production SLO отдельно подтверждается будущей release/infrastructure
+specification.
 
-### Observability и availability
+### Отложенные operational NFR
 
-- JSON logs содержат release/request/trace IDs и safe result codes; metrics покрывают HTTP, DB,
-  queue, providers, entitlement refresh, callback, backup/WAL и worker heartbeat;
-- `/health/live`, `/health/ready` и отдельный authenticated synthetic journey имеют разные роли;
-- off-host probe и alert receiver не зависят от production VPS;
-- public projection может работать при identity/Telegram outage; closed/mutation paths используют
-  только ещё valid local evidence и затем fail closed.
-
-### Backup, recovery и release
-
-- release строится один раз и продвигается staging -> owner GO -> production по digest manifest;
-- migration contract expand/migrate/contract сохраняет `N-1 app + N schema` compatibility;
-- PostgreSQL + Logto state восстанавливаются pgBackRest/PITR; S3 objects имеют versioning/restore;
-- Kinescope source originals хранятся независимо от provider до доказанного recovery/export и
-  accepted retention policy; sample original восстанавливается и повторно ingest-ится в drill;
-- production target: observed `RPO <= 1 hour`, `RTO <= 4 hours`;
-- monthly database restore и quarterly/infra-change empty-VPS drill блокируют launch при failed
-  coverage;
-- rollback application manifest не запускает автоматическую down migration или destructive PITR.
+Environments, delivery, release/rollback, infrastructure capacity, secrets operations, telemetry,
+alerts, backup/recovery и production SLO намеренно не определяются здесь. Они требуют отдельной
+Workspace specification, когда Stage 5 даст реальный process/data/provider/capacity profile. До
+этого текущие исследования не превращаются в deploy backlog или скрытый launch gate.
 
 ## 10. Вертикальные этапы
 
-Каждый этап заканчивается проверяемым результатом и не открывает следующий зависимый path раньше
-exit gate.
+Этапы описывают capability delivery в repeatable local/CI/agreed integration environment. Они не
+задают environments, deploy или production launch chronology. UI design track идёт параллельно
+application core и блокирует только production frontend implementation.
 
-### Stage 0 — синхронизировать contract и доказать условный stack
+### Stage 0 — синхронизировать contract и доказать headless foundations
 
-Среда: clean CI/ephemeral Compose; temporary callback environment только для identity proof.
+Среда: clean CI/ephemeral Compose.
 
 Результат:
 
@@ -378,46 +378,65 @@ exit gate.
 - Kysely/Drizzle decision доказана на Material, FTS, transaction и migration replay;
 - ProseMirror/Tiptap decision доказана round-trip, safe render, schema migration и semantic MCP
   concurrency fixtures;
-- Logto/Better Auth decision проходит полный canonical identity gate: branded redirect/mark и
-  email-code policy; Next BFF и Nest validation; committed OIDC/M2M reason; Yandex horizon;
-  capacity; private single-admin Console без MFA и compensating audit; provider email delivery;
-  backup/restore, upgrade/rollback и portable exit evidence;
-- accepted Platform ADR фиксирует каждый прошедший hard-to-reverse choice и exact versions.
+- Platform #19–#23 фиксируют отдельный UX/visual/UI foundation track до frontend feature code;
+- accepted Platform ADR фиксирует только реально доказанный hard-to-reverse choice и exact
+  versions.
 
-Exit: нет незафиксированного conditional stack; failed target явно переключён на documented
-fallback. Identity proof ticket создаётся только после owner inputs из раздела 13 и повторяет все
-canonical gates выше. Ни product package, ни Telegram deployable не создаётся внутри proof без
-соответствующего accepted decision.
+Exit: data/document targets либо зелёные, либо явно переключены на documented fallback. Identity
+provider остаётся provisional до отдельного application proof и будущего operational acceptance;
+его нельзя объявлять production-ready внутри Stage 0.
 
-### Stage 1 — author -> publish -> free read на staging
+### Stage 1 — content application core без visual frontend
 
-Среда: отдельный permanent staging после owner approval provider/budget/domain.
+Результат: author/MCP/API use cases создают, меняют, validate, preview и publish representative
+Material; transaction, immutable revisions, public/search projections и semantic conflicts
+проверяются через application interfaces. Minimal test harness может показывать rendered output,
+но не становится visual direction или production UI.
 
-Результат: автор создаёт один representative Material через минимальный admin, preview-ит и после
-owner GO публикует; anonymous visitor читает responsive free page по canonical URL. Revision,
-transaction, safe rendering, public projection, migration и rollback tests проходят в CI/staging.
+Exit: sanitized Material проходит edit/save/reload/publish/unpublish/restore без semantic drift;
+draft не виден public projection; RU/EN search fixtures и transaction cases зелёные.
 
-Exit: один реальный sanitized Material проходит edit/save/reload/publish/unpublish/restore без
-semantic drift; draft не виден public; deployment manifest и smoke воспроизводимы.
+### UI Gate — спроектировать интерфейс до feature implementation
 
-### Stage 2 — public library, navigation, search и assets
+Platform [#19](https://github.com/sachkov-inside/platform/issues/19) владеет отдельной
+specification:
 
-Результат: visitor использует home, Library, Topic, Series и Roadmap, находит fixtures RU/EN search,
-читает free materials и получает public images/files. Author управляет metadata, Series order,
-assets и explicit related pins. SEO, accessibility и performance budgets измерены на staging.
+- [#20](https://github.com/sachkov-inside/platform/issues/20) фиксирует UX architecture, states,
+  real content fixtures и low-fidelity responsive wireframes;
+- [#21](https://github.com/sachkov-inside/platform/issues/21) собирает annotated references,
+  anti-references и owner taste/preferences;
+- [#22](https://github.com/sachkov-inside/platform/issues/22) сравнивает 2–3 genuinely different
+  visual concepts на одинаковых real surfaces и получает explicit owner selection;
+- [#23](https://github.com/sachkov-inside/platform/issues/23) после выбора доказывает current
+  component/primitives strategy, semantic tokens и agent-friendly UI contract.
 
-Exit: generated views не дублируют data; candidate taxonomy создаётся только вместе с content;
-private objects не доступны public; search acceptance set и 10k performance fixture зелёные.
+Exit: выбран direction, доказан bounded foundation и создан отдельный implementation ticket на
+один reference surface. До этого нельзя выбирать broad component library, строить full UI catalog
+или писать production feature UI.
+
+### Stage 2 — UI foundation и public experience
+
+Dependencies: Stage 1 application contracts и закрытый UI Gate.
+
+Результат: accepted direction реализован через bounded tokens/primitives на первом reference
+surface, затем применяется к home, Library, Topic, Series, Roadmap и free Material. Author работает
+с минимальным accepted admin/editor surface, а не throwaway styling.
+
+Exit: real content и states проходят mobile/desktop visual evidence, keyboard/screen-reader smoke,
+SEO и performance budgets; generated views не дублируют data, taxonomy появляется только вместе с
+content, ad-hoc styles не обходят UI foundation.
 
 ### Stage 3 — identity и provider-neutral protected content
 
 Результат: visitor создаёт email account, BFF session maps to Principal, а `ContentAccess` защищает
 closed body/asset/download/video interfaces через один conformance matrix. До Telegram integration
-Membership port использует только bounded test adapter; production closed access остаётся off.
+Membership port использует только bounded test adapter. Identity application proof проверяет UX,
+BFF/token protocol и fallback; self-host capacity, operations и release acceptance остаются future
+infrastructure work.
 
 Exit: anonymous/authenticated/active/expired/author/admin, two-Subject cache leak и dependency
-outage cases зелёные для page/REST/MCP/resource paths; local identity ADR и operations proof
-приняты.
+outage cases зелёные для page/REST/MCP/resource paths; provider объявлен только application-ready,
+не production-ready.
 
 ### Stage 4 — bootstrap `inside-telegram` и включить real Membership
 
@@ -427,104 +446,111 @@ in-memory adapters. До trigger не создаются bot messaging/admin/cam
 Результат:
 
 - Workspace bootstrap ticket создаёт подтверждённый private repository с собственным harness,
-  CI, migrations, health, secrets и deployment contract;
+  repository contract, CI и testable application scaffold;
 - Telegram application реализует OIDC link, uniqueness/recovery invariants, read-only
   `getChatMember` evidence и authenticated internal interface;
 - Platform сохраняет bounded entitlement и прекращает новые protected operations не позднее пяти
   минут после confirmed removal/evidence expiry.
 
 Exit: existing member, non-member, removal, rejoin, replay, duplicate identity, lost admin/token и
-outage проходят credentialed staging proof. Closed access включается только после этого gate.
+outage проходят credentialed proof в согласованной temporary/integration environment. Production
+enablement не входит в этот gate.
 
-### Stage 5 — complete delivery, MCP и member activity
+### Stage 5 — feature-complete v1 candidate
 
 Результат: author/MCP управляют полным v1 document set, private assets/downloads и Kinescope upload
--> process -> preview -> publish -> play; source original сохраняется независимо от Kinescope;
-member читает, скачивает, смотрит и получает read state / recent history. Provider callbacks и
-jobs idempotent/reconciled.
+-> process -> preview -> publish -> play; member читает, скачивает, смотрит и получает read state /
+recent history. Актуальные материалы вручную пересозданы без import pipeline; real taxonomy
+определяет действительно нужные filters/synonyms.
 
-Exit: strict Kinescope callback, continued-play bound, provider recovery/export plus original
-restore/re-ingest, S3 private delivery, cross-revision mismatch, provider outage, MCP
-`409`/idempotency и reading-state access cases зелёные на staging.
+Exit: все v1 journeys и negative cases зелёные в agreed test environment, включая strict Kinescope
+callback, private delivery, cross-revision mismatch, provider outage, MCP `409`/idempotency,
+reading state и UI evidence. Это feature-complete candidate, не released product.
 
-### Stage 6 — content population и full user launch
+### После Stage 5 — отдельная release and infrastructure specification
 
-Результат: актуальные материалы вручную пересозданы без import pipeline; real taxonomy определяет
-действительно нужные filters/synonyms; staging manifest проходит owner acceptance и тот же digest
-выходит production.
-
-Exit:
-
-- все v1 journeys, security/cache/a11y/performance budgets и provider acceptance зелёные;
-- production monitoring/alerts, backup retention cycle, monthly restore и empty-VPS recovery drill
-  доказывают RPO/RTO, включая sample Kinescope original restore/re-ingest;
-- no-go при failed access, recovery, callback, migration или owner GO;
-- дальнейшая публикация full materials происходит в Platform, Telegram остаётся announcement и
-  community surface.
+Только тогда создаётся новая Workspace specification для environments, domains/callbacks,
+capacity, deployment/promotion/rollback, observability/alerts, secrets, provider operations,
+backup/recovery, RPO/RTO и production GO. Её решения опираются на измеренный Stage 5 profile, а не
+на сегодняшние предположения. Текущий #40 не создаёт этот backlog заранее.
 
 ## 11. Dependency graph
 
 ```mermaid
 flowchart TD
-    S0[Stage 0: contract + proofs] --> S1[Stage 1: free publish/read]
-    S1 --> S2[Stage 2: public library/search/assets]
-    S0 --> S3[Stage 3: identity + ContentAccess]
+    M[Merge Workspace #61 / close #40] --> C[Platform #16: local contract]
+    M --> UX[Platform #20: UX architecture]
+    M --> REF[Platform #21: references + owner taste]
+    C --> DATA[Platform #17: data proof]
+    C --> DOC[Platform #18: document/MCP proof]
+    DATA --> S1[Stage 1: content application core]
+    DOC --> S1
+    UX --> CONCEPT[Platform #22: visual concepts]
+    REF --> CONCEPT
+    CONCEPT --> UIP[Platform #23: UI strategy proof]
+    S1 --> S2[Stage 2: UI foundation + public experience]
+    UIP --> S2
     S1 --> S3
+    S2 --> S3[Stage 3: identity + ContentAccess]
     S3 --> B[Workspace: bootstrap inside-telegram]
     B --> T[Telegram: linking + bounded evidence]
-    S2 --> S5[Stage 5: full delivery/MCP/activity]
+    S2 --> S5[Stage 5: feature-complete candidate]
     S3 --> S5
     T --> S5
-    S5 --> S6[Stage 6: content + launch]
+    S5 -. separate future owner decision .-> R[Release + infrastructure specification]
 ```
 
-Stage 2 и Stage 3 могут идти параллельно после Stage 1. Repository bootstrap начинается только
-после stable Platform evidence port; implementation внутри нового repository начинается только
-после bootstrap merge. Kinescope/S3 credentialed delivery зависит от `ContentAccess`, но provider
-upload/reconciliation может быть доказан author-only fixture раньше real Membership.
+После merge #61 три session-sized lanes могут идти параллельно: #16, #20 и #21. Data/document
+proofs открываются после #16; visual concepts — после обоих design inputs. Stage 1 headless core не
+ждёт visual direction, а Stage 2 frontend ждёт. Repository bootstrap начинается только после
+stable Platform evidence port. Release/infrastructure work не является текущей downstream ticket:
+оно получает новую specification только из измеренного Stage 5 candidate.
 
 ## 12. Первые implementation tickets
 
-Первый frontier состоит только из bounded work, которое можно начать без speculative provider
-покупок или Telegram capabilities:
+До merge PR #61 весь следующий frontier native-blocked by #40. После merge открываются три
+независимых bounded lanes:
 
 1. [Platform #16](https://github.com/sachkov-inside/platform/issues/16) — синхронизировать
    canonical product/technical contract: устранить расхождения brief, создать repository-local
-   application specification/CONTEXT и перечислить ADR inputs. Это единственный текущий frontier,
-   status `Ready`.
-2. [Platform #17](https://github.com/sachkov-inside/platform/issues/17) — доказать PostgreSQL
+   application specification/CONTEXT и перечислить ADR inputs.
+2. [Platform #20](https://github.com/sachkov-inside/platform/issues/20) — UX architecture,
+   surface/state inventory, real content fixtures и low-fidelity wireframes.
+3. [Platform #21](https://github.com/sachkov-inside/platform/issues/21) — annotated references,
+   anti-references и structured owner taste calibration.
+
+Следующий dependent work:
+
+4. [Platform #17](https://github.com/sachkov-inside/platform/issues/17) — доказать PostgreSQL
    data-access contract: Material/SearchLibrary, transaction, Kysely migration/type-generation
    gates и Drizzle fallback. Native dependency: blocked by Platform #16.
-3. [Platform #18](https://github.com/sachkov-inside/platform/issues/18) — доказать content document
+5. [Platform #18](https://github.com/sachkov-inside/platform/issues/18) — доказать content document
    и MCP command contract: ProseMirror/Tiptap round-trip, renderer/search extraction, schema
    migration, semantic patching и concurrency. Native dependency: blocked by Platform #16.
-4. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — bounded bootstrap
+6. [Platform #19](https://github.com/sachkov-inside/platform/issues/19) — UI specification parent;
+   #22 native-blocked by #20/#21, #23 native-blocked by #22.
+7. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — bounded bootstrap
    `inside-telegram`. Создание private repository выполняется только на Stage 4 trigger и после
    owner confirmation имени; никакой messaging/admin scope не включается.
 
-GitHub issues и доступные native dependencies создаются вместе с этой specification. Для #60
-native `blocked_by` edge откладывается до появления конкретного Platform Stage 3 issue; сейчас
-Project `Blocked` и body #60 явно фиксируют future dependency. Identity proof и Stage 1 delivery
-ticket не получают `ready-for-agent`, пока owner не закроет входы из следующего раздела.
+Project status всех Platform #16/#19/#20/#21 сейчас `Blocked` до merge #61; readiness roles уже
+описывают будущего исполнителя. Для #60 native `blocked_by` edge откладывается до появления
+конкретного Platform Stage 3 issue. Identity и Stage 1 feature tickets не создаются, пока их inputs
+не закрыты; release/infrastructure backlog в #40 не создаётся вообще.
 
 ## 13. Open owner decisions и ADR inputs
 
 | Decision | Нужна к этапу | Default/recommendation | Если не принято |
 |---|---|---|---|
 | Sync canonical brief с no-import и deferred discussion | Stage 0 | принять более поздние #39 decisions | feature implementation blocked |
-| Logto redirect/mark, email-code UX и provider | identity proof | branded redirect + email code; выбрать monitored SMTP/HTTP delivery | Stage 3 blocked |
-| OAuth/OIDC provider и M2M horizon | identity proof | подтвердить реальный use case в ближайшие 12 месяцев; иначе Better Auth сильнее | Logto value gate failed |
-| Yandex horizon и identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
-| Один Logto OSS Console admin без MFA, private endpoint и audit compensation | identity proof | принять только с private access и Inside-owned Management API audit | Logto no-go |
-| VPS capacity для Logto и Platform | identity proof | измерить published minimum + app/DB headroom | Logto no-go |
+| Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | identity proof | начать с branded redirect + email code; Better Auth fallback | Stage 3 blocked |
+| Identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
 | Sanitized content fixtures и source-to-Material classification rules | content proof | owner-approved real Material; Telegram остаётся visual reference, не import source | content proof blocked |
 | Content formatting limits, revision/asset retention, code/transcript indexing | content proof | минимальный audited set; no hard-delete referenced published data; code low weight, no transcripts | content ADR blocked |
-| Permanent staging budget, providers/regions/domains и alert channel | Stage 1 | отдельный VPS, separate secrets/data | permanent staging/production blocked |
-| Exact staging/production domains, callbacks и provider registrations | Stage 1 | separate stable registrations before external integration | callback proofs blocked |
-| Blue/green capacity vs accepted recreate downtime | Stage 1/6 | blue/green при measured capacity | record downtime before launch |
-| GitHub protected Environment reviewer vs owner-only `workflow_dispatch` | Stage 1/6 | protected Environment при доступном plan | production GO path blocked |
-| S3 versioning/restore/pgBackRest compatibility и retention cost | Stage 2/6 | provider proof before private assets/backups | delivery/launch blocked |
-| Kinescope original retention location/cost и provider recovery/export | Stage 5/6 | independent retained original + sample restore/re-ingest | video/launch blocked |
+| Key UX surfaces/states и real content fixture | UI #20 | mobile-first structure before styling | visual concepts blocked |
+| Owner references, anti-references и preference axes | UI #21 | annotated/ranked evidence, не vague moodboard | visual concepts blocked |
+| Выбор одного visual direction | UI #22 | 2–3 distinct concepts with same content/surfaces | UI strategy blocked |
+| Component/primitives strategy и breadth своей UI foundation | UI #23 | proof current candidates after direction; extract only real needs | frontend implementation blocked |
 | Repository name `inside-telegram` | Stage 4 bootstrap | confirm current working name | repository creation blocked |
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
 | Kinescope strict callback mechanics и acceptable continued-play window | Stage 5 | strict fail-closed; measure current plan | video remains unavailable |
@@ -533,16 +559,18 @@ Hard-to-reverse Platform ADR inputs after green proofs:
 
 - data authority, migration runner и transaction seam;
 - canonical document schema, revision model, safe renderer и MCP commands;
-- identity provider/BFF/token mapping и recovery/exit contract;
+- identity provider/BFF/token mapping после application и future operational proofs;
 - `ContentAccess` placement and conformance surface;
 - private Asset delivery mechanism;
 - Kinescope upload/reconciliation/strict authorization mechanics;
-- release, secrets, migration compatibility и recovery shape.
+- UI component/primitives strategy только если proof выявит hard-to-reverse trade-off.
 
 `inside-telegram` ADR inputs after bootstrap/proof:
 
 - OIDC linking, identity uniqueness/recovery and exact validation policy;
 - Membership evidence interface, five-minute validity and outage semantics;
-- grammY/Nest/PostgreSQL adapters and credential/deployment ownership.
+- grammY/Nest/PostgreSQL adapters and credential ownership.
 
-No ADR is created in Workspace for these application implementation choices.
+No ADR is created in Workspace for these application implementation choices. Future
+release/infrastructure specification отдельно решит environments, capacity, domains/callbacks,
+deployment/rollback, provider operations, secrets, observability, backup/recovery и production GO.
