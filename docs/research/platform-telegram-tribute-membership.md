@@ -21,6 +21,9 @@ recommendations for later proof and ADRs in their owning application repositorie
   Telegram business logic, storage, credentials and operational lifecycle.
 - Bot v1 is limited to identity linking and read-only membership verification. It sends no
   messages, manages no members and processes no campaigns, but it is not a placeholder.
+- The ContentAccess design in
+  [`platform-content-access.md`](platform-content-access.md) confirms a five-minute maximum
+  positive-evidence lifetime for new protected operations.
 - The same bot identity may later support owner tooling, participant management, notifications and
   marketing, but those capabilities are not designed or implemented speculatively now.
 - The service bootstrap stack is TypeScript, Node.js 24 LTS, NestJS with the Fastify adapter,
@@ -53,7 +56,7 @@ operations but is replaceable and outside the integration contract. The closed-c
 external Membership authority, while Platform remains authoritative for access to Platform content
 ([Platform v1 brief](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)).
 
-Use a **five-minute positive evidence lifetime** as the recommended v1 default. Protected requests
+Use a **five-minute positive evidence lifetime** as the confirmed v1 bound. Protected requests
 use the local entitlement while it is fresh. When stale, one request refreshes it through
 `getChatMember`; `member`, `creator`, `administrator`, or `restricted` with `is_member=true` grants
 another bounded interval. `left`, `kicked`, or `restricted` with `is_member=false` denies
@@ -670,11 +673,10 @@ do not fall back to username, screenshot, payment receipt or an unbounded manual
 
 ## Remaining owner decisions
 
-1. Confirm the recommended maximum revocation delay: **five minutes**.
-2. Choose the public bot username, display name/avatar and owner/recovery account.
-3. Confirm that v1 has no self-service Telegram replacement; exceptional recovery goes through an
+1. Choose the public bot username, display name/avatar and owner/recovery account.
+2. Confirm that v1 has no self-service Telegram replacement; exceptional recovery goes through an
    audited owner procedure.
-4. Confirm `inside-telegram` as the repository name before bootstrap.
+3. Confirm `inside-telegram` as the repository name before bootstrap.
 
 Everything else needed for the first version is selected or recommended for proof: **one dedicated
 Inside bot and service repository, TypeScript/Node.js 24 LTS, NestJS with the Fastify adapter,
