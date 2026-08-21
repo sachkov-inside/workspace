@@ -127,7 +127,7 @@ verification.
 
 Every completed agent session ends with a decision handoff in chat: the outcome, recommendation or
 decision needed, material caveats, verification performed, and direct links to the durable document,
-issue, and pull request. A file path is supporting detail, not the handoff itself.
+issue, and pull request when they exist. A file path is supporting detail, not the handoff itself.
 
 ## Owner gates
 
