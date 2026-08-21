@@ -6,7 +6,7 @@ discovery и delivery, но не выбирает stack, архитектуру 
 
 Рабочая authority этого brief находится в private repository
 [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace). Platform repository
-остаётся автономным; способ передачи ему versioned product context будет определён отдельно.
+получает его как проверяемый Git snapshot с version, provenance и checksums и остаётся автономным.
 
 ## Результат первой версии
 
@@ -162,12 +162,11 @@ MCP является обязательной частью первой верс
 Следующий этап начинается после утверждения repository topology:
 
 1. спроектировать harness каждого repository отдельным шагом;
-2. определить sync contract для versioned product context;
-3. выбрать stack, storage, внутренний layout platform repository и deployment shape;
-4. исследовать email authentication, связывание с Telegram и получение Membership status;
-5. проверить Kinescope API, upload и playback lifecycle;
-6. определить точный content schema и MCP tool contract;
-7. провести аудит актуального Telegram-контента и вывести из него словари тем, форматов, тегов и
+2. выбрать stack, storage, внутренний layout platform repository и deployment shape;
+3. исследовать email authentication, связывание с Telegram и получение Membership status;
+4. проверить Kinescope API, upload и playback lifecycle;
+5. определить точный content schema и MCP tool contract;
+6. провести аудит актуального Telegram-контента и вывести из него словари тем, форматов, тегов и
    фильтров.
 
 До этих шагов stack, database, architecture, hosting, repository layout и конкретный access
