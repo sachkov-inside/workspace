@@ -7,7 +7,7 @@ repository Platform.
 
 Основание: [Workspace issue #44](https://github.com/sachkov-inside/workspace/issues/44),
 [Wayfinder #38](https://github.com/sachkov-inside/workspace/issues/38) и
-[`product/platform-mvp-brief.md`](../../product/platform-mvp-brief.md).
+Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md).
 
 ## Решение в одном абзаце
 

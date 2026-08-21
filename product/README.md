@@ -92,9 +92,10 @@ Inside не рассчитан на человека, которому снач�
 4. versioned состояние приватного live repository с read-only доступом для участников после его
    появления.
 
-Первая продуктовая граница приложения зафиксирована в
-[`platform-mvp-brief.md`](platform-mvp-brief.md). Billing, stack, архитектура, design system и
-repository не определяются заранее. Они становятся настоящими решениями Кирилла внутри серии.
+Первая продуктовая граница приложения зафиксирована в каноническом Platform-документе
+[`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md).
+Billing, stack, архитектура и design system не определяются заранее. Они становятся настоящими
+решениями Кирилла внутри серии.
 Участники видят не только реализацию, но и то, как формируется сам продукт.
 
 Build-series — флагманская линия, но не всё обещание Inside. Membership не должна превращаться в
@@ -226,8 +227,9 @@ production-инциденты внутрь материалов не попад�
 
 ## Источники решений
 
-- [`platform-mvp-brief.md`](platform-mvp-brief.md) — подтверждённая продуктовая граница первой
-  версии будущего Inside-приложения и открытые решения перед bootstrap.
+- Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)
+  — подтверждённая продуктовая граница первой версии Inside-приложения и открытые решения перед
+  bootstrap.
 - GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions
   2026-08-15 и acceptance этого master-документа.
 

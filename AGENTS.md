@@ -2,9 +2,10 @@
 
 ## Repository role
 
-Workspace owns product documents, cross-repository decisions, and the canonical source of the
-shared product harness, including the Developer Pipeline. Application code, application ADRs,
-build and deploy remain in the repository that owns the application.
+Workspace owns shared product documents, cross-repository decisions, and the canonical source of
+the shared product harness, including the Developer Pipeline. Repository-specific product briefs,
+application code, application ADRs, build and deploy remain in the repository that owns the
+product surface or application.
 
 ## Working agreements
 

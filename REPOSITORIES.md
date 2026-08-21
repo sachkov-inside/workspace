@@ -4,9 +4,9 @@
 
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
-| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Product docs, Developer Pipeline и cross-repo решения |
+| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Общий product context, Developer Pipeline и cross-repo решения |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Публичный landing Inside |
-| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа |
+| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа и её product/technical docs |
 
 В организации нет repository `telegram-bot`. Это направление не входит в активную topology;
 repository для него не создаётся и не резервируется до отдельного owner decision.
@@ -19,6 +19,8 @@ repository для него не создаётся и не резервируе�
   base permission.
 - `repositories/` является только локальным размещением checkout. Root Git его игнорирует.
 - Каждый repository собирается, тестируется и деплоится самостоятельно.
+- Repository-specific product brief хранится один раз в repository, который владеет этой product
+  surface; Workspace индексирует его ссылкой.
 - Machine-local пути, symlinks на workspace и runtime imports из соседних repositories не являются
   допустимыми зависимостями.
 - Общий product harness устанавливается из canonical source Workspace как versioned project-local
