@@ -1,10 +1,367 @@
-# PostgreSQL backup и recovery для Platform
+# Среды, доставка, выпуск и восстановление Platform v1
 
-Статус: исследовательская заготовка для workspace issue #44. Здесь только PostgreSQL backup,
-PITR, аварийное восстановление и граница с migration rollback. Среды, delivery, secrets и общая
-observability должны быть сведены ведущим в итоговую схему отдельно.
+Статус: исследовательская рекомендация для owner decision и последующего переноса в автономный
+repository Platform.
 
-## Рекомендация
+Дата проверки источников: 2026-08-21.
+
+Основание: [Workspace issue #44](https://github.com/sachkov-inside/workspace/issues/44),
+[Wayfinder #38](https://github.com/sachkov-inside/workspace/issues/38) и
+[`product/platform-mvp-brief.md`](../../product/platform-mvp-brief.md).
+
+## Решение в одном абзаце
+
+Для v1 рекомендуется три постоянные среды без environment branches: локальный Docker Compose,
+**staging на отдельном non-production VPS** и production на отдельном VPS. Pull request проходит
+CI и UI evidence; merge в `main` один раз строит OCI images, фиксирует их digest'ы в release
+manifest и автоматически доставляет ровно этот manifest в staging. Production получает тот же
+manifest только после зелёных smoke checks и явного owner GO. Приложение выпускается двумя
+slot'ами за Caddy, PostgreSQL меняется отдельным backward-compatible migration job, а штатный
+rollback переключает traffic на предыдущий manifest без down migration. Runtime secrets хранятся
+в SOPS + age, выдаются контейнерам через Compose secrets и имеют offline recovery recipient.
+PostgreSQL архивирует WAL в зашифрованный off-host pgBackRest repository; production readiness
+доказывается восстановлением пустого VPS с `RPO <= 1 час` и `RTO <= 4 часа`.
+
+Полные per-PR preview environments в baseline не входят. Если owner review позже потребует
+параллельный remote UI, preview создаётся on-demand на non-production host, живёт не более суток,
+использует synthetic data и выключенные внешние side effects. Staging остаётся единственным
+контуром приёмки реальных callbacks и integrations.
+
+## Границы решения
+
+Подтверждённые входы: `main` — единственная долговечная ветка; Next.js, NestJS/Fastify, worker,
+MCP, Logto OSS и PostgreSQL запускаются через Docker Compose; PostgreSQL находится на том же VPS,
+что и production application; assets лежат во внешнем S3-compatible storage, видео — в
+Kinescope. Покупка VPS, DNS и production deployment не входят в issue.
+
+Этот документ определяет delivery contract и go/no-go gates для будущего Platform repository. Он
+не выбирает VPS/S3/telemetry provider и не заменяет application ADR: окончательные image layout,
+host bootstrap implementation и migration runner фиксируются там после соответствующих spikes.
+
+## Схема сред
+
+| Среда | Топология и данные | Внешние интеграции | Назначение |
+|---|---|---|---|
+| Local | Один Compose project на developer machine; disposable PostgreSQL; versioned synthetic seed | Local/sandbox credentials; tunnel только для callback spike | Разработка, unit/integration tests, быстрый vertical slice |
+| Staging | Отдельный non-production VPS; тот же Compose shape и PostgreSQL major; отдельные volumes, database roles, secrets и buckets | Отдельные Logto application/instance, S3 principal, Kinescope project и test bot/provider account, когда provider это поддерживает | Автоматический deploy из `main`, migration rehearsal, owner UI/integration acceptance, host-bootstrap rehearsal |
+| Production | Один production VPS; два application slot'а за host-level Caddy; один PostgreSQL cluster | Только production credentials, exact callbacks и domains | Пользовательский traffic и канонические данные |
+| Preview, optional | Уникальный Compose project `pr-<number>` на non-production host, отдельная database и TTL cleanup | Side effects off; exact callback registration только по необходимости | Параллельный remote UI review, не release gate |
+
+Staging на production VPS дешевле, но разделяет CPU, RAM, disk и failure domain, поэтому может
+сломать production именно в момент проверки. Он также не доказывает bootstrap нового host.
+Отдельный VPS — намеренная стоимость за stable callbacks, owner acceptance и честный recovery
+drill. Это особенно существенно для Logto OSS: официальный self-host baseline сам требует
+заметного ресурса, поэтому non-production host следует sizing'овать по измеренному полному stack,
+а не называть «маленьким» заранее
+([Logto OSS](https://docs.logto.io/logto-oss)).
+
+### Сравнение вариантов и расходов
+
+| Вариант | Постоянный расход | Изоляция и callbacks | Решение |
+|---|---|---|---|
+| Local + production | Один production VPS и его backup/telemetry | Нет remote pre-production acceptance; реальные callback changes проверяются слишком поздно | Отклонить |
+| Staging на production VPS | Дополнительные RAM/disk/operations без второго VPS | Отдельные Compose/DB/secrets, но общий host и blast radius | Только временный fallback после capacity test и явного owner acceptance риска |
+| Staging на отдельном VPS | Ещё один VPS, non-prod bucket и telemetry ingest; возможны provider test-plan расходы | Отдельный host, stable exact callbacks, recovery rehearsal | **Baseline v1** |
+| Постоянные per-PR previews | Ресурсы растут как число активных PR; нужен provision/TTL/callback control plane | Лучшая параллельность, самая сложная isolation/cleanup модель | Не включать в baseline |
+
+Месячный budget считается до procurement как:
+
+```text
+production VPS
++ non-production VPS
++ pgBackRest bytes + WAL/day × retention + restore egress
++ assets version history
++ off-host telemetry ingest/retention и synthetic probes
++ платные non-production tenants внешних providers
++ часы временного production-class VPS для isolated recovery drill
+```
+
+Preview не должен неявно увеличивать bill: одновременно разрешён один preview в пределах
+измеренного non-production capacity; следующий ждёт или требует отдельного owner-approved budget.
+Конкретные суммы нельзя честно назвать до выбора provider, region, disk class, retention и
+фактического WAL/telemetry volume. Реализация обязана иметь cost alert и ежемесячно сверять
+измерения с этой формулой.
+
+## Domains, callbacks и тестовые данные
+
+Используются stable exact hosts; реальные имена владелец выбирает до bootstrap:
+
+| Контур | Web/API/Auth | Callback policy |
+|---|---|---|
+| Production | `app.<domain>`, `api.<domain>`, `auth.<domain>` | Exact redirect, post-logout, webhook и Kinescope authorization URLs; Logto Admin не публикуется либо закрыт отдельным operator access |
+| Staging | `staging.<domain>`, `api.staging.<domain>`, `auth.staging.<domain>` | Отдельные exact URIs и callback secrets; production endpoints не используются |
+| Local | Фиксированные `localhost` ports | Sandbox или временный tunnel, который никогда не попадает в production config |
+| Preview | `pr-<n>.preview.<domain>` | По умолчанию mock/disabled adapters; exact URI создаётся и удаляется вместе с preview |
+
+Logto проверяет redirect URI по allow-list. Wildcard patterns поддерживаются для dynamic
+environments, но сами docs предупреждают, что это не стандарт OIDC и увеличивает attack surface,
+поэтому wildcard не является v1 shortcut
+([Logto application data](https://docs.logto.io/integrate-logto/application-data-structure)).
+Kinescope authorization backend и embedding allow-list также настраиваются по environment:
+production player не должен обращаться в staging, а закрытое видео обязано проходить production
+access check
+([Kinescope authorization backend](https://docs.kinescope.com/developer-guides/authorization-backend/),
+[embedding domains](https://docs.kinescope.com/catalog-and-video-management/media-file-settings/)).
+
+Local/staging/preview получают только idempotent versioned seed fixtures: anonymous, free member,
+active member, expired member, owner, public/private material, failed callback, queued/retried job
+и asset/video fixtures. Email использует reserved test domains; provider payloads не содержат live
+credentials. Production dump и PII запрещены вне production. Настоящий backup допустим только в
+изолированном recovery drill с production-class access controls и обязательным уничтожением среды.
+
+## Release unit и CI
+
+После merge в `main` GitHub Actions строит images один раз. Human-readable tag `sha-<git-sha>`
+служит навигацией, но Compose и release manifest используют `image@sha256:<digest>`: Docker Compose
+поддерживает digest в OCI image reference, а GHCR рекомендует digest, чтобы всегда получать тот же
+image
+([Compose services](https://docs.docker.com/reference/compose-file/services/),
+[GHCR pull by digest](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#pull-by-digest)).
+
+Release manifest — non-secret immutable artifact со следующими полями:
+
+```yaml
+release_id: <UTC timestamp>-<short sha>
+git_sha: <full sha>
+images:
+  web: ghcr.io/...@sha256:...
+  platform: ghcr.io/...@sha256:... # api/worker/mcp/migrate commands
+migration_head: <id>
+compose_revision: <sha256>
+config_schema: <version>
+built_at: <UTC timestamp>
+build_run: <GitHub Actions URL>
+```
+
+Manifest публикуется рядом с images как off-host release artifact, копируется на staging и
+production и сохраняется в recovery repository. Между средами запрещены rebuild, tag resolution
+и замена manifest. BuildKit добавляет provenance и SBOM; build secrets передаются secret mounts,
+не build args, потому что provenance может раскрыть неправильно переданные arguments
+([Docker attestations](https://docs.docker.com/build/ci/github-actions/attestations/)).
+
+### Pull request gates
+
+| Gate | Проверка | Evidence |
+|---|---|---|
+| Source | frozen lockfile, lint/format, TypeScript typecheck, unit/domain tests | CI logs |
+| Contracts | OpenAPI/MCP/generated types актуальны, generated diff пуст | checked-in contract diff |
+| Database | migrations с нуля; latest released schema -> candidate; deterministic seed; integration tests с реальным PostgreSQL | migration ledger и test report |
+| Rollback compatibility | previous released application запускается на candidate schema; destructive DDL отсутствует либо вынесен в отдельный approved plan | `N-1 app + N schema` smoke |
+| Runtime | production images build; `docker compose config -q`; isolated Compose поднимается с healthchecks через `up --wait` | digest'ы и smoke report |
+| Journeys | public page/API, login test adapter, DB read/write, queue -> worker, MCP read, S3 synthetic operation | machine-readable smoke report |
+| Security | secret scan, dependency/image scan, минимальные `GITHUB_TOKEN` permissions; external Actions pinned на full commit SHA | CI policy/report |
+| UI change | mobile и desktop evidence по Platform Definition of Done | PR screenshots/trace |
+
+`docker compose config` разворачивает и валидирует фактическую merged model, а `up --wait` ждёт
+состояния running/healthy
+([Compose config](https://docs.docker.com/reference/cli/docker/compose/config/),
+[Compose up](https://docs.docker.com/reference/cli/docker/compose/up/)). Third-party Actions
+фиксируются полным commit SHA — GitHub называет это единственной immutable ссылкой на Action
+([GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions)).
+
+## Promotion и owner acceptance
+
+Deployments сериализуются отдельными concurrency groups `deploy-staging` и `deploy-production`;
+GitHub прямо поддерживает concurrency как способ оставить один deployment среды в работе
+([GitHub deployments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments)).
+GitHub-hosted runner подключается по SSH к restricted deploy user и вызывает один versioned host
+script; production VPS не является постоянным self-hosted Actions runner. Runtime secrets runner
+не получает.
+
+### Staging
+
+1. Получить manifest, взять environment lock, проверить disk/RAM, secret generation, DNS и
+   expected current release.
+2. Pull всех exact digest'ов, проверить manifest checksum и `docker compose config -q`.
+3. Создать pre-migration restore point staging, выполнить один `migrate` container и сохранить
+   migration ledger.
+4. Поднять candidate slot через `docker compose up -d --wait`, выполнить internal smoke, затем
+   переключить staging Caddy.
+5. Выполнить external synthetic journey и опубликовать owner URL, release ID и evidence.
+
+Любой новый staging manifest отменяет предыдущую приёмку. Owner принимает точный release ID:
+
+| Поверхность | Обязательная проверка |
+|---|---|
+| UI | desktop/mobile, public/member/owner states, loading/empty/error, draft/preview |
+| Identity/access | email sign-in/logout, active/expired Membership, denied closed material, Logto callback/issuer |
+| Content/assets | draft -> validation -> preview, upload/download, public/private S3 access |
+| Video | Kinescope allow/deny playback и authorization callback |
+| Async/integrations | callback fixture, idempotency, queue -> worker, retry/DLQ и side-effect kill switch |
+| Agent path | MCP read/write validation; publish остаётся за owner GO |
+
+### Production
+
+1. Owner явно выбирает уже принятый `release_id`. Если GitHub plan поддерживает required reviewer
+   для private repository, используется protected `production` Environment. Иначе gate —
+   owner-triggered `workflow_dispatch` с release ID и подтверждением `GO`; availability нельзя
+   предполагать, потому что required reviewers в private repositories ограничены планом
+   ([GitHub environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments#required-reviewers)).
+2. Deploy script берёт lock и останавливается, если staging evidence не относится к этому manifest,
+   backup/WAL stale, есть critical alert, недостаточно disk/RAM либо schema drift.
+3. Сохранить current manifest как rollback target, создать PostgreSQL restore point и подтвердить
+   его WAL в off-host archive.
+4. Pull exact digest'ов. Выполнить единственный migration job из candidate platform image; app
+   startup никогда не auto-migrate.
+5. Запустить inactive web/API/MCP slot без worker, дождаться readiness и выполнить direct smoke.
+6. Валидировать Caddy config и graceful reload на новый upstream; затем остановить старый singleton
+   worker и запустить новый. Старый application slot остаётся готовым в rollback window.
+7. Выполнить public smoke, queue/integration canary и 30-минутное observation window. Только после
+   этого пометить release успешным; предыдущий slot удалить после 24 часов и успешного следующего
+   backup.
+
+Caddy должен работать как host-level systemd edge с persistent data directory и admin endpoint,
+доступным только локально. Он автоматически выпускает/обновляет TLS при корректных DNS и ports,
+а `caddy reload` применяет config graceful и оставляет старую config при ошибке
+([Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https),
+[Caddy reload](https://caddyserver.com/docs/getting-started#reloading-config)).
+
+Blue/green применяется только если capacity test доказывает одновременный footprint двух
+application slot'ов плюс PostgreSQL/Logto и worker handoff. Если gate не проходит, v1 явно
+принимает короткое Compose recreate window; это безопаснее, чем имитировать zero downtime на
+перегруженном host. Второй production database не создаётся: оба slot'а используют одну
+backward-compatible schema.
+
+## Migration contract и feature flags
+
+Checked-in immutable migrations и один runner являются authority. Production deploy запускает их
+отдельным job; schema push, startup migration, ad-hoc DDL и второй migration ledger запрещены.
+Нормальный цикл — expand -> deploy/read-write both -> bounded backfill -> observe -> contract в
+отдельном более позднем release после окончания rollback window.
+
+- rename выполняется как add/copy/switch/drop, а не одним destructive statement;
+- `NOT VALID`/поздний `VALIDATE` и `CREATE INDEX CONCURRENTLY` используются только после проверки
+  lock/runtime characteristics; concurrent index имеет отдельный non-transactional recovery path;
+- migration задаёт `lock_timeout`, оценивает table scan и не держит внешние I/O внутри transaction;
+- candidate schema обязана принимать previous application manifest;
+- down migration разрешена только если заранее доказана на production-shaped copy и не теряет
+  post-deploy writes. Иначе выполняется forward repair.
+
+PostgreSQL обычно требует `ACCESS EXCLUSIVE` для `ALTER TABLE`, если конкретная форма не говорит
+об обратном, а `CREATE INDEX CONCURRENTLY` нельзя запускать внутри transaction block
+([`ALTER TABLE`](https://www.postgresql.org/docs/current/sql-altertable.html),
+[`CREATE INDEX`](https://www.postgresql.org/docs/current/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY)).
+
+Feature flags server-side, environment-scoped и audit'ятся. v1 нужны два вида: release flags для
+нового user path и kill switches для external email/Telegram/Kinescope/MCP writes и worker
+consumers. В staging внешние side effects выключены по умолчанию. Flag не заменяет migration
+compatibility, access control или test; stale release flag удаляется отдельной задачей.
+
+## Штатный rollback
+
+| Симптом | Действие | Database |
+|---|---|---|
+| Ошибка до Caddy switch | Остановить candidate slot, release failed | Schema остаётся совместимой; при необходимости forward repair |
+| UI/API/auth regression после switch | Kill switch при наличии, Caddy -> previous slot, worker/MCP -> previous digest, smoke | Не down-migrate |
+| Ошибка worker/external provider | Выключить consumer/side effect, вернуть previous worker, повторить idempotent jobs после fix | Сохранять inbox/outbox state |
+| Неправильные данные при совместимой schema | Остановить writer, исправить forward script из audit/event source | PITR не применять автоматически |
+| Destructive migration/corruption | Incident, stop writes, restore отдельного cluster до выбранной точки, owner решает допустимую потерю | Whole-cluster PITR |
+| Потерян VPS | Empty-VPS recovery runbook | pgBackRest restore + WAL replay |
+
+Автоматический rollback запускается при failed readiness/smoke до или сразу после switch. После
+появления новых пользовательских writes rollback остаётся owner-controlled: traffic switch
+обратим, но повтор external side effects и data repair требуют incident evidence. Critical trigger:
+ошибка auth/access, утечка закрытого контента, migration failure, устойчивый рост 5xx/latency,
+неработающий worker/callback либо невозможность подтвердить backup/WAL freshness.
+
+## Secrets и bootstrap
+
+Механизмы разделяют роли:
+
+| Механизм | Что хранит | Граница |
+|---|---|---|
+| GitHub Environment secret | Только staging/production deploy SSH identity и notification credential | Доступен hosted runner; не runtime store |
+| SOPS + age | Отдельные encrypted runtime manifests `nonprod` и `production` | Versioned ciphertext; минимум host и offline owner recipients |
+| Docker Compose secret | Расшифрованный file конкретному service в `/run/secrets` | Last mile; source file должен оставаться защищённым на host |
+
+SOPS поддерживает несколько age recipients и rotation через `updatekeys`; project хранит public
+recipients и ciphertext, а не private identity
+([SOPS](https://github.com/getsops/sops)). Compose secret явно выдаётся только перечисленным
+services; приложение поддерживает `*_FILE`/path config
+([Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)).
+
+На host SOPS расшифровывает generation в root-only tmpfs `/run/inside/secrets/<generation>` с
+directory mode `0700` и files `0400/0600`. После smoke новой generation consumers пересоздаются,
+старый provider credential отзывается, затем старая generation удаляется. Production и non-prod
+не делят DB passwords, cookie/signing keys, S3 principals, callback secrets, API tokens или backup
+credentials.
+
+Offline break-glass packet находится вне GitHub, обоих VPS и backup bucket. Он содержит owner
+recovery для VPS/DNS/GitHub, offline age identity, backup repository access и cipher passphrase,
+Logto `SECRET_VAULT_KEK`, approved release manifest, domain/callback inventory и контакты внешних
+providers. Потеря `SECRET_VAULT_KEK` ломает расшифровку Logto Secret Vault, поэтому ключ является
+обязательным recovery input
+([Logto deployment configuration](https://docs.logto.io/logto-oss/deployment-and-configuration)).
+
+Rotation всегда идёт add -> deploy -> smoke -> revoke; break-glass use создаёт incident record.
+Plaintext secret не записывается в GitHub Actions artifact/log, image layer, Compose config output,
+telemetry или backup вне зашифрованного repository.
+
+## Наблюдаемость и release blockers
+
+Day-one contract:
+
+- JSON stdout logs с `timestamp`, `severity`, `service`, `environment`, `release_id`, `request_id`,
+  `trace_id`, `duration`, `result` и безопасным error code; bodies, cookies, auth headers, tokens,
+  DB URLs и прямые PII не логируются;
+- bounded Docker log rotation; default `json-file` без `max-size` не ограничен
+  ([Docker logging](https://docs.docker.com/engine/logging/drivers/json-file/));
+- metrics: host/filesystems, container health/restarts, HTTP rate/error/latency, DB pool и
+  `pg_stat_archiver`, queue age/depth/retry/DLQ, worker heartbeat, external dependency errors,
+  migration/release version, backup/WAL freshness;
+- один lightweight OpenTelemetry/Prometheus-compatible collector на каждом VPS отправляет
+  telemetry в off-host backend; OpenTelemetry Collector принимает и экспортирует traces, metrics
+  и logs vendor-neutral способом
+  ([OpenTelemetry Collector](https://opentelemetry.io/docs/collector/));
+- отдельный off-host black-box probe проверяет public HTTPS и synthetic critical journey, а alert
+  receiver находится вне production failure domain.
+
+`/health/live` отвечает только за живость процесса. `/health/ready` проверяет обязательную local
+dependency и expected schema/release, но не делает весь service unavailable из-за необязательного
+external provider. Deep integration checks и side effects живут в отдельном authenticated
+synthetic journey. Compose healthcheck определяет healthy state; dependency с
+`condition: service_healthy` действительно ждёт этот check
+([Compose startup order](https://docs.docker.com/compose/how-tos/startup-order/)).
+
+Обязательные alerts и blockers:
+
+| Signal | Warning | Critical / deploy blocker |
+|---|---:|---:|
+| Public/synthetic probe | один failed check | failed 2-5 минут |
+| TLS expiry | < 21 дня | < 7 дней |
+| Root/PostgreSQL/Docker filesystem free | < 20% | < 10% либо forecast full < 4 часа |
+| Последний archived WAL | > 20 минут | > 30 минут или растёт `failed_count` |
+| pgBackRest | backup позже schedule + grace | `check`/`verify` failed, repository недоступен |
+| Queue/worker | oldest age выше product SLO | DLQ > 0 или два heartbeat interval без worker |
+| Release/schema | version mismatch | migration/readiness/smoke failed |
+| Alert path | heartbeat late | heartbeat отсутствует через независимый канал |
+
+`pg_stat_archiver` даёт timestamps и counters успешной/неуспешной архивации
+([PostgreSQL monitoring](https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ARCHIVER-VIEW)).
+Порог 30 минут оставляет operational margin до RPO 1 час; он не доказывает RPO без restore drill.
+
+## Recovery boundary всей системы
+
+| Authority | Что восстанавливает | Механизм |
+|---|---|---|
+| Git/OCI release artifacts | Compose/Caddy/collector config, bootstrap, migration history, exact images | Clone pinned commit + pull approved manifest by digest |
+| SOPS ciphertext + offline packet | Runtime/provider credentials, callback inventory, Logto KEK | Offline age identity -> root-only tmpfs |
+| PostgreSQL cluster | Platform и Logto databases, roles и transactional state | pgBackRest base/diff/incr + continuous WAL/PITR |
+| External asset bucket | Images/files и их previous versions | Immutable keys, bucket versioning и tested object restore |
+| Kinescope | Provider video files | Provider project plus platform manifest/IDs; provider recovery/export becomes #42 hard gate |
+| Off-host telemetry | Incident evidence и black-box status | Managed/off-host retention independent of lost VPS |
+
+pgBackRest не защищает external assets. S3-compatible provider обязан доказать versioning и restore
+предыдущей версии; S3 Versioning сохраняет previous versions при overwrite/delete, но каждая
+version тарифицируется отдельно
+([AWS S3 Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/versioning-workflows.html)).
+Bucket lifecycle не может удалять noncurrent versions раньше approved recovery window. Object Lock
+для backup repository не включается автоматически: WORM retention может конфликтовать с
+pgBackRest expiration, поэтому его проверяют отдельным provider spike.
+
+## PostgreSQL backup и PITR
+
+### PostgreSQL-рекомендация
 
 Для единственного production VPS нужен один зашифрованный pgBackRest repository во внешнем
 S3-compatible object storage. Локальная копия на том же VPS не считается backup от потери VPS.
@@ -277,3 +634,84 @@ migration, заранее проверенная на копии production. PIT
 - [pgBackRest User Guide](https://pgbackrest.org/user-guide.html)
 - [pgBackRest Configuration Reference](https://pgbackrest.org/configuration.html)
 - [pgBackRest Command Reference](https://pgbackrest.org/command.html)
+
+## Полный empty-VPS runbook
+
+Database procedure выше встраивается в один host-level incident flow. Runbook хранится в Platform
+repository и не ссылается на Workspace checkout, соседние repositories или machine-local path.
+
+1. **0:00-0:15 — declare.** Owner фиксирует `t0`, incident/recovery target, останавливает
+   production writes доступным kill switch или provider control plane, сохраняет последний
+   off-host probe и marker. Выбирается latest recovery либо PITR до известной corruption point.
+2. **0:15-1:00 — provision.** Создать чистый VPS нужного disk/CPU/RAM, применить firewall и
+   bootstrap pinned Docker/Compose, Caddy, SOPS/age, PostgreSQL major и pgBackRest. Восстановить
+   offline age identity; получить approved release manifest и encrypted config.
+3. **1:00-2:30 — restore.** Расшифровать secrets в tmpfs, проверить pgBackRest repository, вернуть
+   PostgreSQL cluster и replay WAL. Параллельно pull images по digest и восстановить Caddy/collector
+   config. Не направлять public traffic.
+4. **2:30-3:15 — validate.** SQL assertions, migration/release version, Logto issuer/sign-in,
+   API/content access, S3 CRUD/version restore, queue -> worker, Kinescope authorization и MCP
+   smoke. Несовпадение schema/manifest блокирует запуск.
+5. **3:15-4:00 — cut over.** Запустить application slot, подтвердить readiness, направить DNS или
+   stable address на новый VPS, дождаться valid TLS и зелёного off-host journey. Открыть writes,
+   зафиксировать `t_ready`, recovered marker и фактические RPO/RTO.
+
+Временные доли — budget, а не обещание каждой фазы. Drill должен измерить download/WAL replay и
+оставить не менее 45 минут на validation/cutover; если restore стабильно съедает этот запас,
+увеличивается bandwidth/backup cadence либо уменьшается data set до запуска.
+
+После incident старый cluster не подключается обратно автоматически. Он остаётся read-only и
+изолированным до решения о reconciliation/deletion; два writable production timelines запрещены.
+Использованные bootstrap credentials и deploy keys ротируются, а incident закрывается только после
+нового зелёного backup/check.
+
+## Проверки выпуска, отката и восстановления
+
+| Когда | Проверка | Pass | Failure action |
+|---|---|---|---|
+| Каждый PR | Полный CI matrix, Compose boot, fresh/upgrade migrations, `N-1 app + N schema` | Все gates зелёные | Не merge |
+| Каждый merge в `main` | Build once, SBOM/provenance, immutable manifest | Все digest'ы и checksums сохранены off-host | Не deploy |
+| Staging deploy | Migration, readiness, smoke и synthetic journey | Manifest отмечен green | Candidate stop/forward repair |
+| Перед production | Owner принял exact manifest; backup/WAL/alerts/capacity green | Preflight report приложен к deployment | Не начинать migration |
+| Production switch | Direct smoke inactive slot, Caddy validation | Все critical journeys green | Не switch либо switch назад |
+| Observation window | 30 минут error/latency/auth/queue/provider signals | Нет critical alerts | Owner-controlled rollback/kill switch |
+| Ежедневно | `pgbackrest check`, backup/WAL freshness, alert heartbeat | Repository/WAL/current release green | Critical incident до восстановления coverage |
+| Еженедельно | `pgbackrest verify`, asset-version sample restore | Integrity green | Freeze production changes, repair backup path |
+| Ежемесячно | Чистый database restore + application smoke | Measured RPO/RTO и assertions pass | Corrective issue, launch/release blocked при потере coverage |
+| Ежеквартально и после infra/secrets change | Полный empty-VPS drill | `RPO <= 1h`, `RTO <= 4h`, нет скрытого ручного знания | Recovery не готова |
+
+## Критерии готовности полного пользовательского запуска
+
+- Staging физически отделён от production, имеет stable exact domains/callbacks, отдельные secrets,
+  synthetic fixtures и provider test boundaries.
+- PR/build/deploy workflows создают один manifest, продвигают digest без rebuild и сохраняют
+  доказательства migration/smoke/owner acceptance.
+- Production capacity выдерживает два application slot'а либо owner явно принимает измеренное
+  recreate downtime; Caddy reload и previous-manifest rollback отрепетированы.
+- Все migrations проходят fresh/upgrade/rollback-compatibility tests; destructive contract не
+  находится в том же release, что переключает application reads/writes.
+- SOPS manifests имеют host и offline recipients; break-glass packet восстановлен в drill; ни один
+  production runtime secret не нужен GitHub-hosted runner.
+- Off-host logs/metrics/black-box alerts видят release ID, host, PostgreSQL/WAL, queue, callbacks и
+  backup freshness и сами имеют heartbeat.
+- pgBackRest прошёл полный retention cycle; monthly restore и quarterly empty-VPS drill доказали
+  targets по восстановленным markers, а не по timestamp успешной job.
+- External S3 version restore, Logto database/connectors/`SECRET_VAULT_KEK`, Kinescope access и
+  callback inventory включены в recovery smoke.
+- Owner знает один production GO path, один штатный app rollback path и отдельный destructive PITR
+  incident path; runbooks исполнимы из автономного Platform repository.
+
+## Owner decisions перед реализацией
+
+1. Одобрить постоянный staging на отдельном VPS и его budget вместо shared production host.
+2. Выбрать VPS/S3/telemetry providers, region, disk class, retention price ceiling и alert channel;
+   подтвердить у S3-compatible provider versioning, restore и pgBackRest compatibility.
+3. После capacity spike выбрать blue/green slots или явно принять короткое recreate downtime.
+4. Проверить GitHub plan: protected private Environment с required reviewer либо fallback
+   `workflow_dispatch` с owner-only GO.
+5. Утвердить production/staging domains и отдельные Logto/Kinescope/S3/callback registrations до
+   первого public release; Logto и Kinescope остаются subject to hard gates своих исследований.
+
+После этих решений Platform repository должен превратить документ в versioned `infra/`, deploy
+scripts, smoke tests и runbooks. Покупка ресурсов и настоящий deployment остаются отдельными
+owner-approved действиями.
