@@ -6,7 +6,7 @@ adapter проходит перечисленные ниже integration accepta
 Дата проверки источников и публичных endpoint: 2026-08-21.
 
 Основание: [Workspace issue #42](https://github.com/sachkov-inside/workspace/issues/42) и
-[`product/platform-mvp-brief.md`](../../product/platform-mvp-brief.md).
+Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md).
 
 ## Решение в одном абзаце
 

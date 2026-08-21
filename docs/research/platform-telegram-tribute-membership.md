@@ -43,7 +43,7 @@ The confirmed Platform brief requires one closed-access level, email authenticat
 Telegram account, and access based on an external Membership signal. The Platform does not take
 payment or manage subscription terms. The application remains authoritative for access to
 Platform content even when Tribute remains authoritative for payment and Telegram channel access
-([Platform v1 brief](../../product/platform-mvp-brief.md)).
+([Platform v1 brief](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)).
 
 ```text
 Email authentication                    External evidence
