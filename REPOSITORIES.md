@@ -1,6 +1,6 @@
 # Repositories Sachkov Inside
 
-Проверено: 2026-08-19.
+Проверено: 2026-08-21.
 
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
@@ -8,8 +8,13 @@
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Публичный landing Inside |
 | [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа и её product/technical docs |
 
-В организации нет repository `telegram-bot`. Это направление не входит в активную topology;
-repository для него не создаётся и не резервируется до отдельного owner decision.
+Owner decision от 2026-08-21 добавляет в target topology отдельный private repository и deployable
+для Telegram-бота. Рабочее имя — `sachkov-inside/inside-telegram`; repository ещё не создан и
+должен пройти отдельный bootstrap с собственным harness, ADR, build, tests, migrations, secrets и
+deployment. Текущая техническая рекомендация и proof gates описаны в
+[`platform-telegram-tribute-membership.md`](docs/research/platform-telegram-tribute-membership.md);
+её application-specific часть должна стать ADR уже в новом repository. До bootstrap имя остаётся
+открытым, а runtime-зависимость от несуществующего checkout не допускается.
 
 ## Правила границ
 

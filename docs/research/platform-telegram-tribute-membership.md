@@ -1,103 +1,149 @@
-# Telegram and Tribute Membership access for Sachkov Inside Platform
+# Telegram Membership service for Sachkov Inside Platform
 
-**Status:** decision-grade research for [Workspace issue #41](https://github.com/sachkov-inside/workspace/issues/41)
+**Status:** selected product/access contract and service stack direction for
+[Workspace issue #41](https://github.com/sachkov-inside/workspace/issues/41)
 
 **Snapshot:** 2026-08-21
 
-**Decision owner:** product owner; this report is not an ADR
+**Decision owner:** product owner; repository, product/access boundaries and bootstrap stack are
+confirmed, while exact dependency versions, data-access library and deployment details below are
+recommendations for later proof and ADRs in their owning application repositories
 
-## Executive decision
+## Confirmed owner decisions
 
-Use **application-owned Telegram linking** after the user has authenticated by email. Telegram's
-current OpenID Connect implementation is real and standards-based: Authorization Code Flow,
-PKCE, discovery and JWKS are live. Store `(iss, sub)` as the durable external identity and store
-the separate Telegram profile claim `id` as the candidate join key for Tribute. Do not turn
-Telegram into the primary Platform login method and do not put Membership authorization in Logto
-or another identity provider.
+- Inside currently has one closed Telegram chat containing both content and discussion.
+- Current membership in that chat is the canonical external signal for Platform Membership.
+- Tribute currently manages admission and removal in Telegram, but Platform must not integrate
+  with Tribute or depend on its subscription model.
+- A dedicated branded Inside bot will link the email-authenticated Platform account to Telegram
+  and read the linked user's membership in the configured chat.
+- The bot is a separately deployed application in its own private repository, with its own
+  Telegram business logic, storage, credentials and operational lifecycle.
+- Bot v1 is limited to identity linking and read-only membership verification. It sends no
+  messages, manages no members and processes no campaigns, but it is not a placeholder.
+- The same bot identity may later support owner tooling, participant management, notifications and
+  marketing, but those capabilities are not designed or implemented speculatively now.
+- The service bootstrap stack is TypeScript, Node.js 24 LTS, NestJS with the Fastify adapter,
+  grammY and PostgreSQL.
 
-Telegram linking is technically **go, subject to one credentialed staging proof**. The proof must
-show that the OIDC `id` for one real account equals its Bot API user ID and the
-`telegram_user_id` delivered by Tribute. Telegram documents all three as Telegram user
-identifiers, but neither Telegram nor Tribute explicitly guarantees their cross-product equality,
-and Telegram's example shows that OIDC `sub` and `id` are different claims. Automatic access is
-no-go until this join is observed with the same user.
+## Executive recommendation
 
-Treat Tribute as **conditional, not yet go for unattended production authorization**. Its public
-contract provides signed `new_subscription`, `renewed_subscription` and
-`cancelled_subscription` webhooks with `expires_at`, but it does not provide a stable event ID,
-terminal expiry/payment-failure/refund events, documented ordering, or a supported public member
-backfill/reconciliation API. A `/subscribers` operation exists in the public OpenAPI document but
-is marked `x-internal: true`; it cannot be a production dependency without written support from
-Tribute.
+Create a private `inside-telegram` repository containing one independently deployable Inside
+Telegram service. Compose it as a modular NestJS application running on Fastify. Inside that
+application, a deep **Telegram Membership module** hides Telegram OIDC, Bot API, status mapping,
+freshness, conflicts and outages behind a small interface. It performs three jobs:
 
-If the Tribute gates in this report pass, use webhook-first ingestion into a durable inbox,
-reconcile against a supported full member snapshot, and compute a local Membership entitlement
-from the verified Telegram link plus a current external subscription. If they do not pass, use a
-time-bounded owner-reviewed fallback for a small pilot or choose another external access provider
-with a supported member lifecycle API. Do not grant indefinitely from a receipt, username,
-webhook alone, or stale identity token.
+1. link an authenticated Platform Principal to a verified Telegram identity through Telegram
+   OpenID Connect;
+2. query the one configured closed chat with Bot API `getChatMember`;
+3. return bounded normalized membership evidence that Platform turns into its application-owned
+   access decision.
 
-## Product and authority boundary
+Register the dedicated bot as the Telegram OIDC client and add it as an administrator of the
+closed chat with all optional mutation rights disabled. Telegram states that `getChatMember` is
+guaranteed to work for other users when the bot is an administrator
+([Bot API `getChatMember`](https://core.telegram.org/bots/api#getchatmember)). Bot v1 does not need
+commands, polling or a Telegram update webhook. Platform calls the service over an authenticated
+internal interface; only the service calls Telegram OIDC and Bot API.
 
 The confirmed Platform brief requires one closed-access level, email authentication, a linked
 Telegram account, and access based on an external Membership signal. The Platform does not take
-payment or manage subscription terms. The application remains authoritative for access to
-Platform content even when Tribute remains authoritative for payment and Telegram channel access
+payment or manage subscription terms. Tribute currently performs payment and Telegram-roster
+operations but is replaceable and outside the integration contract. The closed-chat roster is the
+external Membership authority, while Platform remains authoritative for access to Platform content
 ([Platform v1 brief](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)).
 
+Use a **five-minute positive evidence lifetime** as the recommended v1 default. Protected requests
+use the local entitlement while it is fresh. When stale, one request refreshes it through
+`getChatMember`; `member`, `creator`, `administrator`, or `restricted` with `is_member=true` grants
+another bounded interval. `left`, `kicked`, or `restricted` with `is_member=false` denies
+immediately. Therefore Platform stops granting new protected access within at most five minutes of
+removal from Telegram, without making every content request synchronously depend on Telegram.
+Already delivered bytes cannot be recalled; derived playback and download credentials must obey
+the same bound described below.
+
+This makes Tribute replaceable. Tribute, another provider or the owner may change the Telegram
+roster; Platform observes only the resulting membership. Existing participants need no provider
+backfill: each is verified on demand when linking or first using Platform.
+
+## Selected authority contract
+
 ```text
-Email authentication                    External evidence
---------------------                    -----------------
-Logto/other IdP -> Principal             Telegram OIDC -> ExternalIdentity
-                                                  |
-Tribute webhook -> WebhookInbox -> ExternalSubscription
-                                                  |
-                         exact telegram_user_id join
-                                                  v
-                                      MembershipEntitlement
-                                                  |
-                                    Platform authorization
+Email authentication
+        |
+        v
+Platform Principal
+        |
+        | authenticated internal interface
+        v
+Inside Telegram service
+        |
+        | Telegram OIDC through the Inside bot
+        v
+Verified ExternalIdentity(telegram_user_id)
+        |
+        | getChatMember(fixed_inside_chat_id, telegram_user_id)
+        v
+Fresh TelegramMembershipObservation
+        |
+        | bounded normalized decision
+        v
+Platform MembershipEntitlement(valid_until <= observation.valid_until)
+        |
+        v
+Platform authorization
 ```
 
-These facts must stay separate:
+Authority is deliberately split:
 
-- authentication answers who owns the current Platform session;
-- Telegram OIDC proves control of one Telegram identity;
-- Tribute reports an external subscription observed for a Telegram user;
-- the Platform evaluates the current application entitlement on each protected request.
+- the email IdP proves the Platform Principal;
+- the Telegram service proves control of one Telegram account through OIDC;
+- the Telegram service observes whether that account is currently in the configured chat;
+- Platform owns and evaluates the bounded entitlement to closed Platform content.
 
-No IdP role, Telegram username, Tribute email, browser token or channel membership alone grants
-Membership.
+Tribute is outside this chain. A valid payment, Tribute event, receipt, Telegram username, invite
+link or Platform login session does not grant Membership by itself.
 
-## What primary sources prove
+## User experience
 
-| Question | Proven contract | Remaining gap |
-|---|---|---|
-| Is modern Telegram Login OIDC? | Telegram documents Authorization Code Flow, PKCE, discovery, token and JWKS endpoints. | A real BotFather client is still required to test the full callback. |
-| What identifies the Telegram account? | OIDC `sub` is the subject; `profile` adds a Telegram user `id`. Bot API user IDs are unique integers with at most 52 significant bits. | Telegram does not state that `sub == id`; its example uses different values. |
-| Can Telegram link after email login? | The OIDC flow can be initiated as a separate proof and its result can be associated with the already authenticated Principal. | Anti-relink and recovery policy are application responsibilities. |
-| Is a bot required? | Telegram requires a bot to represent the OIDC client and BotFather supplies client ID/secret. | Whether to reuse an existing branded bot is an owner/security decision. |
-| Can Tribute events identify the same Telegram user? | Subscription payloads contain required `telegram_user_id` as `int64`; `trb_user_id` is a separate Tribute ID. | Cross-product equality with Telegram OIDC `id` needs a same-user fixture. |
-| Are Tribute webhooks authenticated? | `trbt-signature` is HMAC-SHA256 over the request body using the API key. | Encoding, prefix, replay window and key rotation are undocumented. |
-| Is the subscription lifecycle complete? | New, renewal and cancellation events include event/send times and `expires_at`. | No documented expired, failed-payment, refund or resume event; cancellation timing is unclear. |
-| Can missed events be reconciled? | OpenAPI exposes `/subscribers` with active/pre-cancelled/cancelled and expiry fields. | The operation is marked internal, has no public page/pagination contract and is not a supported dependency yet. |
+### Existing member
 
-Primary contracts: [Telegram Login](https://core.telegram.org/bots/telegram-login),
-[Telegram OIDC discovery](https://oauth.telegram.org/.well-known/openid-configuration),
-[Telegram JWKS](https://oauth.telegram.org/.well-known/jwks.json),
-[OpenID Connect Core subject identifiers](https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes),
-[Telegram Bot API user](https://core.telegram.org/bots/api#user),
-[Telegram Bot API IDs](https://core.telegram.org/api/bots/ids),
-[Tribute API authorization](https://wiki.tribute.tg/for-content-creators/api-documentation.md),
-[Tribute webhooks](https://wiki.tribute.tg/for-content-creators/api-documentation/webhooks.md), and
-[Tribute OpenAPI](https://tribute.tg/api/v1/openapi/en).
+1. The user signs in to Platform by email.
+2. Platform shows “Link Telegram”. The user does not need to send `/start` to the bot.
+3. Platform creates a short-lived link session in the Telegram service and redirects the browser.
+4. The Telegram service completes Authorization Code Flow, verifies the ID token and attaches the
+   Telegram identity to the opaque Platform Principal reference from that session.
+5. The Telegram service immediately calls `getChatMember` for the fixed Inside chat.
+6. A current member receives access; a non-member sees a precise “Telegram linked, Membership not
+   found” state and a rate-limited “Check again” action.
 
-## Live read-only verification
+No migration or full Telegram member export is required. The first check discovers every existing
+participant individually.
 
-The following public checks were run on 2026-08-21 without owner credentials, payments or
-external writes.
+### Removal and return
 
-### Telegram discovery and keys
+- Tribute or an administrator removes the user from the Telegram chat.
+- Platform keeps access only until the last successful five-minute observation expires.
+- The next protected request refreshes membership, observes `left`/`kicked`, and denies.
+- The email account, Telegram link, reading history and other account data remain intact.
+- If the user later rejoins, “Check again” or the next stale check restores access without a new
+  Platform account or Telegram relink.
+
+This deliberately equates Telegram roster management with Membership authorization. A manually
+added Telegram participant gets Platform access; a paid participant accidentally removed or who
+leaves voluntarily loses it.
+
+## Telegram identity proof
+
+Telegram's current Login implementation supports standard OIDC Authorization Code Flow, PKCE,
+discovery and JWKS. Telegram requires a bot to represent the application and BotFather supplies
+the OIDC client ID and secret
+([Telegram Login](https://core.telegram.org/bots/telegram-login)).
+
+### Live read-only verification
+
+The following public requests were run on 2026-08-21 without owner credentials or external
+writes:
 
 ```bash
 curl -fsSL https://oauth.telegram.org/.well-known/openid-configuration | jq .
@@ -105,514 +151,533 @@ curl -fsSL https://oauth.telegram.org/.well-known/jwks.json \
   | jq '{keys: [.keys[] | {kty,kid,use,alg,crv}]}'
 ```
 
-The discovery request returned HTTP 200 and advertised only authorization code response/grant,
-`S256` and `plain` PKCE, `public` subjects, the `openid profile phone telegram:bot_access` scopes,
-and `RS256`, `ES256`, `EdDSA`, `ES256K` ID-token algorithms. Use only `S256` and pin an allowed
-algorithm (`RS256` initially); never accept the JWT header's algorithm without configuration.
-The JWKS request returned current verification keys for all four advertised algorithms.
+Discovery returned HTTP 200 and advertises only authorization-code response/grant, `plain` and
+`S256` PKCE, public subjects, and `RS256`, `ES256`, `EdDSA`, `ES256K` ID-token algorithms. The live
+JWKS returned a key for each advertised algorithm. The metadata advertises no UserInfo endpoint;
+its `claims_supported` omits both Telegram's documented profile `id` and OIDC `nonce`. Therefore
+the credentialed proof must observe both actual claims and must not assume that a requested
+`nonce` is echoed.
 
-There is no advertised UserInfo, revocation, introspection or end-session endpoint. Telegram also
-states that requested user claims are returned in the ID token rather than from UserInfo. The
-discovery metadata does not list the documented profile claim `id` or `nonce` in
-`claims_supported`; this mismatch is another reason to run the credentialed flow before design
-freeze.
+### Protocol rules
 
-### Tribute specification and protected routes
+- Start linking only from an authenticated Platform session; require recent email
+  re-authentication because link replacement can transfer paid access.
+- Use the discovery issuer `https://oauth.telegram.org`, authorization code response, exact
+  registered redirect URI and PKCE `S256`.
+- Request only `openid profile`. Do not request `phone` or `telegram:bot_access` in v1.
+- Bind high-entropy `state`, PKCE verifier and the requested `nonce` to the current
+  Principal/session in a short-lived, single-use server transaction.
+- Exchange the code server-side using the OIDC client secret.
+- Validate a configured signing algorithm (`RS256` initially), signature against
+  [Telegram JWKS](https://oauth.telegram.org/.well-known/jwks.json), exact issuer, audience,
+  expiry, issued-at and subject. Validate an echoed `nonce` exactly; if Telegram does not echo it,
+  the Telegram service ADR must explicitly document the observed behavior and rely on the bound
+  single-use `state` plus PKCE rather than pretending nonce validation occurred.
+- Treat `(iss, sub)` as the durable external identity. Store the separate profile `id` as the
+  exact Telegram user ID used by Bot API.
+- Store Telegram IDs as decimal strings at JSON seams and an exact representation with at least a
+  signed 64-bit range internally. Telegram says these IDs may exceed 32 bits and have at most 52
+  significant bits ([Bot API IDs](https://core.telegram.org/api/bots/ids)).
+- Never link or recover by username, display name, phone, picture or email similarity.
 
-```bash
-curl -fsSL https://tribute.tg/api/v1/openapi/en
-curl -i https://tribute.tg/api/v1/subscriptions
-curl -i https://tribute.tg/api/v1/subscribers
-```
+The credentialed proof must still record whether Telegram echoes the requested `nonce` and show
+that the OIDC profile `id` is accepted as the same user's Bot API `user_id`. Telegram documents
+both IDs as Telegram user IDs but does not explicitly state the cross-interface equality, and its
+OIDC example keeps `sub` and `id` separate.
 
-The OpenAPI request returned HTTP 200 as a version `1.0.0` YAML document. Both protected GETs
-returned HTTP 401 with `error_not_permitted`, proving that the routes exist and require an API key;
-this does not prove that the internal subscribers route is supported for third-party production
-use. A real result, rate limit, pagination behavior and consistency lag cannot be tested without
-the owner's Tribute key.
+### Link and relink invariants
 
-## Telegram linking contract
+- Unique historical `(provider, issuer, subject)` binding; unlink keeps its original Principal.
+- Unique historical `(provider, telegram_user_id)` binding; unlink never frees the ID for a
+  different Principal.
+- At most one active Telegram identity per Principal in v1.
+- Linking the same identity to the same Principal is idempotent.
+- An identity attached elsewhere enters conflict; never auto-merge or transfer it.
+- A tombstoned identity may be reactivated only for its original Principal after fresh Telegram
+  proof. Moving it to another Principal requires audited owner recovery and an explicit transfer
+  record; deleting or bypassing the tombstone is forbidden.
+- V1 has no casual self-service replace action. Replacement requires recent primary re-auth,
+  proof of the current Telegram identity or owner recovery, explicit confirmation and audit.
+- Removing Membership never unlinks Telegram. Unlinking never deletes membership observations or
+  account history.
 
-### Protocol
+## Recommended cross-repository module shape
 
-Prefer the generic OIDC Authorization Code Flow over the legacy iframe and the convenience popup
-flow. Telegram's manual contract uses:
+The external seam belongs between Platform's authorization decision and the Telegram service's
+normalized membership result, not at raw Telegram HTTP methods. Platform callers must not know
+Telegram chat statuses, OIDC claim quirks, service storage or provider errors.
 
-- authorization endpoint `https://oauth.telegram.org/auth`;
-- token endpoint `https://oauth.telegram.org/token`;
-- discovery issuer `https://oauth.telegram.org`;
-- exact BotFather-registered redirect URI;
-- `response_type=code`, scopes `openid profile`, random `state`, and PKCE `S256`;
-- server-side code exchange with `client_secret_basic`;
-- server-side ID-token signature and claim validation.
+### External interface
 
-Request neither `phone` nor `telegram:bot_access` for v1. Phone is unnecessary personal data for
-the Membership join. Bot messaging permission is a different product capability and can be added
-later with an explicit consent decision. Telegram's current scopes and flow are documented in
-[Telegram Login](https://core.telegram.org/bots/telegram-login); PKCE for confidential web clients
-is also recommended by [OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html#section-2.1.1).
-
-### Safe link sequence
-
-1. Require an authenticated Platform session and recent primary email re-authentication.
-2. Create a short-lived, single-use server transaction bound to the Principal and session. Store
-   hashes of `state` and `nonce`, the PKCE verifier, creation/expiry times and intended operation.
-3. Redirect with an exact registered callback, `openid profile`, random `state`, `nonce` and PKCE
-   `S256`. The credentialed spike must verify that Telegram echoes nonce in the code flow.
-4. Consume state exactly once before exchanging the code. Never accept Principal/email/target
-   account from callback query parameters.
-5. Exchange the code server-side with the exact redirect URI and client credentials.
-6. Validate signature against the configured algorithm and current JWKS; validate exact issuer,
-   audience containing the Bot client ID, non-empty subject, expiry, issued-at freshness and nonce.
-   Follow the [OIDC ID-token validation rules](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation).
-7. Normalize `sub` as an opaque case-sensitive string. Normalize profile `id` as a decimal string
-   at JSON boundaries and an exact representation with at least signed 64-bit range in the
-   eventual Platform store. Never use a 32-bit type.
-8. In one transaction, enforce global identity and Telegram-ID uniqueness, record an audit event,
-   consume the link transaction and attach the identity to the current Principal.
-9. Linking is idempotent only when the same identity is already attached to the same Principal.
-   It does not itself create Membership entitlement.
-
-### Identifier policy
-
-Use both identifiers because they answer different questions:
-
-| Value | Use | Never use it for |
-|---|---|---|
-| `iss + sub` | Durable Telegram OIDC identity and provenance. OIDC public subjects are locally unique and never reassigned within the issuer. | Joining to Tribute until Tribute documents or a fixture proves a mapping. |
-| OIDC profile `id` | Candidate raw Telegram user ID; exact join to Tribute `telegram_user_id` after the proof gate. | Replacing the OIDC subject or skipping token validation. |
-| `preferred_username` | Display/audit snapshot only. | Identity, joining, recovery or uniqueness. |
-| phone/name/picture | Optional display/contact data only if separately justified. | Automatic merge or account recovery. |
-| Tribute `trb_user_id` | Tribute-local provenance (`T-...` or `W-...`). | Telegram identity; legacy `user_id` is explicitly deprecated. |
-
-Telegram says Bot API user identifiers are unique, can exceed 32 bits and have at most 52
-significant bits. Telegram further documents that MTProto user IDs equal Bot API user dialog IDs
-([Bot API IDs](https://core.telegram.org/api/bots/ids)). Changing a phone preserves a Telegram
-account, while deletion and later sign-up creates a new account
-([Telegram account FAQ](https://telegram.org/faq#q-how-do-i-change-my-phone-number)). Therefore
-never transfer an old link because a new account has the same phone or username.
-
-### Anti-relink and recovery rules
-
-- Unique active `(provider, issuer, subject)` across all Principals.
-- Unique active `(provider, telegram_user_id)` across all Principals.
-- At most one active Telegram identity per Principal for v1.
-- An identity linked to another Principal enters `conflict`; never auto-merge or reassign it.
-- Replacing an existing link requires recent email re-auth plus proof of the currently linked
-  Telegram identity, an explicit confirmation, security notification and immutable audit.
-- If current-Telegram proof is impossible, owner support uses a documented recovery policy. Email,
-  phone, username, screenshot or display name alone is insufficient.
-- Unlink is immediate for future authorization, retains a tombstone/audit and does not delete
-  subscription history. It does not make the same Telegram identity silently claimable elsewhere.
-- Telegram exposes user-side reset of connected web authorization, but no RP backchannel
-  revoke/logout webhook is documented
-  ([`account.resetWebAuthorization`](https://core.telegram.org/method/account.resetWebAuthorization)).
-  Local unlink/recovery cannot depend on receiving such a notification.
-
-## Telegram-to-Tribute join
-
-Tribute describes `telegram_user_id` as the user's Telegram ID and uses `int64`. Telegram describes
-the OIDC profile `id` as the user ID and Bot API `User.id` as the unique Telegram user identifier.
-This is strong semantic alignment, but still an inference across two independent contracts.
-
-The required proof fixture is one consenting staging user observed in all three places:
+Illustrative service module interface, independent of its HTTP adapter:
 
 ```text
-Telegram OIDC profile id == Bot API User.id == Tribute webhook telegram_user_id
+TelegramMembership
+  beginLink(platformPrincipalRef, returnTo) -> LinkRedirect
+  completeOidc(callback) -> LinkOutcome
+  resolveMembership(platformPrincipalRef, forceRefresh = false) -> MembershipDecision
+
+MembershipDecision
+  member | not_member | conflict | unavailable
+  reasonCode
+  checkedAt
+  validUntil
+  telegramIdentityRef
+  evidenceRef
+  evidenceVersion
 ```
 
-Also capture OIDC `sub` separately and prove it is stable across two logins. Do not require
-`sub == id`. If the three numeric IDs differ or Tribute sends a missing/ambiguous ID, quarantine
-the evidence and deny automatic access.
+Interface invariants:
 
-Events may arrive before a user links Telegram. Store the external subscription keyed by provider
-connection and Telegram ID without a Principal. Once a verified identity with the same numeric ID
-is linked, recompute the entitlement. This avoids discarding legitimate pre-existing members and
-does not weaken the identity proof.
+- `beginLink` never accepts a Telegram user ID; an authenticated service call binds one opaque,
+  non-email Platform Principal reference to the transaction.
+- `returnTo` is an allowlisted local destination, never an arbitrary callback URL.
+- `completeOidc` consumes one transaction once, persists the verified identity and immediately
+  resolves membership.
+- `resolveMembership` returns normalized bounded evidence, not raw `ChatMember` data and not a
+  permanent Platform role.
+- Normal authorization refreshes only when evidence is stale. The user-facing refresh action sets
+  `forceRefresh=true` and is rate-limited.
+- `member` always has a finite `validUntil`; there is no permanent boolean member flag.
+- A `member` result always carries opaque `telegramIdentityRef`, `evidenceRef` and monotonic
+  `evidenceVersion`; Platform persists them for audit without dereferencing the service database.
+- Identity conflict, confirmed non-membership and expired evidence fail closed with distinct
+  reason codes.
 
-## Tribute lifecycle contract
+The service exposes this behavior over a versioned authenticated internal HTTP interface. Platform
+owns a `TelegramMembership` port at that remote-owned seam, with an HTTP adapter in production and
+an in-memory adapter in Platform tests. The transport contract contains no bot token, username,
+raw OIDC token or raw Telegram status.
 
-### Documented webhook surface
+### Internal implementation and seams
 
-Tribute documents a `trbt-signature` header containing HMAC-SHA256 of the request body with the
-creator API key. Verify the exact raw bytes before JSON parsing and compare in constant time. The
-documentation does not state whether the header is lower/uppercase hex, Base64 or prefixed, so the
-handler cannot be finalized safely without a canonical test vector or a real delivery
-([webhook contract](https://wiki.tribute.tg/for-content-creators/api-documentation/webhooks.md)).
+```text
+TelegramMembership implementation
+  |- link transaction rules
+  |- ID-token validation and identity invariants
+  |- chat-member status mapping
+  |- observation freshness and single-flight refresh
+  |- normalized observation and audit
+  |
+  |- Telegram OIDC adapter ------ true external dependency
+  |- Telegram Bot API adapter --- true external dependency
+  `- persistence/clock ---------- internal seams for tests
+```
 
-Subscription webhooks have an envelope of `name`, `created_at`, `sent_at` and `payload`. The public
-OpenAPI defines these events:
+Telegram is a true external dependency, so the implementation owns narrow internal ports and uses
+production HTTP plus mock adapters in tests. These ports are not exposed through the module's
+external interface. Service tests exercise `beginLink`, `completeOidc` and `resolveMembership`;
+cross-repository contract tests verify Platform's HTTP adapter against the service schema.
 
-| Event | Confirmed payload facts | Provisional meaning until staging proof |
+Do not create generic bot, provider or campaign abstractions now. One production and one mock
+adapter justify the external seams; hypothetical future providers do not.
+
+## Minimal Telegram service v1
+
+### Included
+
+- one branded bot created and owned through BotFather;
+- one private `sachkov-inside/inside-telegram` repository and independent deployable;
+- one service-owned PostgreSQL database and migrations;
+- an authenticated versioned internal interface for Platform plus the public OIDC callback;
+- BotFather allowed origins/redirect URIs and OIDC client credentials;
+- bot added as administrator to the one configured Inside chat;
+- separate OIDC client secret and Bot API token in the Telegram service secret store;
+- OIDC linking after email authentication;
+- server-side `getChatMember` checks for a fixed numeric chat ID;
+- five-minute bounded membership observation and rate-limited refresh;
+- link, membership-check, denial, conflict and provider-error audit/metrics.
+
+### Explicitly excluded
+
+- `/start` or any other bot commands;
+- direct messages, notification consent and `telegram:bot_access` scope;
+- bot webhook, long polling and `chat_member` update processing;
+- approving joins, creating invite links, banning/removing members or changing permissions;
+- content posting, moderation, owner dashboards, scheduled notifications or marketing;
+- Tribute API keys, webhooks, subscribers or subscription records.
+
+The service is independently deployed even though it has no inbound Telegram update loop in v1.
+Do not add a queue, Redis, generic campaign engine or empty worker merely to anticipate future
+messaging. Add a worker entrypoint in the same repository when the first durable asynchronous bot
+workflow is approved.
+
+## Selected service stack direction
+
+Use **TypeScript on Node.js 24 LTS, NestJS with the Fastify adapter, grammY and PostgreSQL**. NestJS
+is the application composition and runtime framework; Fastify serves the public OIDC callback and
+authenticated internal HTTP interface; grammY is the Telegram update/API adapter; PostgreSQL owns
+the service state. The already researched **Kysely + `pg`** option remains a bounded data-access
+recommendation, not part of this owner decision. Pin exact dependency versions in the bootstrap
+repository and upgrade them through isolated contract-test PRs.
+
+| Concern | Target | Why |
 |---|---|---|
-| `new_subscription` | Subscription/period IDs, type, money fields, Tribute/Telegram user IDs, channel, `expires_at`. | Paid/trial/gift access observed through the reported expiry. |
-| `renewed_subscription` | Same core IDs and a new `expires_at`; gift/trial renews as `regular`. | Extend/restart access through the newer expiry. |
-| `cancelled_subscription` | Same core IDs, `cancel_reason` and `expires_at`. | Auto-renew is off; keep paid-through access until expiry, not immediate revocation. This interpretation must be confirmed. |
+| Runtime | Node.js 24 LTS | Node recommends production applications use an LTS line; v24 is the current LTS on this snapshot ([Node releases](https://nodejs.org/en/about/previous-releases)). |
+| Language | TypeScript with strict compiler settings | One typed language fits Telegram adapters, internal HTTP contracts and a future web admin without introducing a Python-only operating path. |
+| Telegram framework | grammY 1.x | Current TypeScript-first framework with Bot API 10.2 support and official router, conversations, menus, runner, retry, throttling and chat-member plugins. |
+| Application framework | NestJS | Provides explicit modules, dependency injection and test utilities for the planned long-lived bot service; queues and scheduling remain optional capabilities, not bootstrap dependencies ([modules](https://docs.nestjs.com/modules), [testing](https://docs.nestjs.com/fundamentals/testing), [queues](https://docs.nestjs.com/techniques/queues), [task scheduling](https://docs.nestjs.com/techniques/task-scheduling)). |
+| HTTP adapter | Fastify 5.x | Nest officially supports Fastify through `FastifyAdapter`; Fastify supplies schema validation/serialization, TypeScript support and an LTS policy ([Nest performance/Fastify](https://docs.nestjs.com/techniques/performance), [Fastify TypeScript](https://fastify.dev/docs/latest/Reference/TypeScript/), [validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [LTS](https://fastify.dev/docs/latest/Reference/LTS/)). |
+| Durable store | PostgreSQL | Exact identity uniqueness, single-use link transactions, observation history and audit need transactions and constraints. |
+| Data access | Kysely + `pg`, subject to its existing bounded spike | Keeps SQL, transactions and migrations explicit; reuse the decision evidence in [`platform-postgresql-data-access.md`](platform-postgresql-data-access.md) rather than choose a second data model casually. |
+| Test shape | module-interface tests, Nest module tests, HTTP contract tests and credentialed Telegram smoke tests | NestJS composes the application and grammY is an adapter; business tests must not depend on framework `Context` objects. |
 
-There is no event/delivery ID. `type` is required for renewal but optional in the new/cancelled
-schemas. Webhook periods enumerate only monthly/quarterly/yearly while the subscription catalog
-also lists trial, one-time, weekly and half-yearly. `telegram_user_id` is required even though
-`trb_user_id` documents email-authorized `W-...` users. These schema gaps must be handled as
-unknowns, not guessed away ([Tribute OpenAPI](https://tribute.tg/api/v1/openapi/en)).
+Do not choose a current Node release such as Node 26 for production before it becomes LTS. NestJS
+is selected because the concrete roadmap includes owner tooling, notifications, marketing and a
+possible admin surface, not because v1 needs many layers. Keep Nest decorators, controllers and
+providers at composition/adapter seams; domain commands, outcomes and policies remain plain
+TypeScript. Do not install BullMQ, Redis, scheduling or a campaign engine until the first approved
+asynchronous workflow needs them.
 
-### Cancellation, failed payment, expiry and gift gaps
+### Telegram framework comparison
 
-Tribute lets a subscriber cancel and documents that deleting a creator subscription stops future
-renewal while existing subscribers retain access until expiry
-([subscriber management](https://wiki.tribute.tg/for-subscribers/subscription-management.md),
-[creator deletion](https://wiki.tribute.tg/for-content-creators/subscriptions/how-to-delete-subscription.md)).
-This supports, but does not prove, the paid-through interpretation of `cancelled_subscription`.
+Snapshot checked against official repositories and documentation on 2026-08-21:
 
-Tribute separately documents a seven-day period of repeated charges after a failed payment and
-channel removal only after the period ends
-([deferred removal](https://wiki.tribute.tg/for-content-creators/subscriptions/deferred-subscriber-removal-for-failed-payments.md)).
-It does not say whether webhook `expires_at` includes that grace, which webhook marks final failure,
-or whether Platform access is expected to mirror channel access during it. Do not invent a
-seven-day local grace until this is answered.
+| Candidate | Current evidence | Decision |
+|---|---|---|
+| **grammY** | v1.45.1 was released 2026-07-17; v1.45.0 added current Bot API 10.2. Official plugins cover conversations, menus, router, concurrency runner, retries, throttling, rate limiting and chat members ([Bot API changelog](https://core.telegram.org/bots/api-changelog#july-14-2026), [releases](https://github.com/grammyjs/grammY/releases), [plugins](https://grammy.dev/plugins/guide), [scaling](https://grammy.dev/advanced/scaling)). | **Target.** Best fit for TypeScript, current Bot API coverage and future bot interactions. |
+| **Telegraf** | Latest v4.16.3 is from 2024 and its official release notes describe Bot API 7.1 support, v4 support ending in February 2025 and a planned v5 that is still not released ([releases](https://github.com/telegraf/telegraf/releases)). | Reject for a new long-lived bot despite its large installed base. The maintenance/version transition is the dominant risk. |
+| **aiogram** | Active async Python framework; v3.30.0 added Bot API 10.2 on 2026-07-17 and includes routers, FSM, middleware, webhook integration and generated Bot API types ([repository](https://github.com/aiogram/aiogram), [releases](https://github.com/aiogram/aiogram/releases)). | Credible fallback if Inside deliberately selects Python for the whole Telegram application. No current requirement justifies the second language. |
+| **python-telegram-bot** | Mature async Python project; v22.8 was released 2026-06-12 with Bot API 10.0, webhooks, polling, persistence and a large community. Its own docs warn that several update, conversation and persistence surfaces are not thread-safe ([release](https://github.com/python-telegram-bot/python-telegram-bot/releases/tag/v22.8), [repository](https://github.com/python-telegram-bot/python-telegram-bot)). | Mature but not the target; behind current Bot API 10.2, weaker fit than aiogram for a new typed async service and still introduces Python operations. |
 
-Gift access is activated through a unique link sent to the recipient
-([gift subscription](https://wiki.tribute.tg/for-content-creators/subscriptions/gift-subscription.md)).
-The webhook documentation does not say whether the event occurs at purchase or redemption or
-whether its Telegram ID belongs to buyer or recipient. Refund/chargeback behavior for
-subscriptions is also absent from the public API and event list.
+The choice is not based on GitHub stars. Telegraf and python-telegram-bot are larger projects, but
+Bot API currency, an active release line and fit with the selected service language matter more
+for a new repository.
 
-### Delivery and retry gaps
+### grammY risk boundary
 
-The current canonical webhook page lists retries after 5m, 15m, 30m, 1h, 2h, 4h, 8h and 8h,
-approximately one day. A separate current integration guide still lists 5m, 15m, 30m, 1h and 10h
-and tells implementers to be idempotent
-([integration guide](https://wiki.tribute.tg/for-content-creators/info-products-and-content/api-integration.md)).
-Ordering, timeout, retry-triggering status codes, duplicate guarantees, whether `sent_at` changes,
-and event retention/replay are not documented.
+grammY has one material gap: it does not yet ship an official production-grade handler testing
+package; an official adoption proposal remained open in May 2026
+([testing proposal](https://github.com/grammyjs/grammY/issues/903)). Keep this risk bounded:
 
-Design for duplicate, late, missing and out-of-order delivery. HMAC authenticates bytes but does
-not prevent replay because the contract provides no signed delivery ID or replay window.
+- business workflows accept plain commands and return plain outcomes behind the module interface;
+- grammY `Context`, middleware and sessions remain in Telegram adapters;
+- tests inject Bot API/OIDC adapters and exercise module behavior without a bot token;
+- a framework replacement rewrites adapters, not identity, membership or campaign rules.
 
-## Application data model
+Runner, conversations and webhook support are evidence that the framework can grow beyond v1, not
+selected workflow architecture or current proof scope. The first inbound command, admin or
+messaging workflow must separately design and prove ordering, idempotency, persistence, webhook
+delivery and side-effect safety before adding those packages or entrypoints.
 
-The names below describe ownership and invariants, not final ORM mappings.
+### Repository and deployment shape
+
+Start as one repository and one modular application, not a fleet of microservices:
+
+```text
+inside-telegram/
+  src/membership/    deep linking and membership rules; plain TypeScript core
+  src/telegram/      grammY, Bot API and OIDC adapters
+  src/http/          Nest controllers for internal interface and OIDC callback
+  src/persistence/   PostgreSQL adapters and migrations
+  src/runtime/       Nest composition, configuration, health and telemetry
+```
+
+V1 deploys one stateless NestJS/Fastify application process plus PostgreSQL. Nest modules compose
+the real capability boundaries above; do not create empty `admin`, `campaign` or `notification`
+modules. The repository owns its build, tests, migrations, secrets, health checks and deployment.
+A future bot-update worker or admin UI may become another entrypoint in this repository, but no
+empty package or deployment is created until its first use case exists. Platform never imports
+source or generated code from a sibling checkout; it consumes a versioned schema over the
+authenticated internal interface.
+
+## Bot ownership and chat rights
+
+Use a dedicated Inside bot rather than `@Tribute` or an unrelated existing bot:
+
+- Inside controls its OIDC client and Bot API credentials;
+- the user sees a coherent Inside name/avatar during linking;
+- future capabilities can use the same public bot identity without changing linked accounts;
+- Tribute can disappear without changing Platform identity or authorization contracts.
+
+Add the bot to the canonical closed chat as an administrator because Telegram guarantees
+`getChatMember` for arbitrary users only in that role. Disable every optional right to post,
+delete, invite, ban, pin, edit or manage topics. Confirm the minimal permission set with a real
+member/non-member check before launch.
+
+Keep credentials separate even though they belong to one bot:
+
+- OIDC client secret is used only for server-side code exchange;
+- Bot API token is used only by the membership reader in v1;
+- neither secret reaches browser JavaScript, logs, committed files or analytics;
+- token rotation and bot removal from the chat are operational incidents with alerts.
+
+The configured numeric chat ID is trusted configuration. Never accept a chat ID from the browser
+or check membership in an arbitrary chat requested by a user.
+
+## Membership status mapping
+
+Telegram defines six `ChatMember` variants
+([Bot API types](https://core.telegram.org/bots/api#chatmember)). Map them once inside the module:
+
+| Telegram result | Platform observation | Access |
+|---|---|---|
+| `creator` | `member` | Grant. |
+| `administrator` | `member` | Grant. |
+| `member` | `member` | Grant; if optional `until_date` is present, do not extend evidence beyond it. |
+| `restricted` with `is_member=true` | `member` | Grant; restrictions concern chat actions, not presence. |
+| `restricted` with `is_member=false` | `not_member` | Deny. |
+| `left` | `not_member` | Deny. |
+| `kicked` | `not_member` | Deny. |
+| transport/auth/parse error | `unavailable` | Use still-fresh prior evidence only; otherwise deny without rewriting it as confirmed non-membership. |
+
+Preserve the raw status in bounded diagnostic evidence, but callers see only the normalized
+decision and reason.
+
+## Cross-repository data ownership
+
+The Telegram service records observed Telegram facts; Platform records its application
+entitlement. There are no cross-database foreign keys or shared tables.
+
+### `telegram_link_transaction`
+
+Telegram service-owned short-lived, single-use state for opaque Platform Principal reference,
+state/nonce hashes, a recoverable high-entropy PKCE `code_verifier` protected at rest, its derived
+challenge, allowlisted return URL, expiry and consumption. The callback needs the original
+verifier for token exchange; it is never logged and is deleted after consumption/expiry. The
+transaction contains no entitlement.
 
 ### `external_identity`
 
 | Field | Purpose |
 |---|---|
-| `id`, `principal_id` | Application identity and owner. |
-| `provider`, `issuer`, `subject` | `telegram`, exact issuer and opaque OIDC `sub`. |
-| `telegram_user_id` | Verified OIDC profile `id` in an exact representation with at least signed 64-bit range; serialize it as a decimal string at JSON boundaries. |
+| `id`, `platform_principal_ref` | Service identity and its opaque Platform owner reference. |
+| `provider`, `issuer`, `subject` | `telegram`, exact issuer and opaque OIDC `sub`; historically unique across Principals. |
+| `telegram_user_id` | Verified profile `id`, historically unique across Principals. |
 | `status` | `active`, `unlinked`, `conflict`, `recovery_hold`. |
-| `verified_at`, `unlinked_at`, `last_seen_at` | Lifecycle/audit timestamps. |
-| display snapshots | Optional name/username only for support; never identity keys. |
+| `verified_at`, `unlinked_at`, `last_seen_at` | Lifecycle and audit timestamps. |
+| display snapshots | Optional support display only; never keys. |
 
-Enforce unique provider/issuer/subject, unique active provider/Telegram ID and one active Telegram
-identity per Principal. Keep a tombstone after unlink.
-
-### `webhook_inbox`
+### `telegram_membership_observation`
 
 | Field | Purpose |
 |---|---|
-| `id`, `provider_connection_id`, `received_at` | Durable delivery identity and tenant/key boundary. |
-| `raw_body`, `body_sha256`, `signature` | Exact verification/audit input with bounded retention and protected access. |
-| `signature_status`, `schema_version`, `event_name` | Admission result and decoder selection. |
-| `provider_created_at`, `provider_sent_at` | Provider times; never replace server receipt time. |
-| `semantic_fingerprint` | Provisional dedupe hash excluding `sent_at`; not treated as a provider guarantee. |
-| `processing_status`, `attempt_count`, `next_attempt_at`, `processed_at`, `error_code` | Async processing, retry and dead-letter state. |
+| `id`, `evidence_version` | Opaque evidence reference and monotonic per-identity projection version returned to Platform. |
+| `external_identity_id`, `chat_id` | Exact identity and configured authority chat. |
+| `state` | `member`, `not_member`, `unavailable`. |
+| `raw_status`, `raw_is_member` | Diagnostic Telegram result without leaking it to callers. |
+| `checked_at`, `valid_until` | Evidence time and bounded freshness. |
+| `source` | `link`, `protected_request`, `user_refresh`. |
+| `provider_request_id`, `error_code` | Correlation and safe operational diagnosis. |
 
-Commit the inbox row before acknowledging delivery. Keep raw bytes at least through the provider
-retry/reconciliation window, then retain a body hash and redacted audit according to the eventual
-privacy policy.
+Keep observation history or an audit event for grant/revoke transitions; a current projection may
+be stored separately inside the service for fast resolution.
 
-### `external_subscription`
-
-| Field | Purpose |
-|---|---|
-| `id`, `provider_connection_id` | Local aggregate and Tribute creator/account boundary. |
-| `telegram_user_id`, `trb_user_id` | Correlation key and Tribute-local provenance. |
-| `provider_subscription_id`, `provider_period_id`, `provider_channel_id` | Whitelisted product/period/channel facts. |
-| `kind` | `regular`, `gift`, `trial`, or `unknown`. |
-| `state` | `active`, `non_renewing`, `expired`, `unknown`, `disputed`. |
-| `valid_from`, `valid_until` | Observed access interval; `valid_until` comes from `expires_at`. |
-| `last_provider_created_at`, `last_inbox_id` | Ordering and evidence pointer. |
-| `last_reconciled_at`, `reconciliation_source` | Snapshot freshness and provenance. |
-
-Use `(provider_connection_id, telegram_user_id, provider_subscription_id)` as the provisional
-aggregate key, subject to real gift and multi-period fixtures. Whitelist the Inside subscription
-and channel IDs; a validly signed event for a different creator product must not grant Inside.
-
-### `membership_entitlement`
+### Platform-owned `membership_entitlement`
 
 | Field | Purpose |
 |---|---|
-| `principal_id`, `entitlement_key` | Application authorization key, one `inside_membership` level in v1. |
-| `state` | `granted`, `denied`, `manual_hold`, `conflict`. |
-| `valid_from`, `valid_until` | Bounded effective window. |
-| `external_identity_id`, `external_subscription_id` | Exact evidence chain. |
-| `evaluated_at`, `reason_code`, `evidence_version` | Deterministic policy/audit. |
+| `principal_id`, `entitlement_key` | One `inside_membership` authorization level in v1. |
+| `state` | `granted`, `denied`, `conflict`. |
+| `valid_until` | Never later than the supporting membership observation. |
+| `telegram_identity_ref`, `evidence_ref`, `evidence_version` | Opaque service evidence returned together; not foreign keys into the service database. |
+| `evaluated_at`, `reason_code`, `policy_version` | Deterministic Platform policy and audit. |
 
-Entitlement is a rebuildable projection, not a mutable flag copied into the IdP. Every protected
-request evaluates the current projection and `valid_until`; an already issued login session does
-not preserve expired Membership.
+This is a rebuildable projection, not an IdP role or long-lived token claim. Every protected
+request rejects a granted entitlement whose `valid_until` has passed and asks the Telegram
+service to refresh it.
 
-Time-bounded manual adjustments, if approved, belong in a separate audited record with owner,
-reason, evidence, creation and mandatory expiry. They never rewrite Tribute facts.
+### Tribute candidate model: evaluated and not selected
 
-## Access state machine
+The original candidate included `webhook_inbox` plus `external_subscription`, joined through
+`telegram_user_id` into `membership_entitlement`. It is not part of selected v1:
 
-Identity and subscription evolve independently. The entitlement is their join.
+| Candidate | Decision |
+|---|---|
+| `external_identity` | Retained in the Telegram service because linking is still required. |
+| Tribute `webhook_inbox` | Rejected for v1; neither application receives Tribute events. |
+| `external_subscription` | Rejected for v1; Telegram membership, not payment/subscription state, is authoritative. |
+| `membership_entitlement` | Retained in Platform, now derived from a bounded service observation. |
+
+## State machine
+
+Identity and membership evidence are independent; removing someone from the chat must not destroy
+their linked Platform account.
 
 ```text
 IDENTITY
 
-UNLINKED -- verified OIDC + uniqueness --> LINKED
-LINKED   -- local unlink ---------------> UNLINKED (audit/tombstone retained)
-any      -- duplicate/relink mismatch --> CONFLICT (deny, manual recovery)
+NEVER_LINKED -- verified OIDC + uniqueness --> LINKED
+LINKED -- explicit secure unlink ----------> UNLINKED_TOMBSTONE
+UNLINKED_TOMBSTONE -- same Principal + fresh proof --> LINKED
+any -- identity owned by another Principal -> CONFLICT / audited owner recovery only
 
-EXTERNAL SUBSCRIPTION
+MEMBERSHIP OBSERVATION
 
-NONE -- new(valid future expiry) ----------------> ACTIVE(until T)
-ACTIVE -- renewal(newer evidence) ---------------> ACTIVE(until later T)
-ACTIVE -- cancellation(newer evidence) ----------> NON_RENEWING(until T)
-NON_RENEWING -- renewal(newer evidence) ----------> ACTIVE(until later T)
-ACTIVE/NON_RENEWING -- clock reaches T ----------> EXPIRED
-EXPIRED -- late new/renewal with future expiry ---> ACTIVE(until T)
-any -- contradictory/invalid provider evidence --> DISPUTED
+UNKNOWN -- getChatMember(member-like) ---> MEMBER(until T)
+UNKNOWN -- getChatMember(left/kicked) ----> NOT_MEMBER
+MEMBER  -- fresh cache read --------------> MEMBER(same T)
+MEMBER  -- stale + member-like -----------> MEMBER(new T)
+MEMBER  -- stale + left/kicked -----------> NOT_MEMBER
+NOT_MEMBER -- force/stale + member-like ---> MEMBER(until T)
+any -- Telegram unavailable --------------> prior fresh evidence or UNAVAILABLE
 
 ENTITLEMENT
 
-LINKED + ACTIVE/NON_RENEWING + now < T + whitelisted product -> GRANTED(until T)
-otherwise                                                   -> DENIED/CONFLICT
+LINKED + MEMBER + now < T ----------------> GRANTED(until T)
+not linked / NOT_MEMBER / expired --------> DENIED
+identity conflict ------------------------> CONFLICT
 ```
 
-Processing rules:
+Transitions are idempotent. Concurrent stale requests use a single-flight refresh or row lock so
+one Principal does not generate a Bot API request storm. Provider errors never masquerade as a
+confirmed `not_member` result.
 
-- A duplicate transition is a no-op with an audit reference.
-- For new/renewal, only newer logical evidence may extend access. An older delivery never shortens
-  or rolls back a newer period.
-- A logically newer cancellation may set non-renewing and its reported expiry. If it unexpectedly
-  shortens a known paid-through interval, quarantine until cancellation semantics are proven.
-- Compare provider `created_at` for logical order, record `sent_at`, and always retain local
-  `received_at`. Equal/contradictory versions become `disputed`, not last-write-wins.
-- Expiry is enforced by the authorization clock, not only by a scheduled worker. A worker updates
-  projections/notifications, but a delayed job cannot extend access.
-- If a renewal is missed, access fails closed at the last proven expiry. A later valid renewal
-  reactivates it. Any product grace must be an explicit owner decision backed by provider facts.
-- Unlink immediately removes the Principal join while retaining the unclaimed external
-  subscription; re-linking the same verified Telegram ID can restore still-current access.
+## Idempotency contract
 
-## Idempotent webhook processing
+- A link transaction is single-use. Replaying its callback fails before code exchange or state
+  mutation.
+- If the same verified Telegram identity is already attached to the same Principal after a client
+  timeout, completing the application operation again returns the existing link rather than a
+  duplicate row.
+- Repeating `getChatMember` with the same result creates no new entitlement transition; it only
+  refreshes evidence time through one serialized update.
+- Concurrent stale protected requests share one in-flight provider check or serialize on the
+  current observation. They cannot extend access independently.
+- A newer confirmed observation replaces the current projection; late completion of an older
+  request cannot overwrite it. Compare local request start/completion/version, not Telegram wall
+  clock fields that the method does not provide.
+- Audit events use application-generated IDs and transition/version uniqueness. V1 has no inbound
+  bot or Tribute delivery to deduplicate.
 
-1. Apply TLS, request-size and content-type limits; capture exact raw bytes.
-2. Look up the provider connection/key version without logging the key.
-3. Verify `trbt-signature` over raw bytes using the confirmed encoding and constant-time compare.
-4. Insert a delivery into `webhook_inbox`; acknowledge success only after durable commit.
-5. Parse a versioned schema asynchronously. Preserve unknown fields and quarantine unknown event
-   names rather than granting.
-6. Derive a provisional semantic fingerprint from provider connection, event name,
-   `telegram_user_id`, subscription/period IDs, `expires_at` and `created_at`, excluding
-   retry-oriented `sent_at`.
-7. In one transaction, lock/upsert the external subscription conditionally on evidence order,
-   record the applied/no-op/disputed result and rebuild affected entitlement.
-8. Retry transient processing errors internally. Dead-letter permanent schema/conflict errors and
-   alert without causing an infinite provider retry storm.
+## Freshness, revocation and availability
 
-The semantic fingerprint is only a dedupe aid because Tribute supplies no event ID and has not
-promised which fields remain stable on redelivery. Correctness comes from idempotent conditional
-state transitions, not from trusting that fingerprint.
+Recommended v1 policy:
 
-## Reconciliation and recovery
+- positive observation/entitlement TTL: **five minutes**;
+- confirmed negative result: deny immediately; cache for 30 seconds to limit repeated clicks;
+- force refresh: rate-limit per Principal and IP, suggested once per 10 seconds with normal abuse
+  limits;
+- check on successful linking, new login/session, user refresh and the first protected request
+  after evidence expires;
+- Telegram unavailable: honor only an already-fresh positive observation, with no extra grace;
+- after five minutes without a successful recheck, protected content fails closed while public
+  content/account data remain available;
+- session cookies and access tokens must not carry a Membership grant beyond `validUntil`;
+- every derived protected artifact, including Kinescope playback authorization and private-file
+  URLs, expires no later than the supporting entitlement; CDN/browser cache policy must not make
+  that artifact reusable after the bound.
 
-A webhook-only feed cannot backfill existing subscribers or prove that no event was missed. The
-supported public `/subscriptions` endpoint returns the creator's catalog, not member status
-([Subscriptions API](https://wiki.tribute.tg/for-content-creators/api-documentation/subscriptions.md)).
-The broader OpenAPI exposes `/subscribers?subscriptionID=...` with Telegram ID, status
-`active|pre_cancelled|cancelled`, activation and expiry, but marks it `x-internal: true` and gives
-no pagination or consistency contract.
-
-Production reconciliation requires either a supported version of that operation or another
-Tribute-provided full export/API with these properties:
-
-- complete snapshot for a specific creator subscription and channel;
-- stable Telegram user ID plus paid-through expiry and cancellation state;
-- documented pagination, consistency lag, rate limits and snapshot completeness marker;
-- safe repeated reads and an initial backfill path;
-- defined behavior for trials, gifts, refunds, grace, manual removal and reactivation.
-
-Once available:
-
-1. Take a complete initial snapshot before enabling automatic closed-content access.
-2. Reconcile frequently enough to recover within the agreed access RTO; choose the interval only
-   after observing limits and snapshot size. Also expose a rate-limited user “refresh access” path.
-3. Mark every row with a reconciliation run ID. Treat absence as evidence only after a complete,
-   successful snapshot; never revoke from a partial page or failed run.
-4. Replay the durable inbox after decoder/processing repairs, then reconcile to authoritative
-   current state.
-5. Alert when the last complete snapshot is older than two intended intervals, webhook delivery
-   is silent unexpectedly, unknown events appear, or inbox lag approaches a known expiry.
-
-### Manual fallback
-
-For a bounded pilot, the owner may issue a short manual adjustment only after checking provider
-evidence that contains the exact verified Telegram ID and paid-through date. Username, receipt
-screenshot or payment email alone is insufficient. Record reason/evidence and expire the override
-automatically; suggested maximum is seven days pending an owner decision.
-
-If Tribute offers no supported identity-bearing export, the safe fallback is “access pending
-manual review” or another provider, not indefinite access. Public/free content remains available
-during integration outages; protected content fails closed after the last proven expiry.
+This policy gives a measurable maximum of five minutes before Platform stops granting new access.
+It cannot revoke bytes already downloaded, a page already rendered in a browser, a screen capture
+or a playback segment already delivered to the device. If the owner later accepts a longer delay
+for availability, coordinated Telegram service and Platform ADRs may change the policy value
+without changing the product authority contract.
 
 ## Failure and error table
 
 | Failure | Detection | Access behavior | Recovery |
 |---|---|---|---|
-| Email session absent/stale at link start | Session/re-auth check | No link; existing access unchanged. | Re-authenticate by primary method. |
-| Telegram authorization denied/expired | Callback error or expired transaction | No link. | Start a new transaction. |
-| State, PKCE or nonce mismatch/replay | Single-use transaction validation | No link; security alert on repetition. | Discard transaction; investigate session compromise. |
-| Bad Telegram signature/issuer/audience/algorithm/time | Strict ID-token validation | No link. | Refresh JWKS only by policy; retry new login, then escalate. |
-| Missing/invalid OIDC `id` | Claim/range validation | No automatic Membership join. | Quarantine and contact Telegram support. |
-| Telegram identity already linked elsewhere | Unique constraint | `conflict`, deny transfer. | Audited recovery with both proofs/owner policy. |
-| Principal already has another Telegram link | Unique constraint | Keep current link; deny replacement. | Explicit replace/recovery flow. |
-| Telegram provider unavailable | Discovery/token failure metrics | Existing bounded entitlement continues; no new link. | Retry with backoff; show status. |
-| Tribute signature absent/invalid | Raw-body HMAC verification | No state change. | Return confirmed auth error behavior, alert and check key/encoding. |
-| Tribute payload malformed/unknown | Versioned decoder | No grant; store/quarantine if authenticated. | Fix decoder/support case, replay inbox. |
-| Valid event for wrong subscription/channel | Allowlist | No grant; audit. | Correct provider configuration. |
-| Missing/mismatched Telegram/Tribute identity | Join constraints | External record remains unclaimed/disputed. | Real identity proof or provider correction. |
-| Exact duplicate webhook | Inbox hash/fingerprint and idempotent transition | No duplicate effect. | Acknowledge and retain audit. |
-| Out-of-order old event | Evidence ordering | No rollback of newer state. | Audit; reconcile. |
-| Contradictory same/newer event | Invariant checks | `disputed`, fail closed if current access cannot be proven. | Reconcile/provider support/manual review. |
-| Database unavailable at ingestion | Inbox commit fails | No state change; provider should retry. | Restore DB; monitor retry horizon. |
-| Processor unavailable after inbox commit | Inbox lag | Existing access only until proven expiry. | Internal retry/replay; alert before expiry. |
-| Missed webhook beyond provider retries | Reconciliation drift | Correct from supported snapshot; otherwise no silent extension. | Full reconcile/manual bounded review. |
-| Cancellation before expiry | Newer cancellation plus `expires_at` | Provisional non-renewing until T. | Confirm semantics; timer denies at T unless renewed. |
-| Failed payment/grace ambiguity | Provider response/event mismatch | Do not invent grace. | Supported snapshot or owner-approved temporary policy after proof. |
-| Clock reaches `valid_until` | Request-time entitlement evaluation | Deny immediately; keep account/read state. | Valid renewal/reconcile reactivates. |
-| Renewal arrives late | Valid newer future expiry | Reactivate; record access gap. | Monitor provider latency and reconcile. |
-| Refund/chargeback without event | Reconciliation/support discrepancy | Cannot guarantee prompt revocation: hard go/no-go gap. | Provider contract or alternative provider. |
-| Provider key compromised/rotated | Secret incident/audit | Pause ingestion that cannot be authenticated; preserve last bounded state. | Rotate with confirmed dual-key procedure, replay/reconcile. |
+| Email session missing/stale | Link-start guard | No link. | Re-authenticate by email. |
+| Telegram consent denied/expired | OIDC callback | No link. | Start a new link transaction. |
+| State/PKCE/nonce mismatch or replay | Single-use validation | No link; security audit. | Discard transaction and investigate repetition. |
+| Bad token signature/issuer/audience/algorithm/time | Strict ID-token validation | No link. | New flow; provider/security investigation. |
+| Missing/invalid profile `id` | Claim/range validation | No link/access. | Provider support; never fall back to username. |
+| Identity already linked elsewhere | Unique constraint | Conflict; no transfer. | Audited recovery. |
+| Principal already linked to another Telegram account | Unique constraint | Keep existing link. | Explicit secure replacement. |
+| Platform-to-service authentication fails | Internal interface authentication | No link or refresh; fresh prior evidence only. | Restore/rotate machine credential and audit calls. |
+| Telegram service is unavailable | Timeout/circuit/health signal | Fresh prior grant only; otherwise deny as unavailable. | Backoff, restore service and recheck. |
+| Bot is not administrator | Staging/health check or Bot API error | No new grant; fresh prior evidence only. | Restore minimal admin role and recheck. |
+| Wrong configured chat ID | Startup/proof check | No access or wrong roster: launch blocker. | Correct immutable environment configuration. |
+| User is current member | `getChatMember` member-like result | Grant for bounded TTL. | Normal refresh. |
+| User left/was removed/banned | `left`, `kicked`, or not-member restriction | Stop new grants on observation, at most TTL after removal; already delivered bytes remain. | Rejoin/re-add, then refresh. |
+| Telegram network/rate failure | Transport/error response | Fresh prior grant only; otherwise deny as unavailable. | Backoff, single-flight and retry. |
+| Bot token revoked/compromised | Auth errors/incident | No stale extension; fail closed after TTL. | Rotate token, audit and recheck. |
+| OIDC secret rotated incorrectly | Token exchange failure | No new links; existing bounded checks continue via Bot token. | Correct/rotate client secret. |
+| Concurrent refresh storm | Metrics/lock contention | One external request; others reuse result/wait. | Single-flight/lock and rate limits. |
+| User was manually added without payment | Valid member result | Grant: this is intentional authority semantics. | Remove from Telegram if access is not intended. |
+| Paid user leaves accidentally | Valid `left` result | Deny. | Rejoin through current Telegram access process. |
 
-## Bot boundary
+## Why direct Tribute integration is rejected
 
-Telegram requires a bot object to represent the OIDC application. It does **not** require a
-separate bot deployment, worker or repository when the bot is used only as Login/OIDC client.
-BotFather manages allowed URLs and client credentials; the Bot API token is a separate secret and
-is not needed to validate OIDC ID tokens.
+Tribute remains operationally useful because it currently adds and removes participants from the
+closed chat. Platform does not need to understand how or why it does so.
 
-Reuse an existing bot only if it represents the same Inside Platform brand/trust boundary, is
-owned by the same operator and its client secret can be isolated. Otherwise create one dedicated
-Inside Platform login bot. In either case:
+The primary-source investigation found only `new_subscription`, `renewed_subscription` and
+`cancelled_subscription` webhooks, no stable event ID, no documented terminal expiry/refund/
+failed-payment lifecycle, and no supported public member reconciliation contract. A
+`/subscribers` operation exists in the OpenAPI document but is marked `x-internal: true`
+([Tribute webhooks](https://wiki.tribute.tg/for-content-creators/api-documentation/webhooks.md),
+[Tribute OpenAPI](https://tribute.tg/api/v1/openapi/en)).
 
-- keep the OIDC adapter and secrets inside the autonomous Platform repository/deployment;
-- do not make the login bot a channel administrator for this flow;
-- do not request `telegram:bot_access` until direct messages are an approved requirement;
-- keep Tribute's official `@Tribute` bot separate. Tribute requires it to administer the paid
-  private channel and warns that direct invite links bypass its subscription access flow
-  ([connect Tribute](https://wiki.tribute.tg/for-content-creators/how-to-connect-the-bot.md),
-  [publish a subscription](https://wiki.tribute.tg/for-content-creators/subscriptions/subscription-publishing.md)).
+| Investigated Tribute concern | Primary-source result |
+|---|---|
+| Signature | `trbt-signature` is HMAC-SHA256 over the request body using the API key, but encoding, prefix, replay window and rotation are undocumented. |
+| Events | Only new, renewed and cancelled subscription events are documented; they carry Telegram ID and `expires_at`, but no stable event/delivery ID. |
+| Ordering and duplicates | No ordering or at-least-once guarantee is stated. Current docs require idempotency but do not provide a canonical idempotency key. |
+| Retry | The canonical webhook page lists 5m, 15m, 30m, 1h, 2h, 4h, 8h, 8h, while another official [integration guide](https://wiki.tribute.tg/for-content-creators/info-products-and-content/api-integration.md) still lists 5m, 15m, 30m, 1h, 10h. |
+| Cancellation and expiry | It is unclear whether cancellation means auto-renew off or immediate loss, whether `expires_at` includes the documented failed-payment grace, and what marks final expiry/refund/resume. |
+| Backfill/reconciliation | The supported [`/subscriptions`](https://wiki.tribute.tg/for-content-creators/api-documentation/subscriptions.md) operation lists products, not members. `/subscribers` is internal and has no supported pagination/consistency/rate contract. |
 
-If later product behavior needs messages or join-request handling, it can initially be another
-adapter/worker in the Platform modular monolith. A new repository is justified only by a real
-independent ownership, deployment or security boundary.
+These findings explain the rejected design; Platform no longer needs to resolve them before
+launch. The current Telegram roster is reconciled per user through the supported Bot API method.
 
-## Go/no-go gates
+Those gaps no longer block Platform. If Tribute is replaced, the replacement only needs to manage
+the same Telegram roster—or the owner can do so manually. Platform's interface and the Telegram
+service's linked identities remain unchanged.
 
-### Telegram linking is go only when
+The trade-off is explicit: Platform authorizes actual Telegram presence, not a paid-through date.
+Removal lag in Tribute becomes removal lag from Telegram plus at most the Platform TTL. Platform
+cannot distinguish payment cancellation, manual gift, complimentary access or administrative
+mistake, and does not try.
 
-1. A BotFather-configured staging Authorization Code flow succeeds twice for the same user with
-   strict issuer/audience/algorithm/expiry, state, PKCE S256 and nonce validation.
-2. `sub` is stable across both logins; the observed `id` is stable and exactly equals the same
-   account's Bot API user ID and Tribute `telegram_user_id`.
-3. Duplicate identity, duplicate Telegram ID, same-account idempotency, attempted relink and
-   expired/replayed transaction tests behave as specified.
-4. The chosen OIDC library works without a UserInfo endpoint and does not treat Telegram access
-   tokens as application sessions.
-5. The owner approves bot identity/branding and the recent-auth/recovery UX.
-
-### Tribute automatic access is go only when
-
-1. A real delivery or Tribute test vector confirms the exact raw-body signature encoding,
-   constant-time verification, retry-triggering responses and a workable key-rotation procedure.
-2. Controlled fixtures capture new, renewal and cancellation plus duplicate and deliberately
-   out-of-order delivery. Event field stability and idempotency behavior are recorded.
-3. Tribute answers when cancellation, final failed payment, expiry, resume, gift redemption,
-   refund and chargeback occur, whose Telegram ID is sent, and whether `expires_at` includes the
-   seven-day failed-payment window.
-4. Tribute supports a member snapshot/backfill contract with exact ID, expiry, statuses,
-   pagination, consistency and rate limits. An internal undocumented route is insufficient.
-5. Initial backfill, webhook outage beyond the retry horizon, full reconciliation, clock expiry,
-   late renewal and replay from inbox all pass with no indefinite overgrant.
-6. The exact Inside subscription/period/channel allowlist is captured and events for other
-   products cannot grant access.
-
-Any unresolved gate above is **no-go for unattended production entitlement**. It does not prevent
-a small manual pilot with explicit owner-reviewed, expiring access adjustments.
+The dedicated bot identity and service repository leave room for later capabilities, but their
+workflows, permissions, consent, interfaces and any additional deployables are outside this v1
+design.
 
 ## Bounded credentialed proof
 
-This research performed no credentialed or paid external action. The remaining proof is bounded
-to staging and needs owner-controlled BotFather/Tribute credentials plus approval for any test
-payment.
+The remaining proof needs owner-controlled BotFather credentials and temporary minimal admin
+access in the real or a representative closed chat. It requires no Tribute key or test payment.
 
 | Timebox | Proof | Required evidence |
 |---|---|---|
-| 0.5 day | Telegram client | Staging bot/redirect, two code flows, validated token claim shapes, `sub`/`id` stability, nonce and no-UserInfo behavior. |
-| 0.25 day | Identity correlation | Same user's OIDC `id`, Bot API user ID and Tribute ID captured/redacted and compared exactly. |
-| 0.5 day | Tribute deliveries | Signature vector plus new/renew/cancel/gift or trial fixtures, retry/duplicate behavior and raw envelopes without secrets. |
-| 0.5 day | Inbox/state replay | Duplicate/out-of-order/malformed/wrong-product cases, request-time expiry and late renewal. |
-| 0.5 day | Backfill/reconcile | Supported member snapshot, pagination/rate/lag, initial import, partial-run safety and drift repair. |
-| 0.25 day | Failure drill | Provider outage beyond retry window, key rotation, processor recovery and manual bounded fallback. |
+| 0.5 day | Bot/OIDC setup | Branded bot, exact redirect, two code flows, strict token validation, stable `sub` and profile `id`, observed requested-`nonce` behavior. |
+| 0.25 day | Existing member | OIDC `id` accepted as Bot API user ID; `getChatMember` returns a member-like status and Platform grants. |
+| 0.25 day | Non-member/removal | Non-member is denied; remove the fixture and prove no new page/API/playback/download grant later than five minutes. |
+| 0.25 day | Rejoin/re-add | Re-add the same Telegram account; refresh restores access without relink. |
+| 0.25 day | Security cases | Replay, wrong audience, duplicate identity, attempted relink and user-supplied chat ID are rejected. |
+| 0.25 day | Availability | Bot loses admin/token/network temporarily; fresh evidence expires and protected access fails closed as designed. |
+| 0.5 day | Service contract | A NestJS module composed on Fastify and an in-memory test adapter pass the same contract; service timeout and credential rotation fail closed. Domain tests do not require Nest or grammY context objects. |
 
-Stop the spike after evidence and a go/no-go memo; do not stretch it into production integration.
+Stop after evidence plus repository bootstrap and ADR proposals in the owning repositories. Do not
+add commands, update processing or messaging to the proof.
 
-## Questions for Telegram and Tribute
+## Go/no-go
 
-### Telegram/BotSupport
+The recommended architecture may proceed beyond bounded proof only when all of these pass:
 
-1. Is OIDC profile `id` guaranteed to be the same numeric Telegram user ID exposed by Bot API for
-   that account, and is it stable for the lifetime of the account?
-2. Is `sub` issuer-wide and stable across bot clients as the advertised `public` subject type
-   implies? Is any relationship to profile `id` guaranteed?
-3. Is `nonce` supported and returned in the standard authorization-code ID token even though it is
-   absent from discovery `claims_supported` and the manual code example?
-4. What is the supported RP behavior when a user resets Telegram web authorization, given the lack
-   of a revocation/backchannel endpoint?
+1. The owner approves the bot name/avatar and the bot is owned through a recoverable Inside
+   operator account.
+2. Telegram OIDC works through a Platform-created service link session without exposing tokens to
+   browser storage or relying on a UserInfo endpoint; requested-`nonce` behavior is observed and
+   the actual validation policy is recorded in the Telegram service ADR.
+3. The OIDC profile `id` works as the exact Bot API `user_id` for the same fixture.
+4. With minimal admin permissions, the bot can distinguish an existing member, non-member,
+   removed/banned member and re-added member in the configured chat.
+5. After removal, Platform issues no new page, API, playback or download access beyond the accepted
+   TTL even while the email session remains active; re-add restores access without relink.
+6. Bot API outage, lost admin role and token rotation fail closed after the last bounded evidence
+   and produce actionable health signals.
+7. Identity uniqueness and recovery tests prevent silent link transfer or account merge.
+8. The versioned internal interface authenticates Platform, preserves the five-minute evidence
+   bound and can be tested through HTTP and in-memory adapters without sharing a database.
+9. The NestJS bootstrap runs on Fastify, and replacement test adapters exercise the Membership
+   module without Telegram credentials or framework context leaking into business rules.
 
-Telegram directs OIDC questions to `@BotSupport` with `#oidc` in the
-[Login documentation](https://core.telegram.org/bots/telegram-login).
+No-go means keep closed Platform access disabled while email accounts/public content can continue;
+do not fall back to username, screenshot, payment receipt or an unbounded manual grant.
 
-### Tribute Support
+## Remaining owner decisions
 
-1. What is the exact `trbt-signature` representation and canonical test vector? Is there a
-   version/prefix, replay age or dual-key rotation window?
-2. Which HTTP statuses/timeouts trigger retry, what schedule is authoritative, is ordering
-   guaranteed, and does `sent_at` change on retry?
-3. Is there a stable delivery/event ID or official idempotency key?
-4. When is `cancelled_subscription` sent, and does its `expires_at` always mean paid-through
-   access rather than immediate revocation?
-5. Does `expires_at` include the seven-day failed-payment grace? What events mark failed payment,
-   final expiry, resume/reactivation, refund and chargeback?
-6. For gifts, is the event sent at purchase or redemption and whose `telegram_user_id` is present?
-7. Can subscription events contain a `W-...` Tribute identity without a Telegram ID despite the
-   schema declaring it required?
-8. Is `GET /subscribers` a supported third-party production API? What are its pagination,
-   consistency, status meanings, retention and rate limits?
-9. Is there a supported event-history, transaction, lookup or export endpoint for initial
-   backfill and reconciliation?
-10. What happens to the reported lifecycle when `@Tribute` loses admin rights, a member leaves or
-    is manually banned, or a creator deletes a subscription?
+1. Confirm the recommended maximum revocation delay: **five minutes**.
+2. Choose the public bot username, display name/avatar and owner/recovery account.
+3. Confirm that v1 has no self-service Telegram replacement; exceptional recovery goes through an
+   audited owner procedure.
+4. Confirm `inside-telegram` as the repository name before bootstrap.
 
-## Open owner decisions
-
-1. Approve one staging bot identity: reuse an existing Inside bot only if its brand/credentials
-   fit, otherwise create a dedicated configuration-only Platform login bot.
-2. Approve the sensitive-action UX: recent email re-auth for first link, stronger proof for
-   replacement, and an audited owner recovery path.
-3. Decide whether the launch can be a bounded manual pilot if Tribute does not supply supported
-   reconciliation, or whether that is an immediate provider no-go.
-4. Set the maximum manual adjustment duration and who may approve it; seven days is the proposed
-   ceiling, not a confirmed product decision.
-5. After Tribute answers, decide whether Platform access mirrors its failed-payment grace or ends
-   exactly at the last proven `expires_at`.
-6. Approve a small real subscription/trial/gift test cost and sanitized fixture capture. Payments
-   and external support messages remain owner-gated actions.
-
-Until these gates are closed, the reversible architecture is **Telegram OIDC linking ready for a
-staging proof; Tribute webhook ingestion designed but automatic Membership access disabled;
-manual expiring review or another provider as fallback**.
+Everything else needed for the first version is selected or recommended for proof: **one dedicated
+Inside bot and service repository, TypeScript/Node.js 24 LTS, NestJS with the Fastify adapter,
+grammY, PostgreSQL, one configured closed chat, Telegram OIDC linking, read-only `getChatMember`,
+bounded Platform entitlement, no Tribute integration and no bot messaging/management workflow in
+v1**.
