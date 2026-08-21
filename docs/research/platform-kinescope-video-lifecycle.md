@@ -1,7 +1,7 @@
 # Kinescope: lifecycle закрытого видео для Platform v1
 
-Статус: исследовательская рекомендация; production-решение условно до live-проверки аккаунта и
-тарифа.
+Статус: принятое owner decision — Kinescope выбран video provider для Platform v1; production
+adapter проходит перечисленные ниже integration acceptance checks.
 
 Дата проверки источников и публичных endpoint: 2026-08-21.
 
@@ -10,33 +10,33 @@
 
 ## Решение в одном абзаце
 
-Для Platform v1 Kinescope подходит **условно**. Рекомендуемый путь — resumable browser upload по
-Tus через server-side init, локальная сущность `Video` с opaque `providerApiVideoId` и отдельно
-полученным embed locator,
-webhook как ускоритель плюс обязательный polling/reconciliation до `done`, и publish только после
-проверки готовности. Закрытое воспроизведение требует одновременно: закрытого body на Platform,
-Kinescope project с DRM, domain allowlist, authorization backend в `strict: true` и короткого
-подписанного JWT, который backend сверяет с конкретным `videoId` и **текущим** Membership. Это
-fail-closed только при `strict: true`: тогда license выдаётся исключительно после HTTP 200; при
-`strict: false` любой ответ кроме 403 разрешает просмотр
+Для Platform v1 **выбран Kinescope** с уже существующими account и тарифом. Рекомендуемый путь —
+resumable browser upload по Tus через server-side init, локальная сущность `Video` с opaque
+`providerApiVideoId` и отдельно полученным embed locator, webhook как ускоритель плюс обязательный
+polling/reconciliation до `done`, и publish только после проверки готовности. Kinescope
+authorization backend остаётся provider-specific механизмом: при его использовании license
+выдаётся fail-closed только с `strict: true`; при `strict: false` любой ответ кроме 403 разрешает
+просмотр
 ([API: DRM auth](https://docs.kinescope.com/api/#v1-drm-update-auth)).
 
-Итоговый статус — **conditional go**. Публичные источники подтверждают сам flow, Super-plan DRM,
-embed и API. Они не доказывают доступность authorization backend на выбранном аккаунте, callback
-cadence/revocation уже начатого просмотра, webhook signature/retry contract и фактическое
-поведение replacement. Эти четыре гарантии входят в обязательный account-backed spike до ADR и
-production implementation.
+Общая политика «кто может читать, скачивать, preview-ить или воспроизводить закрытый ресурс» не
+принадлежит Kinescope и проектируется отдельно в
+[Workspace issue #54](https://github.com/sachkov-inside/workspace/issues/54). Этот отчёт фиксирует
+возможности и adapter contract Kinescope; account-backed проверки callback cadence, webhook,
+replacement и deletion становятся acceptance checks production integration, а не блокером выбора
+provider. Application ADR создаётся в Platform после первого зелёного adapter proof, не в
+Workspace.
 
 ## Что является authority
 
 | Факт | Authority |
 |---|---|
-| Доступ пользователя к закрытому material/video | Platform Membership projection; Kinescope не хранит Membership |
+| Доступ пользователя к закрытому material/video | Application-owned `ContentAccess`; Membership может быть одним из policy inputs, Kinescope не является authority |
 | Draft/published | Platform revision и `publishedRevisionId`; provider status этого не заменяет |
 | Identity видео | Локальный `Video.id`; отдельно opaque API/callback `data.id` и возвращённый provider embed locator |
 | Upload/processing status | Последний подтверждённый API snapshot; webhook только ускоряет обновление |
 | Файл и playback rendition | Kinescope; исходник отдельно сохраняется для recovery/vendor exit |
-| Разрешение license | Platform authorization backend, вызванный Kinescope, с live Membership check |
+| Разрешение license | Platform authorization backend, вызванный Kinescope, делегирует решение в `ContentAccess` |
 
 API возвращает у video отдельные `id`, `project_id`, `status`, `progress`, `play_link` и
 `embed_link`; возможные API status — `pending`, `uploading`, `pre-processing`, `processing`,
@@ -222,6 +222,10 @@ Kinescope upload parameter `preview` создаёт отдельный коро�
 
 ## Защищённое воспроизведение
 
+Ниже описан provider adapter flow. Решение о доступе принимает application-owned
+`ContentAccess` из #54; Kinescope получает только короткоживущий результат этого решения и не
+становится authority для Membership или других закрытых ресурсов.
+
 ### Последовательность
 
 ```mermaid
@@ -231,29 +235,33 @@ sequenceDiagram
     participant Player as Kinescope iframe
     participant DRM as Kinescope DRM/license
     participant Auth as Platform DRM auth endpoint
-    participant Membership as Membership projection
+    participant Access as ContentAccess
 
     User->>Web: GET published member material
-    Web->>Membership: require active Membership
-    alt anonymous or expired
+    Web->>Access: authorize(subject, material, read)
+    alt denied or unavailable
         Web-->>User: teaser / 403, no closed body or player token
-    else active
+    else allowed
         Web-->>User: closed body + player placeholder
         User->>Web: POST playback-token (material, video)
-        Web->>Membership: recheck active Membership
-        Web->>Web: sign short JWT (sub, vid, iss, aud, exp, jti)
-        Web-->>User: short playback token
-        User->>Player: load embed
-        Player->>DRM: request protected media/license
-        DRM->>Auth: Basic Auth + {id, token, ip, type, user_agent}
-        Auth->>Auth: validate callback auth + JWT + vid
-        Auth->>Membership: check entitlement now
-        alt valid token, mapped video, active Membership
-            Auth-->>DRM: 200
-            DRM-->>Player: decryption key / playback
-        else any invalid or unavailable dependency
-            Auth-->>DRM: 403
-            DRM-->>Player: access denied
+        Web->>Access: authorize(subject, video, play)
+        alt play denied or unavailable
+            Web-->>User: 403, no playback token
+        else play allowed
+            Web->>Web: sign short JWT (sub, vid, iss, aud, exp, jti)
+            Web-->>User: short playback token
+            User->>Player: load embed
+            Player->>DRM: request protected media/license
+            DRM->>Auth: Basic Auth + {id, token, ip, type, user_agent}
+            Auth->>Auth: validate callback auth + JWT + vid
+            Auth->>Access: authorize(subject, video, play)
+            alt valid token, mapped video, access allowed
+                Auth-->>DRM: 200
+                DRM-->>Player: decryption key / playback
+            else any invalid or unavailable dependency
+                Auth-->>DRM: 403
+                DRM-->>Player: access denied
+            end
         end
     end
 ```
@@ -268,18 +276,20 @@ Kinescope
 ### Fail-closed policy
 
 1. Kinescope DRM auth config всегда `strict: true`. При `false` 400/401/404/5xx разрешат license;
-   это несовместимо с Membership.
+   это несовместимо с fail-closed доступом к закрытому ресурсу.
 2. Callback защищён отдельным random Basic secret, который задаётся в DRM auth config. Неверный
    callback credential получает 401; application denial после валидного callback — 403.
 3. JWT подписывается server-side approved algorithm/key. Обязательны `iss`, `aud`, `sub`, `exp` и
    custom `vid`; `vid` сравнивается с callback `id`. `jti` нужен для correlation/revocation audit.
-4. TTL — короткий (spike начинает с 60–120 секунд) и не выходит за Membership expiry. JWT
-   подписан, но не зашифрован: в claims нет email, Telegram ID, имени или других PII.
+4. TTL — короткий (spike начинает с 60–120 секунд) и не выходит за границу актуальности access
+   decision, которую определит #54. JWT подписан, но не зашифрован: в claims нет email, Telegram
+   ID, имени или других PII.
 5. Raw JWT и query string не пишутся в application/access logs. Логируются `jti`/hash, local user
-   ID, provider video ID, decision, reason code, Membership snapshot version и latency.
-6. Проверяется актуальный Membership projection, а не только claim `active=true`. Unknown mapping,
-   database timeout, malformed body/token, expired token и provider mismatch всегда дают 403.
-7. Domain allowlist — defense in depth, не Membership authorization. Private link не используется:
+   ID, provider video ID, decision, reason code, policy snapshot/version и latency.
+6. Callback повторно вызывает `ContentAccess`, а не доверяет policy claim внутри token. Unknown
+   mapping, policy dependency timeout, malformed body/token, expired token и provider mismatch
+   всегда дают 403.
+7. Domain allowlist — defense in depth, не application authorization. Private link не используется:
    документация прямо говорит, что он может обходить domain restrictions
    ([access restrictions](https://docs.kinescope.com/content-protection/access-restrictions/)).
 
@@ -288,9 +298,9 @@ API examples ответа GET/PUT DRM auth не возвращают `strict`, �
 подтверждает, что playback реально заблокирован.
 
 Открытая гарантия: docs не задают, как часто Kinescope повторно вызывает authorization backend во
-время уже начатого просмотра и когда истекает выданная license. Поэтому «Membership истёк — уже
+время уже начатого просмотра и когда истекает выданная license. Поэтому «доступ отозван — уже
 запущенный stream немедленно остановился» нельзя обещать до live-теста. Гарантируется запрет нового
-page/player/license flow; maximum continued-play window должен измерить spike.
+page/player/license flow; maximum continued-play window должен измерить spike и передать в #54.
 
 ## Player/embed в Next.js
 
@@ -304,7 +314,8 @@ Next.js vendor требует client-side loading с отключённым SSR
 
 Рекомендация для v1:
 
-- закрытый Server Component проверяет Membership и отдаёт body/player placeholder без token;
+- закрытый Server Component вызывает `ContentAccess` и отдаёт body/player placeholder без token
+  только при `access allowed`;
 - маленький Client Component оборачивает official React player, потому что MVP требует history/read
   progress и package предоставляет `onReady`, `onTimeUpdate`, `onEnded`, `onError`;
 - token выпускается same-origin endpoint после повторной authorization, не попадает в static/RSC
@@ -397,8 +408,8 @@ contracting region фиксируются до cost approval; цифры раз�
 
 Фраза «unlimited» не означает нулевую стоимость: это отсутствие product cap при usage billing.
 Authorization backend, webhook signature и API quotas не сопоставлены публичной страницей с
-конкретным plan. До покупки support должен письменно подтвердить их доступность и ограничения на
-Super.
+конкретным plan. На существующем account их доступность и ограничения проверяются в test project;
+неподтверждённые детали эскалируются в support до production rollout соответствующего path.
 
 ### Privacy/data-region gate
 
@@ -408,10 +419,11 @@ cookies; enterprise page заявляет EEA data residency для Kinescope B.
 ([privacy policy](https://kinescope.com/privacy-policy),
 [enterprise](https://kinescope.com/solutions/enterprise)). Российские
 [terms](https://kinescope.ru/legal/terms-and-conditions) описывают отдельный контур viewer data.
-Это не даёт одного универсального ответа для Inside: owner выбирает contracting entity/region, а
-до GO получает DPA, subprocessors, retention/deletion и lawful-basis ответы. По умолчанию Inside
-передаёт только pseudonymous IDs, включает `dnt`, не пишет raw JWT/IP/UA дольше security minimum и
-не включает provider analytics до отдельного privacy decision.
+Это не даёт одного универсального ответа для Inside: contracting entity/region, DPA,
+subprocessors, retention/deletion и lawful-basis остаются operational/legal inputs конкретного
+rollout, а не повторным выбором provider. По умолчанию Inside передаёт только pseudonymous IDs,
+включает `dnt`, не пишет raw JWT/IP/UA дольше security minimum и не включает provider analytics до
+отдельного privacy decision.
 
 ## Выполненный локальный прототип
 
@@ -437,8 +449,9 @@ cookies; enterprise page заявляет EEA data residency для Kinescope B.
 node prototypes/kinescope-auth-backend/check.mjs
 ```
 
-Прототип доказывает application policy, но **не** Kinescope callback, DRM/license, browser или plan.
-Он намеренно не содержит SDK, production key storage, database и framework adapter.
+Прототип доказывает fail-closed adapter mechanics на временной Membership policy, но **не**
+финальный `ContentAccess` contract, Kinescope callback, DRM/license, browser или plan. Он намеренно
+не содержит SDK, production key storage, database и framework adapter.
 
 ## Выполненные публичные probes
 
@@ -457,10 +470,11 @@ found`), invalid Bearer — HTTP 401 + `100102`. То есть endpoint закр
 `error.code`, логирует `X-Request-ID` и не ожидает только один auth status
 ([API errors](https://docs.kinescope.com/api/#errors)).
 
-## Обязательный account-backed spike
+## Integration acceptance на существующем account
 
-Нужны отдельный test project, Super trial/plan, non-production domain, тестовый member и небольшой
-video fixture. Token не публикуется в issue/PR. Минимальные проверочные запросы:
+Provider и существующий account уже приняты owner. Перед production rollout adapter использует
+отдельный test project, non-production domain, тестовый member и небольшой video fixture. Token не
+публикуется в issue/PR. Минимальные проверочные запросы:
 
 ```bash
 curl -sS -D - 'https://api.kinescope.io/v1/projects?catalog_type=vod&per_page=100&page=1' \
@@ -505,46 +519,49 @@ Spike выполняет:
 10. API DELETE только на disposable fixture: recycle-bin visibility, restore/irreversibility и
     audit effect.
 
-### Go/no-go gates
+### Production acceptance gates
 
-**Go**, если одновременно:
+Kinescope adapter готов к production, если одновременно:
 
-- Super account реально даёт DRM + authorization backend + domain restrictions для VOD;
+- test project на существующем account подтверждает DRM + authorization backend + domain
+  restrictions для VOD;
 - `strict: true` fail-closed на timeout и любой non-200;
-- все negative cases заблокированы, token привязан к video, expiry/revocation window принят owner;
+- все negative cases заблокированы, token привязан к video, expiry/revocation window измерен и
+  передан как input в #54;
 - webhook loss восстанавливается polling, а authenticity/retry boundary зафиксирована;
 - replacement сохраняет ID и старую рабочую rendition до успешного switch;
-- supported browser/accessibility matrix приемлема;
-- прогноз Super usage cost и отсутствие SLA приняты owner.
+- supported browser/accessibility matrix приемлема.
 
-**No-go**, если authorization backend недоступен на приемлемом plan, `strict: true` допускает
-license без 200, provider ID меняется при replacement без атомарной platform migration, или
-expired Membership позволяет новый playback. В этом случае Kinescope не используется для
-закрытого v1 video; исходники и local Video abstraction позволяют провести bounded spike другого
-provider без изменения content schema.
+Провал отдельной проверки не отменяет owner decision автоматически. Он блокирует соответствующий
+production path и возвращается в #54 или application task как конкретное ограничение: например,
+другой access mechanism, controlled unavailable state или отдельный protection adapter. Исходники
+и local `Video` abstraction позволяют заменить provider adapter без изменения content schema,
+если реальная интеграция всё же обнаружит неприемлемый hard failure.
 
-## Открытые вопросы владельцу и Kinescope
+## Зафиксированные решения и implementation inputs
 
-1. Готов ли owner оплачивать минимум Super и usage, либо нужен cost ceiling до spike?
-2. Достаточна ли модель «новый просмотр запрещён сразу, уже выданная license живёт измеренное
-   время», и какой maximum window приемлем?
-3. Нужны ли Kinescope analytics? По умолчанию `dnt=true` и только application progress events.
-4. Нужен ли guaranteed SLA на launch? Если да, получить Mega quote; у Super SLA не заявлен.
-5. Храним ли original в Kinescope и внешнем source storage, или отключаем provider original после
-   доказанного backup/restore?
-6. Подтвердить у Kinescope: authorization backend на Super, callback frequency/cache/license TTL,
-   webhook signing/retries/source ranges, API DELETE semantics и replacement rollback.
+1. **Решено:** Kinescope выбран для v1; account и тариф уже существуют и приняты owner.
+2. **Отдельная задача #54:** access matrix, revocation, maximum continued-play window и единый
+   `ContentAccess` interface для body/assets/downloads/video.
+3. **Default:** provider analytics выключены через `dnt`, пока owner отдельно не примет их privacy
+   и product value; application progress events используют pseudonymous IDs.
+4. **Default:** текущий support достаточен для v1; Mega становится trigger только при новом
+   contractual SLA requirement.
+5. **Default:** original сохраняется независимо от Kinescope до доказанного backup/restore и
+   принятого retention policy.
+6. **Проверить при реализации:** callback frequency/cache/license TTL, webhook
+   signing/retries/source ranges, API DELETE semantics и replacement rollback.
 
 ## Fallback и эксплуатационная граница
 
-- До зелёного spike private video не публикуется; material может оставаться draft или выходить без
-  video только по отдельному owner decision.
+- Production rollout конкретного video path выполняется после acceptance checks; это не открывает
+  заново выбор Kinescope как provider.
 - Source file хранится независимо от Kinescope, чтобы replacement/re-upload/provider exit не
   зависели от доступности dashboard.
 - Platform content schema ссылается на local `Video.id`, поэтому provider можно заменить adapter-ом,
   не переписывая каждый document node.
-- При временном outage текстовая часть material остаётся доступной активному member, video получает
-  controlled unavailable state; никакой public HLS/download fallback не создаётся.
+- При временном outage текстовая часть material остаётся доступной subject с `access allowed`,
+  video получает controlled unavailable state; никакой public HLS/download fallback не создаётся.
 - При долгом outage/manual migration новый provider ID меняется только внутри local Video record с
   audit, а published revisions сохраняют стабильную application identity.
 
@@ -566,6 +583,6 @@ provider без изменения content schema.
 [Recycle Bin](https://docs.kinescope.com/catalog-and-video-management/recycle-bin/) и
 [Pricing Plans](https://docs.kinescope.com/pricing-and-billing/kinescope-pricing-plans/).
 
-Не найденное в этих источниках — plan entitlement authorization backend, callback/license cadence,
-webhook cryptographic contract, retry SLA и API deletion/replacement edge cases — оставлено как
-явный spike/support gate, а не представлено как подтверждённый факт.
+Не найденное в этих источниках — callback/license cadence, webhook cryptographic contract, retry
+SLA и API deletion/replacement edge cases — остаётся явным implementation acceptance input, а не
+представляется как подтверждённый факт и не смешивается с общей Content Access policy из #54.
