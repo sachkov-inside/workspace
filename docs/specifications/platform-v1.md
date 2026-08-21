@@ -72,11 +72,12 @@ infrastructure specification, созданной позже на основе и
 Спецификация использует решения по ссылкам и не копирует их полные matrices/runbooks:
 
 - [content authoring](../research/platform-content-authoring-model.md) — versioned ProseMirror JSON,
-  Tiptap adapter, immutable revisions, safe renderer и semantic MCP commands после proof;
+  Tiptap adapter, immutable revisions, safe renderer и semantic MCP commands как production
+  baseline;
 - [current publishing audit](../research/platform-current-publishing-audit.md) — Material-centered
   model, ручное создание, evolving taxonomy, ordered Platform build Series;
-- [PostgreSQL data access](../research/platform-postgresql-data-access.md) — Kysely + `pg` target,
-  Drizzle fallback и migrations-as-authority после proof;
+- [PostgreSQL data access](../research/platform-postgresql-data-access.md) — Kysely + `pg` и
+  migrations-as-authority как production baseline;
 - [identity](../research/platform-identity-architecture.md) — Logto OSS target, Better Auth fallback,
   Platform-owned authorization;
 - [Telegram Membership](../research/platform-telegram-tribute-membership.md) — отдельная application,
@@ -106,31 +107,33 @@ Platform уже bootstrapped как pnpm workspace. Следующие реше�
 | Processes | `web`, `api`, `worker`, `mcp`; один backend codebase, отдельные thin entrypoint adapters |
 | Contract | REST + OpenAPI; application rules не живут в controllers или transports |
 | Transactional store | PostgreSQL 18; exact image pin принадлежит Platform repository |
+| Data access | Kysely + `pg`, Kysely Migrator/`kysely-ctl`, generated DB types; один production path |
 | Jobs | `pg-boss`; product queues создаются только вместе с первым durable job |
 | Search | PostgreSQL FTS, ranking и bounded RU/EN normalization; без отдельного engine |
+| Content document | versioned ProseMirror JSON + Tiptap adapter, immutable revisions, safe renderer и semantic commands |
 | Assets | private/public object-storage seam; exact provider и operations выбираются позже |
 | Video | Kinescope, существующие account и tariff; application adapter проходит credentialed proof |
 
-Три choices остаются условными до Stage 0 proofs. Их fallback задан заранее, поэтому proof не
-превращается в новое широкое исследование:
+Identity choice остаётся условным до отдельной application проверки и будущей operational
+acceptance:
 
 | Seam | Target | Fallback / no-go | Decision record |
 |---|---|---|---|
 | Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed application UX/protocol gate; operational acceptance остаётся в future infrastructure work | Platform ADR только после application и operational proofs |
-| Data access | Kysely + `pg`, Kysely Migrator/`kysely-ctl`, generated DB types | Drizzle + `pg` на pinned stable line при любом failed hard gate: transaction atomicity/escape, migrations/types/drift, FTS plan/ranking, parameterization/N+1, observability, overhead или operability | Platform ADR после data proof |
-| Content document | versioned ProseMirror JSON + Tiptap | остановка для отдельного Portable Text comparison только при failed round-trip/renderer/MCP gate | Platform ADR после content proof |
 
-Каждый implementing PR обновляет lockfile и фиксирует exact library versions. До зелёного proof
-условный target нельзя описывать как окончательно выбранный stack или использовать в последующих
-feature tickets.
+Каждый implementing PR обновляет lockfile и фиксирует exact library versions. Kysely/PostgreSQL и
+ProseMirror/Tiptap не получают отдельные throwaway prototypes или comparison gates: Platform #17 и
+#18 сразу поставляют production modules и их обычные integration tests. Если реальная реализация
+обнаружит blocking limitation, owning PR фиксирует evidence и migration impact, после чего stack
+меняется одним production path; параллельные ORM/document stacks не поддерживаются.
 
 Visual stack намеренно не выбран здесь. Platform #19 сначала фиксирует UX structure и owner taste,
 сравнивает rendered concepts, а затем доказывает component/primitives strategy на принятом
 направлении. Production frontend feature code не начинается до этого UI gate.
 
-Будущий `inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY и
-PostgreSQL. Kysely + `pg` применяется там только после собственного bounded data proof; Platform и
-Telegram application не делят database, source package или migration history.
+Будущий `inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY,
+PostgreSQL и Kysely + `pg` как production baseline. Platform и Telegram application не делят
+database, source package или migration history.
 
 ## 5. System context и process boundaries
 
@@ -210,8 +213,9 @@ Seam rules:
 
 ## 7. Логическая content и access model
 
-Physical tables, indexes и package paths фиксируются Platform ADR/technical spec после proofs, но
-v1 logical entities и cardinalities являются частью этой спецификации:
+Physical tables, indexes и package paths уточняются в production implementation и local technical
+spec; только действительно hard-to-reverse trade-off требует Platform ADR. V1 logical entities и
+cardinalities являются частью этой спецификации:
 
 | Entity | V1 cardinality и invariant |
 |---|---|
@@ -368,23 +372,26 @@ Workspace specification, когда Stage 5 даст реальный process/da
 задают environments, deploy или production launch chronology. UI design track идёт параллельно
 application core и блокирует только production frontend implementation.
 
-### Stage 0 — синхронизировать contract и доказать headless foundations
+### Stage 0 — синхронизировать contract и реализовать headless production foundations
 
 Среда: clean CI/ephemeral Compose.
 
 Результат:
 
 - Platform brief и local technical docs отражают принятые no-import/discussion/access decisions;
-- Kysely/Drizzle decision доказана на Material, FTS, transaction и migration replay;
-- ProseMirror/Tiptap decision доказана round-trip, safe render, schema migration и semantic MCP
-  concurrency fixtures;
+- Platform #17 поставляет production PostgreSQL/Kysely migrations, data module, publish transaction
+  и FTS path;
+- Platform #18 поставляет production ProseMirror/Tiptap document module, revisions, safe renderer,
+  schema migration и semantic MCP commands;
 - Platform #19–#23 фиксируют отдельный UX/visual/UI foundation track до frontend feature code;
-- accepted Platform ADR фиксирует только реально доказанный hard-to-reverse choice и exact
-  versions.
+- focused integration tests проверяют production contracts в owning repository; отдельного
+  prototype codebase или кода на выброс нет;
+- Platform ADR создаётся только если production implementation выявляет реальный
+  hard-to-reverse trade-off.
 
-Exit: data/document targets либо зелёные, либо явно переключены на documented fallback. Identity
-provider остаётся provisional до отдельного application proof и будущего operational acceptance;
-его нельзя объявлять production-ready внутри Stage 0.
+Exit: production data/document foundations merged и используются последующим content core.
+Identity provider остаётся provisional до отдельной application проверки и будущего operational
+acceptance; его нельзя объявлять production-ready внутри Stage 0.
 
 ### Stage 1 — content application core без visual frontend
 
@@ -481,8 +488,8 @@ flowchart TD
     M[Merge Workspace #61 / close #40] --> C[Platform #16: local contract]
     M --> UX[Platform #20: UX architecture]
     M --> REF[Platform #21: references + owner taste]
-    C --> DATA[Platform #17: data proof]
-    C --> DOC[Platform #18: document/MCP proof]
+    C --> DATA[Platform #17: production data foundation]
+    C --> DOC[Platform #18: production document/MCP foundation]
     DATA --> S1[Stage 1: content application core]
     DOC --> S1
     UX --> CONCEPT[Platform #22: visual concepts]
@@ -500,11 +507,11 @@ flowchart TD
     S5 -. separate future owner decision .-> R[Release + infrastructure specification]
 ```
 
-После merge #61 три session-sized lanes могут идти параллельно: #16, #20 и #21. Data/document
-proofs открываются после #16; visual concepts — после обоих design inputs. Stage 1 headless core не
-ждёт visual direction, а Stage 2 frontend ждёт. Repository bootstrap начинается только после
-stable Platform evidence port. Release/infrastructure work не является текущей downstream ticket:
-оно получает новую specification только из измеренного Stage 5 candidate.
+После merge #61 три session-sized lanes могут идти параллельно: #16, #20 и #21. Первые production
+data/document slices открываются после #16; visual concepts — после обоих design inputs. Stage 1
+headless core не ждёт visual direction, а Stage 2 frontend ждёт. Repository bootstrap начинается
+только после stable Platform evidence port. Release/infrastructure work не является текущей
+downstream ticket: оно получает новую specification только из измеренного Stage 5 candidate.
 
 ## 12. Первые implementation tickets
 
@@ -521,12 +528,13 @@ stable Platform evidence port. Release/infrastructure work не является
 
 Следующий dependent work:
 
-4. [Platform #17](https://github.com/sachkov-inside/platform/issues/17) — доказать PostgreSQL
-   data-access contract: Material/SearchLibrary, transaction, Kysely migration/type-generation
-   gates и Drizzle fallback. Native dependency: blocked by Platform #16.
-5. [Platform #18](https://github.com/sachkov-inside/platform/issues/18) — доказать content document
-   и MCP command contract: ProseMirror/Tiptap round-trip, renderer/search extraction, schema
-   migration, semantic patching и concurrency. Native dependency: blocked by Platform #16.
+4. [Platform #17](https://github.com/sachkov-inside/platform/issues/17) — реализовать production
+   PostgreSQL/Kysely data foundation: Material/SearchLibrary, migrations, publish transaction и
+   generated types. Native dependency: blocked by Platform #16.
+5. [Platform #18](https://github.com/sachkov-inside/platform/issues/18) — реализовать production
+   content document и MCP command foundation: ProseMirror/Tiptap round-trip, renderer/search
+   extraction, schema migration, semantic patching и concurrency. Native dependency: blocked by
+   Platform #16.
 6. [Platform #19](https://github.com/sachkov-inside/platform/issues/19) — UI specification parent;
    #22 native-blocked by #20/#21, #23 native-blocked by #22.
 7. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — bounded bootstrap
@@ -545,8 +553,6 @@ Project status всех Platform #16/#19/#20/#21 сейчас `Blocked` до mer
 | Sync canonical brief с no-import и deferred discussion | Stage 0 | принять более поздние #39 decisions | feature implementation blocked |
 | Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | identity proof | начать с branded redirect + email code; Better Auth fallback | Stage 3 blocked |
 | Identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
-| Sanitized content fixtures и source-to-Material classification rules | content proof | owner-approved real Material; Telegram остаётся visual reference, не import source | content proof blocked |
-| Content formatting limits, revision/asset retention, code/transcript indexing | content proof | минимальный audited set; no hard-delete referenced published data; code low weight, no transcripts | content ADR blocked |
 | Key UX surfaces/states и real content fixture | UI #20 | mobile-first structure before styling | visual concepts blocked |
 | Owner references, anti-references и preference axes | UI #21 | annotated/ranked evidence, не vague moodboard | visual concepts blocked |
 | Выбор одного visual direction | UI #22 | 2–3 distinct concepts with same content/surfaces | UI strategy blocked |
@@ -555,7 +561,7 @@ Project status всех Platform #16/#19/#20/#21 сейчас `Blocked` до mer
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
 | Kinescope strict callback mechanics и acceptable continued-play window | Stage 5 | strict fail-closed; measure current plan | video remains unavailable |
 
-Hard-to-reverse Platform ADR inputs after green proofs:
+Hard-to-reverse Platform ADR inputs only when production implementation reveals a real trade-off:
 
 - data authority, migration runner и transaction seam;
 - canonical document schema, revision model, safe renderer и MCP commands;
