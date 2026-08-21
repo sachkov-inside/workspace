@@ -1,7 +1,8 @@
 # PostgreSQL data access for Platform v1
 
-**Status:** research recommendation for owner decision  
-**Snapshot:** 2026-08-21  
+**Status:** research recommendation for owner decision
+
+**Snapshot:** 2026-08-21
 **Scope:** NestJS/Fastify modular monolith, PostgreSQL transactional store and first search engine; no production implementation or hosting choice
 
 ## Decision in one page
