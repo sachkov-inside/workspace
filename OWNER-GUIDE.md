@@ -79,6 +79,10 @@ repository, которому они принадлежат.
 - Прямые рабочие commits в `main` не делаются: каждая change проходит через отдельную короткую
   branch и PR.
 - Одна branch решает одну связанную задачу в том repository, который владеет результатом.
+- Каждый пишущий agent работает в отдельном Git worktree своей task branch. Даже один agent не
+  изменяет основной checkout; при параллельной работе у каждого agent собственные worktree и branch.
+- Read-only agent может проверять существующий worktree, если не меняет файлы и не переключает его
+  branch.
 - `develop`, постоянные release, staging и production branches заранее не создаются. Environments
   относятся к deployment, а не к Git branch model.
 
@@ -100,8 +104,10 @@ Branch name для tracked work: `<type>/<issue>-<slug>`. Для небольш�
    состояние и убедиться, что чужие незакоммиченные изменения не затрагиваются.
 2. **Work item.** Product work, bug, architecture и существенная документация имеют issue с
    результатом, scope и acceptance criteria. Небольшая очевидная docs/chore может идти сразу в PR.
-3. **Branch.** Создать новую branch от актуального `main`. Когда реализация реально началась,
-   перевести Project item из `Ready` в `In progress`; создание branch само по себе не меняет status.
+3. **Worktree и branch.** Для пишущего agent создать отдельный Git worktree с новой branch от
+   актуального `main`. Один worktree принадлежит одному активному пишущему agent и одной задаче.
+   Когда реализация реально началась, перевести Project item из `Ready` в `In progress`; создание
+   worktree или branch само по себе не меняет status.
 4. **Работа.** Делать только изменения текущего scope, сохранять понятные commits и регулярно
    выполнять focused checks. Не складывать несвязанные исправления в ту же branch.
 5. **Синхронизация.** Если `main` ушёл вперёд, перед финальным review обновить branch из `main` и
@@ -112,9 +118,9 @@ Branch name для tracked work: `<type>/<issue>-<slug>`. Для небольш�
    conflicts и findings; для нетривиальной работы провести отдельные Standards и Spec review.
 8. **Merge.** Только после явного разрешения владельца выполнить squash merge. В `main` попадает
    один итоговый commit, issue закрывается, а Project item переходит в `Done`.
-9. **Cleanup.** GitHub удаляет remote branch. Локально вернуться на `main`, получить merged commit и
-   удалить уже ненужную local branch. Следующая задача всегда начинается с нового актуального
-   `main`.
+9. **Cleanup.** GitHub удаляет remote branch. Убедиться, что в task worktree нет незакоммиченной или
+   незапушенной работы, затем удалить worktree и local branch. Основной worktree обновить до merged
+   `main`; следующая задача всегда начинается от нового актуального `main`.
 
 Обычный hotfix проходит тем же путём через `fix/<issue>-<slug>` и PR в `main`. Временная
 `release/<version>` появляется только при реальной необходимости поддерживать несколько production

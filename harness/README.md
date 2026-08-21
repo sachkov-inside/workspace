@@ -18,7 +18,7 @@ user-level installation, or custom prompt routing.
 The harness assumes no user-level skills, MCP, plugins or hooks. A repository that needs an
 integration owns its native project config and health check; credentials remain outside Git.
 
-The current `inside-engineering 0.3.0` package contains the Developer Pipeline, triage labels, and
+The current `inside-engineering 0.3.1` package contains the Developer Pipeline, triage labels, and
 32 shared skills: Matt Pocock's complete stable suite of 25 plus 7 frontend and web-development
 skills. Their exact sources and licensing notes are recorded in
 `packages/inside-engineering/SOURCE.md`.
