@@ -21,6 +21,11 @@ account с Telegram и получает закрытый контент, пок�
   его bootstrap;
 - Workspace хранит только общие продуктовые и cross-repository решения.
 
+Ссылка на Platform brief задаёт human-facing authority, но не runtime или agent dependency:
+подтверждённая cross-repository граница v1 полностью перечислена ниже и исполнима из Workspace.
+Exact dependency versions, physical schema, package paths, deploy scripts и runbooks остаются только
+в owning application repository.
+
 При расхождении источников более позднее явное owner decision имеет приоритет, но owning document
 должен быть синхронизирован до feature implementation. Сейчас канонический Platform brief всё ещё
 говорит об автоматическом переносе Telegram-архива и обязательной material-specific discussion
@@ -80,21 +85,21 @@ Stage 6 и полного пользовательского launch gate.
 Общий словарь `Principal`, Membership evidence/entitlement и `ContentAccess` находится в
 [`CONTEXT.md`](../../CONTEXT.md).
 
-## 4. Текущее основание и stack contract
+## 4. Cross-repository stack constraints
 
 Platform уже bootstrapped как pnpm workspace. Следующие решения считаются принятыми и не требуют
 повторного выбора в feature tickets:
 
 | Concern | V1 contract |
 |---|---|
-| Runtime | Node.js 24 LTS; repository pin сейчас `24.19.0` |
-| Language/tooling | TypeScript strict; repository pin сейчас `6.0.3`; pnpm `11.22.0` |
-| Web | Next.js App Router `16.3.1`, React `19.2.8` |
-| Backend | NestJS `11.2.1` + Fastify `5.12.1` |
+| Runtime | Node.js 24 LTS; exact pin принадлежит Platform repository |
+| Language/tooling | TypeScript strict и pnpm с exact lockfile |
+| Web | Next.js App Router + React |
+| Backend | NestJS + Fastify |
 | Processes | `web`, `api`, `worker`, `mcp`; один backend codebase, отдельные thin entrypoint adapters |
 | Contract | REST + OpenAPI; application rules не живут в controllers или transports |
-| Transactional store | PostgreSQL 18; current development/CI image `18.4-alpine` |
-| Jobs | `pg-boss` `12.27.0`; product queues создаются только вместе с первым durable job |
+| Transactional store | PostgreSQL 18; exact image pin принадлежит Platform repository |
+| Jobs | `pg-boss`; product queues создаются только вместе с первым durable job |
 | Search | PostgreSQL FTS, ranking и bounded RU/EN normalization; без отдельного engine |
 | Deployment | Docker Compose, Caddy, immutable OCI images и digest-pinned release manifest |
 | Assets | private/public objects во внешнем S3-compatible storage; provider выбирается owner |
@@ -135,6 +140,7 @@ flowchart LR
     App --> Kin[Kinescope]
     Web --> IdP[Logto or proved fallback]
     API --> IdP
+    IdP --> Email[Email delivery provider]
     App --> Tg[Inside Telegram application]
     Tg --> TDB[(Telegram PostgreSQL)]
     Tg --> Telegram[Telegram OIDC and Bot API]
@@ -370,13 +376,16 @@ exit gate.
 - Kysely/Drizzle decision доказана на Material, FTS, transaction и migration replay;
 - ProseMirror/Tiptap decision доказана round-trip, safe render, schema migration и semantic MCP
   concurrency fixtures;
-- Logto/Better Auth decision доказана email, Next BFF, Nest validation, Yandex horizon, restore и
-  capacity evidence;
+- Logto/Better Auth decision проходит полный canonical identity gate: branded redirect/mark и
+  email-code policy; Next BFF и Nest validation; committed OIDC/M2M reason; Yandex horizon;
+  capacity; private single-admin Console без MFA и compensating audit; provider email delivery;
+  backup/restore, upgrade/rollback и portable exit evidence;
 - accepted Platform ADR фиксирует каждый прошедший hard-to-reverse choice и exact versions.
 
 Exit: нет незафиксированного conditional stack; failed target явно переключён на documented
-fallback. Ни product package, ни Telegram deployable не создаётся внутри proof без соответствующего
-accepted decision.
+fallback. Identity proof ticket создаётся только после owner inputs из раздела 13 и повторяет все
+canonical gates выше. Ни product package, ни Telegram deployable не создаётся внутри proof без
+соответствующего accepted decision.
 
 ### Stage 1 — author -> publish -> free read на staging
 
@@ -497,11 +506,17 @@ GitHub issues и native dependencies создаются вместе с этой
 | Decision | Нужна к этапу | Default/recommendation | Если не принято |
 |---|---|---|---|
 | Sync canonical brief с no-import и deferred discussion | Stage 0 | принять более поздние #39 decisions | feature implementation blocked |
-| Logto redirect/mark, email-code UX, Yandex horizon, exit policy | identity proof | branded redirect + email code; Better Auth fallback | Stage 3 blocked |
+| Logto redirect/mark, email-code UX и provider | identity proof | branded redirect + email code; выбрать monitored SMTP/HTTP delivery | Stage 3 blocked |
+| OAuth/OIDC provider и M2M horizon | identity proof | подтвердить реальный use case в ближайшие 12 месяцев; иначе Better Auth сильнее | Logto value gate failed |
+| Yandex horizon и identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
+| Один Logto OSS Console admin без MFA, private endpoint и audit compensation | identity proof | принять только с private access и Inside-owned Management API audit | Logto no-go |
 | VPS capacity для Logto и Platform | identity proof | измерить published minimum + app/DB headroom | Logto no-go |
+| Sanitized content fixtures и source-to-Material classification rules | content proof | owner-approved real Material; Telegram остаётся visual reference, не import source | content proof blocked |
 | Content formatting limits, revision/asset retention, code/transcript indexing | content proof | минимальный audited set; no hard-delete referenced published data; code low weight, no transcripts | content ADR blocked |
 | Permanent staging budget, providers/regions/domains и alert channel | Stage 1 | отдельный VPS, separate secrets/data | permanent staging/production blocked |
+| Exact staging/production domains, callbacks и provider registrations | Stage 1 | separate stable registrations before external integration | callback proofs blocked |
 | Blue/green capacity vs accepted recreate downtime | Stage 1/6 | blue/green при measured capacity | record downtime before launch |
+| GitHub protected Environment reviewer vs owner-only `workflow_dispatch` | Stage 1/6 | protected Environment при доступном plan | production GO path blocked |
 | S3 versioning/restore/pgBackRest compatibility и retention cost | Stage 2/6 | provider proof before private assets/backups | delivery/launch blocked |
 | Repository name `inside-telegram` | Stage 4 bootstrap | confirm current working name | repository creation blocked |
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
