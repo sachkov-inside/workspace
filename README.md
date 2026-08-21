@@ -7,9 +7,11 @@
 
 - `workspace` — этот repository: общая продуктовая картина и cross-repo решения;
 - `inside-landing` — публичный landing;
-- `platform` — будущая Membership-платформа.
+- `platform` — Membership-платформа.
 
 Актуальная карта находится в [`REPOSITORIES.md`](REPOSITORIES.md).
+Cross-repository архитектура и этапы первой версии Platform описаны в
+[`docs/specifications/platform-v1.md`](docs/specifications/platform-v1.md).
 
 Каждый repository автономен: имеет собственную историю, настройки, CI и в будущем собственный
 harness. Build, test и deploy дочернего repository не должны зависеть от наличия этого workspace
