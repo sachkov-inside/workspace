@@ -258,6 +258,30 @@ compatibility, access control или test; stale release flag удаляется
 | Destructive migration/corruption | Incident, stop writes, restore отдельного cluster до выбранной точки, owner решает допустимую потерю | Whole-cluster PITR |
 | Потерян VPS | Empty-VPS recovery runbook | pgBackRest restore + WAL replay |
 
+### Исполнимый app rollback
+
+1. Объявить rollback выбранного `release_id`, взять `deploy-production` lock, запретить следующий
+   deploy и зафиксировать failed release, alerts и время начала. При access leak или опасных
+   external side effects сначала включить соответствующий kill switch.
+2. Получить сохранённый previous manifest; проверить checksum, наличие всех digest'ов в registry и
+   зелёный CI gate `previous app + current schema`. Если compatibility evidence отсутствует,
+   image rollback запрещён: consumers остаются paused, выполняется forward repair либо отдельный
+   data incident.
+3. Проверить старый slot или пересоздать web/API/MCP из previous digest'ов без worker. Дождаться
+   internal readiness и выполнить direct public/auth/access smoke на slot address.
+4. Валидировать Caddy config и graceful переключить upstream на previous slot. Немедленно выполнить
+   external HTTPS, public/member/owner access и closed-content denial smoke. Если previous slot не
+   проходит их, вернуть последний working upstream и эскалировать rollback в incident.
+5. Остановить failed worker. Previous worker запускается только когда его queue-payload и current
+   schema compatibility доказаны; иначе consumers остаются paused до forward-compatible worker.
+   MCP writes и external callbacks включаются по одному после idempotency check.
+6. Записать previous manifest как current, выполнить queue/provider canary и наблюдать те же
+   error/latency/auth/queue signals 30 минут. Rollback завершён, когда critical alerts отсутствуют,
+   release/schema telemetry согласованы и owner подтвердил critical journey.
+7. Сохранить failed slot/logs для diagnosis, создать corrective issue и оставить database schema
+   без автоматической down migration. PITR начинается только отдельным owner-controlled incident,
+   если доказана corruption и принята потеря post-target writes.
+
 Автоматический rollback запускается при failed readiness/smoke до или сразу после switch. После
 появления новых пользовательских writes rollback остаётся owner-controlled: traffic switch
 обратим, но повтор external side effects и data repair требуют incident evidence. Critical trigger:
