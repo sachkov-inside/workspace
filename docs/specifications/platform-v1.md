@@ -1,9 +1,10 @@
 # Техническая спецификация Sachkov Inside Platform v1
 
-Статус: proposed cross-repository specification для
-[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40), delivery graph
-синхронизирован в
-[Workspace issue #62](https://github.com/sachkov-inside/workspace/issues/62).
+Статус: accepted cross-repository specification из
+[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40). Живой delivery graph
+синхронизирован в [Workspace issue #62](https://github.com/sachkov-inside/workspace/issues/62), а
+отдельный Identity/Membership track — в
+[Workspace specification #65](https://github.com/sachkov-inside/workspace/issues/65).
 
 Дата: 2026-08-23.
 
@@ -42,7 +43,8 @@ relation не входит в обязательный v1 scope. Первый Pl
 - публичные home, library, topic, series и editorial roadmap surfaces;
 - индексируемые карточки всех опубликованных материалов и полное чтение free материалов;
 - один закрытый Membership tier для bodies, assets, downloads и Kinescope video;
-- email identity, Platform account и явное связывание с одной Telegram identity;
+- email identity, private Platform Account, member-only Member Profile и явное связывание с одной
+  Telegram identity;
 - author admin с draft, preview, validation, revisions и owner-controlled publish;
 - MCP поверх тех же application commands и правил, что admin и REST;
 - PostgreSQL full-text search, metadata navigation и related materials;
@@ -54,6 +56,8 @@ relation не входит в обязательный v1 scope. Первый Pl
 - billing, Tribute integration, тарифная матрица, trial, promo, gifts или продажа отдельных серий;
 - Telegram roster import, Telegram content export/import и migration pipeline;
 - bot messaging, announcements, campaigns, moderation/admin UI или marketing automation;
+- anonymous/indexable internet-public profile, social graph, follows, direct messages или broad
+  member directory до отдельного owner decision;
 - comments/community внутри Platform и обязательная ссылка на discussion каждого Material;
 - multi-author workflow, UGC, real-time collaboration, CRDT/Yjs;
 - AI search, autonomous publish, delegated member access для MCP;
@@ -86,14 +90,17 @@ infrastructure specification, созданной позже на основе и
   OIDC linking, `getChatMember` evidence и five-minute freshness;
 - [Kinescope lifecycle](../research/platform-kinescope-video-lifecycle.md) — выбранный provider,
   local Video identity, reconciliation и strict authorization adapter;
-- [ContentAccess](../research/platform-content-access.md) — единый provider-neutral policy module.
+- [ContentAccess](../research/platform-content-access.md) — единый provider-neutral policy module;
+- [Identity and Membership contract](../contracts/identity-membership-v1.md) — shared authority
+  matrix, versioned evidence envelope/reason codes, five-minute bound и conformance corpus для
+  независимых Platform/Telegram implementations.
 
 [Delivery and recovery research](../research/platform-delivery-recovery.md) остаётся evidence для
 будущей отдельной specification. Его environments, release, observability и recovery choices не
 являются scope или gate текущего delivery graph.
 
-Общий словарь `Principal`, Membership evidence/entitlement и `ContentAccess` находится в
-[`CONTEXT.md`](../../CONTEXT.md).
+Общий словарь `Principal`, External identity, Platform Account/session, Member Profile, Membership
+evidence/entitlement и `ContentAccess` находится в [`CONTEXT.md`](../../CONTEXT.md).
 
 ## 4. Cross-repository stack constraints
 
@@ -205,6 +212,7 @@ adapter.
 | `ContentLibrary` | читать public/member projections, search, topic/series navigation и related materials | published projections и ranking rules |
 | `ContentAccess` | `authorize(Subject, Resource, Action) -> AccessDecision` | provider-neutral access policy and reason codes |
 | `MembershipEntitlements` | получить bounded evidence и построить Platform-owned entitlement | entitlement state/version/validity, refresh single-flight |
+| `AccountProfiles` | управлять private Platform Account и отдельной member-visible Profile projection | account lifecycle, profile visibility/content/version |
 | `Assets` | upload intent, finalize, revision binding и bounded delivery | Asset metadata, immutable object keys/renditions |
 | `Videos` | Kinescope upload/status/reconcile/bind/playback lifecycle | local Video identity, provider mapping/status |
 | `ReadingActivity` | idempotently mark read/unread и list bounded recent history | Principal-to-Material state; не даёт content access |
@@ -233,6 +241,9 @@ cardinalities являются частью этой спецификации:
 | Entity | V1 cardinality и invariant |
 |---|---|
 | `Principal` | одна local identity; 0..1 Telegram link; roles/permissions Platform-owned |
+| `ExternalIdentity` | trusted provider/issuer/subject mapping принадлежит ровно одному Principal; email не merge key |
+| `PlatformAccount` | не более одного private account на human Principal; identity/security/linking state не публикуется |
+| `MemberProfile` | 0..1 member-visible projection на human Principal; active members only; никогда не authorization input |
 | `Material` | stable identity и slug; ровно один current draft pointer; 0..1 published pointer |
 | `MaterialRevision` | immutable full snapshot; ровно один Material; versioned document, metadata и resource refs |
 | `Topic` | Material имеет ровно один; одноуровневый managed dictionary |
@@ -286,13 +297,27 @@ read/download/play path.
 4. Closed body, decision и credentials имеют `private, no-store`; shared cache и speculative
    protected prefetch запрещены.
 
+### Sign-in, Account и Member Profile
+
+1. Email IdP доказывает External identity; Platform сопоставляет trusted `(issuer, subject)` с
+   одним Principal и создаёт finite Platform session. Email или IdP role не являются merge key,
+   Membership или permission.
+2. Human Principal управляет private Platform Account: identity/security, Telegram linking,
+   Membership state и recovery. Service Principal не получает human Account/Profile/Membership.
+3. Member Profile хранится и авторизуется отдельно от Account. Owner утверждает exact fields,
+   avatar/moderation/discovery policy в Platform #51 до production implementation.
+4. Только active member получает accepted Profile projection другого участника. Anonymous,
+   non-member и crawler не получают projection; email, internal IDs, Telegram identity/evidence и
+   security history никогда в неё не входят.
+
 ### Membership linking и refresh
 
 1. Signed-in Principal создаёт short-lived link transaction через Platform.
 2. Browser проходит Telegram OIDC через Telegram application; та проверяет token, uniqueness и
    configured chat membership.
 3. Telegram application возвращает normalized, signed/authenticated evidence без raw Telegram
-   model. Platform строит собственный entitlement не позднее `validUntil` evidence.
+   model по [versioned contract](../contracts/identity-membership-v1.md). Platform строит собственный
+   entitlement не позднее `validUntil` evidence.
 4. Первый protected request после expiry делает single-flight refresh. Positive evidence живёт не
    более пяти минут; confirmed removal denies immediately; outage после expiry fails closed.
 
@@ -335,6 +360,8 @@ read/download/play path.
 - strict issuer/audience/expiry validation, short tokens, no secrets/tokens/raw sessions в logs;
 - safe server renderer без raw HTML/MDX; allowlisted URLs/nodes, CSP и bounded document limits;
 - closed bodies/objects физически или логически отделены от public projections/objects;
+- private Platform Account и member-visible Profile имеют разные projections; email, provider
+  claims, internal/Telegram IDs, evidence и security/audit state не публикуются;
 - every protected allow/deny, preview и dependency failure получает safe correlation/audit facts
   через opaque local IDs; final telemetry pipeline определяется позже.
 
@@ -344,7 +371,7 @@ read/download/play path.
   canonical URLs, metadata, sitemap и crawlable internal links;
 - closed Material card может индексироваться, но closed body отсутствует в HTML, RSC, structured
   data, search endpoint и shared cache;
-- draft/preview/admin/account/MCP surfaces имеют noindex и не входят в sitemap;
+- draft/preview/admin/account/Member Profile/MCP surfaces имеют noindex и не входят в sitemap;
 - publish/unpublish обновляет canonical projection и invalidates only affected public cache.
 
 ### Accessibility и responsive UI
@@ -376,7 +403,7 @@ specification.
 
 Environments, delivery, release/rollback, infrastructure capacity, secrets operations, telemetry,
 alerts, backup/recovery и production SLO намеренно не определяются здесь. Они требуют отдельной
-Workspace specification, когда Stage 5 даст реальный process/data/provider/capacity profile. До
+Workspace specification, когда Stage 4 даст реальный process/data/provider/capacity profile. До
 этого текущие исследования не превращаются в deploy backlog или скрытый launch gate.
 
 ## 10. Вертикальные этапы
@@ -463,37 +490,51 @@ Exit: reader, editor/Preview и Library/search работают в одном `a
 application interfaces и approved UI foundation; closed content, validation/conflicts и search
 semantics не дублируются в browser code.
 
-### Stage 3 — identity и provider-neutral protected content
+### Parallel Identity/Membership track — независимые consumer/provider lanes
 
-Результат: visitor создаёт email account, BFF session maps to Principal, а `ContentAccess` защищает
-closed body/asset/download/video interfaces через один conformance matrix. До Telegram integration
-Membership port использует только bounded test adapter. Identity application proof проверяет UX,
-BFF/token protocol и fallback; self-host capacity, operations и release acceptance остаются future
-infrastructure work.
+Этот track начинается после принятия
+[Workspace #65](https://github.com/sachkov-inside/workspace/issues/65) и
+[versioned contract](../contracts/identity-membership-v1.md); он не ждёт завершения Stage 2.
+Конкретные integration points сохраняют native dependencies на реально потребляемые content/UI
+capabilities.
 
-Exit: anonymous/authenticated/active/expired/author/admin, two-Subject cache leak и dependency
-outage cases зелёные для page/REST/MCP/resource paths; provider объявлен только application-ready,
-не production-ready.
+Platform consumer lane:
 
-### Stage 4 — bootstrap `inside-telegram` и включить real Membership
+- [#53](https://github.com/sachkov-inside/platform/issues/53) синхронизирует repository-local
+  identity/account/profile contract после Workspace #66;
+- [#49](https://github.com/sachkov-inside/platform/issues/49) после #30/#53 доказывает IdP flow и
+  поставляет External identity → Principal → Platform session foundation параллельно #31/UI lane;
+- [#50](https://github.com/sachkov-inside/platform/issues/50) после #49/#31 проводит реальные
+  protected resources через `ContentAccess` и bounded test Membership adapter;
+- [#51](https://github.com/sachkov-inside/platform/issues/51) может начать owner Profile brief
+  сразу; persistence ждёт #49, а production UI — принятую #46 foundation.
 
-Trigger: Stage 3 стабилизировал versioned evidence port и Platform can consume it through HTTP and
-in-memory adapters. До trigger не создаются bot messaging/admin/campaign packages или deployables.
+Telegram provider lane:
 
-Результат:
+- [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) после accepted contract
+  slice и explicit repository/operator confirmations создаёт private repository, harness, root
+  Specification и первый production ticket; завершённый Platform #50 не является trigger;
+- Telegram application независимо реализует OIDC linking, uniqueness/recovery и read-only
+  `getChatMember` evidence и проходит provider-side corpus того же contract;
+- applications не делят database, source package или migration history и vendor-ят versioned test
+  snapshot вместо runtime dependency на Workspace/соседний checkout.
 
-- Workspace bootstrap ticket создаёт подтверждённый private repository с собственным harness,
-  repository contract, CI и testable application scaffold;
-- Telegram application реализует OIDC link, uniqueness/recovery invariants, read-only
-  `getChatMember` evidence и authenticated internal interface;
-- Platform сохраняет bounded entitlement и прекращает новые protected operations не позднее пяти
-  минут после confirmed removal/evidence expiry.
+Exit: Platform consumer/test adapter и Telegram provider отдельно проходят normative conformance
+corpus. Ни один результат ещё не объявляет production enablement или credential rollout.
 
-Exit: existing member, non-member, removal, rejoin, replay, duplicate identity, lost admin/token и
-outage проходят credentialed proof в согласованной temporary/integration environment. Production
-enablement не входит в этот gate.
+### Stage 3 — end-to-end Identity и Membership convergence
 
-### Stage 5 — feature-complete v1 candidate
+[Platform #52](https://github.com/sachkov-inside/platform/issues/52) соединяет независимо готовые
+consumer/provider implementations через authenticated versioned HTTP adapter. Link, member,
+non-member, removal, expiry, rejoin, replay, duplicate identity, contract mismatch и outage проходят
+end-to-end; Account показывает точные linking/Membership states, а `ContentAccess` остаётся final
+authority для page/REST/MCP/resource paths.
+
+Exit: anonymous/authenticated/active/expired/author/admin, cross-Subject cache leak и dependency
+outage cases зелёные; positive entitlement не переживает evidence/five-minute bound. IdP и Telegram
+integration объявлены application-ready в agreed temporary environment, но не production-ready.
+
+### Stage 4 — feature-complete v1 candidate
 
 Результат: author/MCP управляют полным v1 document set, private assets/downloads и Kinescope upload
 -> process -> preview -> publish -> play; member читает, скачивает, смотрит и получает read state /
@@ -504,11 +545,11 @@ Exit: все v1 journeys и negative cases зелёные в agreed test environ
 callback, private delivery, cross-revision mismatch, provider outage, MCP `409`/idempotency,
 reading state и UI evidence. Это feature-complete candidate, не released product.
 
-### После Stage 5 — отдельная release and infrastructure specification
+### После Stage 4 — отдельная release and infrastructure specification
 
 Только тогда создаётся новая Workspace specification для environments, domains/callbacks,
 capacity, deployment/promotion/rollback, observability/alerts, secrets, provider operations,
-backup/recovery, RPO/RTO и production GO. Её решения опираются на измеренный Stage 5 profile, а не
+backup/recovery, RPO/RTO и production GO. Её решения опираются на измеренный Stage 4 profile, а не
 на сегодняшние предположения. Текущий #40 не создаёт этот backlog заранее.
 
 ## 11. Dependency graph
@@ -535,26 +576,38 @@ flowchart TD
     LIFE --> EDITOR
     LIB --> DISCOVERY
 
-    LIFE --> S3[Stage 3: identity + ContentAccess]
-    READER --> S3
-    S3 --> B[Workspace: bootstrap inside-telegram]
-    B --> T[Telegram: linking + bounded evidence]
-    READER --> S5[Stage 5: feature-complete candidate]
-    EDITOR --> S5
-    DISCOVERY --> S5
-    MCP --> S5
-    S3 --> S5
-    T --> S5
-    S5 -. separate future owner decision .-> R[Release + infrastructure specification]
+    S65[Workspace #65: Identity + Membership specification] --> C66[Workspace #66: shared contract sync]
+    C66 --> P53[Platform #53: local contract sync]
+    C66 --> B60[Workspace #60: Telegram repository bootstrap + owner gates]
+    DRAFT --> ID49[Platform #49: IdP + Principal + session]
+    P53 --> ID49
+    ID49 --> ACCESS50[Platform #50: ContentAccess + test Membership adapter]
+    LIFE --> ACCESS50
+
+    S65 --> PROFILE51[Platform #51: Account + Member Profile brief]
+    ID49 -. persistence input .-> PROFILE51
+    SHELL -. production UI input .-> PROFILE51
+
+    B60 --> TG[Telegram root Specification: linking + bounded evidence]
+    ACCESS50 --> JOIN52[Platform #52: end-to-end convergence]
+    PROFILE51 --> JOIN52
+    TG --> JOIN52
+
+    READER --> S4[Stage 4: feature-complete candidate]
+    EDITOR --> S4
+    DISCOVERY --> S4
+    MCP --> S4
+    JOIN52 --> S4
+    S4 -. separate future owner decision .-> R[Release + infrastructure specification]
 ```
 
-Native dependencies отражают две параллельные delivery lanes. #45 ждёт только contract sync #44 и
-может исследовать accepted visual/component foundation на typed fixtures, пока #30/#31 поставляют
-headless lifecycle. Они не реализуют одни production routes: #46 владеет shell adoption, а #37–#39
-владеют integration соответствующих real interfaces и approved components. Repository bootstrap
-начинается только после stable Platform evidence port. Release/infrastructure work не является
-текущей downstream ticket: оно получает новую specification только из измеренного Stage 5
-candidate.
+Graph отражает три параллельных delivery lane: content/application, owner-controlled UI и
+Identity/Membership consumer/provider. #45 не ждёт backend identity; #51 может начать owner brief до
+#49/#46, но production persistence/UI используют их принятые contracts. Telegram bootstrap #60
+ждёт только accepted Workspace contract slice и explicit repository/operator gates, не готовый #50.
+Platform/Telegram сходятся впервые в #52 после независимых conformance tests. Release/infrastructure
+work не является текущей downstream ticket: оно получает новую specification только из измеренного
+Stage 4 candidate.
 
 ## 12. Актуальный implementation frontier
 
@@ -562,19 +615,29 @@ Completed authority:
 
 - [Platform #27](https://github.com/sachkov-inside/platform/issues/27) — engineering contract;
 - [Platform #36](https://github.com/sachkov-inside/platform/issues/36) — technical frontend
-  foundation и временный functional shell.
+  foundation и временный functional shell;
+- [Platform #30](https://github.com/sachkov-inside/platform/issues/30) — retained
+  create/load/revise Material vertical;
+- [Platform #44](https://github.com/sachkov-inside/platform/issues/44) — parallel UI laboratory
+  contract sync.
 
 Параллельный frontier:
 
-1. [Platform #30](https://github.com/sachkov-inside/platform/issues/30) — первый retained vertical
-   create/load/revise slice; implementation начинается после обязательного owner-approved brief.
-2. [Platform #44](https://github.com/sachkov-inside/platform/issues/44) — синхронизация local UI
-   laboratory contract, после которой #45 проходит собственный owner brief/visual gates.
+1. [Workspace #66](https://github.com/sachkov-inside/workspace/issues/66) — versioned shared
+   Identity/Membership contract; после merge открывает Platform #53.
+2. [Platform #51](https://github.com/sachkov-inside/platform/issues/51) — owner-controlled private
+   Account/Member Profile brief; production persistence/UI ждут #49/#46, но brief готов сейчас.
+3. [Platform #45](https://github.com/sachkov-inside/platform/issues/45) — Storybook/UI laboratory с
+   собственными owner brief, visual/component и merge gates.
+4. [Platform #31](https://github.com/sachkov-inside/platform/issues/31) — lifecycle brief и retained
+   validate/preview/publish/read vertical поверх завершённой #30.
+5. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — Telegram repository
+   bootstrap после accepted contract slice и repository/operator confirmations; Platform #50 не
+   является blocker.
 
-Все dependent Platform tickets следуют каноническому graph из раздела 11; их readiness и
-исполнительные детали остаются в owning issues. Отдельно
-[Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) остаётся bounded bootstrap
-`inside-telegram` только для Stage 4 trigger и после owner confirmation имени.
+После #66 Platform #53 синхронизирует repository-local contract; #49 ждёт #30/#53, #50 — #49/#31,
+а #52 — готовые Platform consumer/Profile и Telegram provider. Все readiness, owner gates и
+session-sized stopping conditions остаются в owning issues.
 
 Закрытые #17/#18 и #20–#23, а также superseded Platform #40 сохраняют discussion/provenance, но не
 показываются как executable frontier. Full Platform issue bodies здесь не дублируются: Workspace
@@ -589,11 +652,12 @@ Completed authority:
 | #45 Storybook/reference/component/token brief и visual/component GO | UI laboratory | bounded set из representative compositions на typed presentation contracts | UI adoption/integration blocked; backend не blocked |
 | #46 rendered shell adoption | production frontend shell | заменить visual заглушку #36 без Storybook runtime/fixtures | Stage 2 integration blocked; backend не blocked |
 | Rendered surfaces #37–#39 | Stage 2 integration | approved components + real application interfaces | reuse следующими surfaces blocked |
-| Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | identity proof | начать с branded redirect + email code; Better Auth fallback | Stage 3 blocked |
-| Identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
-| Repository name `inside-telegram` | Stage 4 bootstrap | confirm current working name | repository creation blocked |
-| Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
-| Kinescope strict callback mechanics и acceptable continued-play window | Stage 5 | strict fail-closed; measure current plan | video remains unavailable |
+| Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | Platform #49 proof | начать с branded redirect + email code; Better Auth fallback | #49 production code blocked |
+| Identity link/unlink/recovery authority | Platform #49/#52 | explicit verification; audited owner recovery без email-only merge | linking/convergence blocked |
+| Member Profile fields, avatar/moderation и discovery | Platform #51 brief | member-only, noindex, separate private Account; exact fields owner-approved | #51 production code blocked |
+| Repository name `inside-telegram` и private visibility | Workspace #60 bootstrap | confirm current working name | repository creation blocked |
+| Bot username/name/avatar/recovery owner и exceptional relink policy | Telegram provider proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
+| Kinescope strict callback mechanics и acceptable continued-play window | Stage 4 | strict fail-closed; measure current plan | video remains unavailable |
 
 Hard-to-reverse Platform ADR inputs only when production implementation reveals a real trade-off:
 
