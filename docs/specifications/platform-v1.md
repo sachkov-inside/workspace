@@ -1,9 +1,11 @@
 # Техническая спецификация Sachkov Inside Platform v1
 
 Статус: proposed cross-repository specification для
-[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40).
+[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40), delivery graph
+синхронизирован в
+[Workspace issue #62](https://github.com/sachkov-inside/workspace/issues/62).
 
-Дата: 2026-08-21.
+Дата: 2026-08-23.
 
 ## 1. Результат и authority
 
@@ -59,9 +61,9 @@ relation не входит в обязательный v1 scope. Первый Pl
 - instant recall уже доставленных bytes или выданной video license;
 - production environments, deployment, release/rollback, capacity, domains, monitoring, secrets,
   backup и recovery — они получат отдельную specification перед реальным release;
-- final visual language, information design, typography, palette, motion и component/UI library —
-  их до frontend implementation проектирует отдельная
-  [Platform specification #19](https://github.com/sachkov-inside/platform/issues/19).
+- final visual language, information design, typography, palette, motion и component/UI foundation
+  вне owner-controlled lane Platform #44–#46; Storybook внутри существующего `apps/web` разрешён
+  только как development laboratory, а не как отдельный production frontend.
 
 Этапы ниже доводят v1 до feature-complete candidate в согласованной тестовой среде, но не объявляют
 его released. Production delivery начинается только из отдельной owner-approved release and
@@ -121,15 +123,25 @@ acceptance:
 |---|---|---|---|
 | Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed application UX/protocol gate; operational acceptance остаётся в future infrastructure work | Platform ADR только после application и operational proofs |
 
-Каждый implementing PR обновляет lockfile и фиксирует exact library versions. Kysely/PostgreSQL и
-ProseMirror/Tiptap не получают отдельные throwaway prototypes или comparison gates: Platform #17 и
-#18 сразу поставляют production modules и их обычные integration tests. Если реальная реализация
-обнаружит blocking limitation, owning PR фиксирует evidence и migration impact, после чего stack
-меняется одним production path; параллельные ORM/document stacks не поддерживаются.
+Каждый implementing PR обновляет lockfile и фиксирует exact library versions. Закрытые Platform
+#17/#18 сохраняют provenance ранней горизонтальной декомпозиции, но не являются executable
+frontier. Production data/document path теперь поставляют vertical tickets #27–#31; #28 и #29
+добавляют Library/search и MCP outcomes. Их точный dependency order канонически задан в разделе 11.
+Public application interfaces из #30/#31 являются authority для всех последующих callers. Если
+реализация обнаружит blocking limitation, owning PR фиксирует evidence и migration impact, после
+чего меняется один production path; параллельные ORM/document/data paths не поддерживаются.
 
-Visual stack намеренно не выбран здесь. Platform #19 сначала фиксирует UX structure и owner taste,
-сравнивает rendered concepts, а затем доказывает component/primitives strategy на принятом
-направлении. Production frontend feature code не начинается до этого UI gate.
+Platform [#36](https://github.com/sachkov-inside/platform/issues/36) уже поставила technical
+frontend foundation: один `apps/web`, App Router/FSD composition и backend connection seam. Её
+merged shell — временная visual заглушка, а не принятая component system. Owner-controlled UI lane
+идёт параллельно headless/backend работе: [#44](https://github.com/sachkov-inside/platform/issues/44)
+синхронизирует local contract, [#45](https://github.com/sachkov-inside/platform/issues/45) создаёт
+Storybook laboratory, bounded tokens/components и typed representative fixtures, а
+[#46](https://github.com/sachkov-inside/platform/issues/46) применяет принятую foundation к
+production shell. Laboratory — внутренний mergeable development surface, а не второй app или
+deployable. Stories используют те же typed presentation contracts, что production adapters, но не
+fake backend/client, business rules или второй production data path. Production routes #37–#39
+соединяют approved UI только с реальными #30/#31/#28 interfaces.
 
 Будущий `inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY,
 PostgreSQL и Kysely + `pg` как production baseline. Platform и Telegram application не делят
@@ -175,8 +187,9 @@ Bot API calls. Platform вызывает её только через versioned,
 используют in-memory adapter того же port. Deployment shape обеих applications будет определён
 позже.
 
-Next.js process и его application seams являются техническим baseline, но visual structure и UI
-foundation принадлежат Platform #19.
+Next.js process, App Router/FSD composition и application seams уже заданы technical foundation
+#36. Visual/component foundation принадлежит #45 и попадает в production shell через #46; никакой
+второй frontend application или route tree не создаётся.
 
 ## 6. Platform modules и seams
 
@@ -369,69 +382,86 @@ Workspace specification, когда Stage 5 даст реальный process/da
 ## 10. Вертикальные этапы
 
 Этапы описывают capability delivery в repeatable local/CI/agreed integration environment. Они не
-задают environments, deploy или production launch chronology. UI design track идёт параллельно
-application core и блокирует только production frontend implementation.
+задают environments, deploy или production launch chronology. Headless/backend и UI laboratory
+lanes развиваются параллельно; только production frontend integration ждёт результаты обоих.
 
-### Stage 0 — синхронизировать contract и реализовать headless production foundations
+### Stage 0 — принятые contracts и technical foundations
 
 Среда: clean CI/ephemeral Compose.
 
 Результат:
 
-- Platform brief и local technical docs отражают принятые no-import/discussion/access decisions;
-- Platform #17 поставляет production PostgreSQL/Kysely migrations, data module, publish transaction
-  и FTS path;
-- Platform #18 поставляет production ProseMirror/Tiptap document module, revisions, safe renderer,
-  schema migration и semantic MCP commands;
-- Platform #19–#23 фиксируют отдельный UX/visual/UI foundation track до frontend feature code;
-- focused integration tests проверяют production contracts в owning repository; отдельного
-  prototype codebase или кода на выброс нет;
-- Platform ADR создаётся только если production implementation выявляет реальный
-  hard-to-reverse trade-off.
+- Platform [#27](https://github.com/sachkov-inside/platform/issues/27) закрыла owner gate по
+  engineering organization, module/interface map, validation и testing seams;
+- Platform [#36](https://github.com/sachkov-inside/platform/issues/36) поставила один production
+  `apps/web`, App Router/FSD composition, backend connection seam, routes и accessible navigation;
+- shell #36 остаётся функциональной visual заглушкой до #45/#46, а не reusable UI authority;
+- superseded #17/#18 и закрытые #20–#23/#40 сохраняются только как provenance и не блокируют живой
+  graph.
 
-Exit: production data/document foundations merged и используются последующим content core.
-Identity provider остаётся provisional до отдельной application проверки и будущего operational
-acceptance; его нельзя объявлять production-ready внутри Stage 0.
+Exit: #27/#36 завершены; следующие lanes используют их contracts без второго backend/frontend
+foundation.
 
-### Stage 1 — content application core без visual frontend
+### Stage 1 — vertical headless/application delivery
 
-Результат: author/MCP/API use cases создают, меняют, validate, preview и publish representative
-Material; transaction, immutable revisions, public/search projections и semantic conflicts
-проверяются через application interfaces. Minimal test harness может показывать rendered output,
-но не становится visual direction или production UI.
+Exact native dependencies для этого lane заданы в разделе 11.
 
-Exit: sanitized Material проходит edit/save/reload/publish/unpublish/restore без semantic drift;
-draft не виден public projection; RU/EN search fixtures и transaction cases зелёные.
+Результат:
 
-### UI Gate — спроектировать интерфейс до feature implementation
+- #30 создаёт единственный retained create/load/revise path с PostgreSQL/Kysely,
+  ProseMirror/Tiptap, immutable revisions и application interface;
+- #31 поверх него поставляет validation, exact preview, recorded owner publish gate, atomic
+  publish/unpublish/restore и safe public read;
+- #28 и #29 используют те же ContentLibrary/ContentAuthoring/ContentSchema interfaces для
+  поиска/navigation и thin MCP adapter;
+- обязательные implementation briefs и explicit owner approvals #30/#31 сохраняются; frontend или
+  transport не переопределяют их business rules, transactions и errors.
 
-Platform [#19](https://github.com/sachkov-inside/platform/issues/19) владеет отдельной
-specification:
+Exit: representative Material проходит create/revise/validate/exact preview/owner-approved
+publish/read/unpublish/restore без semantic drift; draft/closed data не попадают в public
+projection. RU/EN Library и MCP outcomes проверяются через те же production interfaces.
 
-- [#20](https://github.com/sachkov-inside/platform/issues/20) фиксирует UX architecture, states,
-  real content fixtures и low-fidelity responsive wireframes;
-- [#21](https://github.com/sachkov-inside/platform/issues/21) собирает annotated references,
-  anti-references и owner taste/preferences;
-- [#22](https://github.com/sachkov-inside/platform/issues/22) сравнивает 2–3 genuinely different
-  visual concepts на одинаковых real surfaces и получает explicit owner selection;
-- [#23](https://github.com/sachkov-inside/platform/issues/23) после выбора доказывает current
-  component/primitives strategy, semantic tokens и agent-friendly UI contract.
+### Parallel UI lane — owner-controlled laboratory и shell adoption
 
-Exit: выбран direction, доказан bounded foundation и создан отдельный implementation ticket на
-один reference surface. До этого нельзя выбирать broad component library, строить full UI catalog
-или писать production feature UI.
+Exact native dependencies для этого lane заданы в разделе 11. Он может выполняться параллельно
+Stage 1, в отдельном worktree, и не блокирует headless/backend capabilities. При этом lanes не
+реализуют одни production routes.
 
-### Stage 2 — UI foundation и public experience
+Результат:
 
-Dependencies: Stage 1 application contracts и закрытый UI Gate.
+- #44 синхронизирует repository-local documents и live frontend contracts;
+- #45 создаёт development-only Storybook внутри существующего `apps/web`, semantic tokens,
+  bounded components и representative stories на typed presentation contracts;
+- fixtures покрывают нужные loading/empty/error/content/access/responsive states, но не реализуют
+  fake API/client, business rules, SQL или alternate content model;
+- #46 заменяет временную visual заглушку shell #36 на owner-approved tokens/components; production
+  bundle не включает Storybook runtime или fixtures;
+- exact initial brief, rendered mobile/desktop evidence, visual/component GO и merge GO остаются
+  owner gates #45/#46. Broad speculative catalog и отдельное frontend application запрещены.
 
-Результат: accepted direction реализован через bounded tokens/primitives на первом reference
-surface, затем применяется к home, Library, Topic, Series, Roadmap и free Material. Author работает
-с минимальным accepted admin/editor surface, а не throwaway styling.
+Exit: один production shell использует принятую foundation; stories и production adapters могут
+передать одинаковые presentation props, но только adapters получают данные из real application
+interfaces.
 
-Exit: real content и states проходят mobile/desktop visual evidence, keyboard/screen-reader smoke,
-SEO и performance budgets; generated views не дублируют data, taxonomy появляется только вместе с
-content, ad-hoc styles не обходят UI foundation.
+### Stage 2 — production frontend integration
+
+Production routes соединяют результаты Stage 1 и UI lane без второй реализации components или
+data path. Exact integration dependencies заданы только в разделе 11:
+
+- [#37](https://github.com/sachkov-inside/platform/issues/37) применяет safe read outcome к
+  Material reader;
+- [#38](https://github.com/sachkov-inside/platform/issues/38) применяет create/revise/lifecycle
+  outcomes к author editor и exact Preview;
+- [#39](https://github.com/sachkov-inside/platform/issues/39) применяет ContentLibrary outcome к
+  Library/search/Topic/Series surfaces.
+
+Server/application adapters маппят реальные #30/#31/#28 outcomes в принятые presentation
+contracts; Storybook fixtures не импортируются в runtime routes. Каждый surface сохраняет
+mobile/desktop visual, accessibility и merge owner gates.
+
+Exit: reader, editor/Preview и Library/search работают в одном `apps/web`, используют canonical
+application interfaces и approved UI foundation; closed content, validation/conflicts и search
+semantics не дублируются в browser code.
 
 ### Stage 3 — identity и provider-neutral protected content
 
@@ -485,78 +515,82 @@ backup/recovery, RPO/RTO и production GO. Её решения опираютс�
 
 ```mermaid
 flowchart TD
-    M[Merge Workspace #61 / close #40] --> C[Platform #16: local contract]
-    M --> UX[Platform #20: UX architecture]
-    M --> REF[Platform #21: references + owner taste]
-    C --> DATA[Platform #17: production data foundation]
-    C --> DOC[Platform #18: production document/MCP foundation]
-    DATA --> S1[Stage 1: content application core]
-    DOC --> S1
-    UX --> CONCEPT[Platform #22: visual concepts]
-    REF --> CONCEPT
-    CONCEPT --> UIP[Platform #23: UI strategy proof]
-    S1 --> S2[Stage 2: UI foundation + public experience]
-    UIP --> S2
-    S1 --> S3
-    S2 --> S3[Stage 3: identity + ContentAccess]
+    E[Platform #27: accepted engineering contract] --> DRAFT[Platform #30: create + revise]
+    DRAFT --> LIFE[Platform #31: validate + preview + publish + read]
+    LIFE --> LIB[Platform #28: Library + search]
+    LIFE --> MCP[Platform #29: MCP adapter]
+
+    F[Platform #36: completed technical frontend foundation] --> READER[Platform #37: reader]
+    F --> EDITOR[Platform #38: editor + exact Preview]
+    F --> DISCOVERY[Platform #39: Library + search UI]
+
+    SYNC[Platform #44: sync UI laboratory contract] --> LAB[Platform #45: Storybook + UI foundation]
+    LAB --> SHELL[Platform #46: production shell adoption]
+    SHELL --> READER
+    SHELL --> EDITOR
+    SHELL --> DISCOVERY
+
+    LIFE --> READER
+    DRAFT --> EDITOR
+    LIFE --> EDITOR
+    LIB --> DISCOVERY
+
+    LIFE --> S3[Stage 3: identity + ContentAccess]
+    READER --> S3
     S3 --> B[Workspace: bootstrap inside-telegram]
     B --> T[Telegram: linking + bounded evidence]
-    S2 --> S5[Stage 5: feature-complete candidate]
+    READER --> S5[Stage 5: feature-complete candidate]
+    EDITOR --> S5
+    DISCOVERY --> S5
+    MCP --> S5
     S3 --> S5
     T --> S5
     S5 -. separate future owner decision .-> R[Release + infrastructure specification]
 ```
 
-После merge #61 три session-sized lanes могут идти параллельно: #16, #20 и #21. Первые production
-data/document slices открываются после #16; visual concepts — после обоих design inputs. Stage 1
-headless core не ждёт visual direction, а Stage 2 frontend ждёт. Repository bootstrap начинается
-только после stable Platform evidence port. Release/infrastructure work не является текущей
-downstream ticket: оно получает новую specification только из измеренного Stage 5 candidate.
+Native dependencies отражают две параллельные delivery lanes. #45 ждёт только contract sync #44 и
+может исследовать accepted visual/component foundation на typed fixtures, пока #30/#31 поставляют
+headless lifecycle. Они не реализуют одни production routes: #46 владеет shell adoption, а #37–#39
+владеют integration соответствующих real interfaces и approved components. Repository bootstrap
+начинается только после stable Platform evidence port. Release/infrastructure work не является
+текущей downstream ticket: оно получает новую specification только из измеренного Stage 5
+candidate.
 
-## 12. Первые implementation tickets
+## 12. Актуальный implementation frontier
 
-До merge PR #61 весь следующий frontier native-blocked by #40. После merge открываются три
-независимых bounded lanes:
+Completed authority:
 
-1. [Platform #16](https://github.com/sachkov-inside/platform/issues/16) — синхронизировать
-   canonical product/technical contract: устранить расхождения brief, создать repository-local
-   application specification/CONTEXT и перечислить ADR inputs.
-2. [Platform #20](https://github.com/sachkov-inside/platform/issues/20) — UX architecture,
-   surface/state inventory, real content fixtures и low-fidelity wireframes.
-3. [Platform #21](https://github.com/sachkov-inside/platform/issues/21) — annotated references,
-   anti-references и structured owner taste calibration.
+- [Platform #27](https://github.com/sachkov-inside/platform/issues/27) — engineering contract;
+- [Platform #36](https://github.com/sachkov-inside/platform/issues/36) — technical frontend
+  foundation и временный functional shell.
 
-Следующий dependent work:
+Параллельный frontier:
 
-4. [Platform #17](https://github.com/sachkov-inside/platform/issues/17) — реализовать production
-   PostgreSQL/Kysely data foundation: Material/SearchLibrary, migrations, publish transaction и
-   generated types. Native dependency: blocked by Platform #16.
-5. [Platform #18](https://github.com/sachkov-inside/platform/issues/18) — реализовать production
-   content document и MCP command foundation: ProseMirror/Tiptap round-trip, renderer/search
-   extraction, schema migration, semantic patching и concurrency. Native dependency: blocked by
-   Platform #16.
-6. [Platform #19](https://github.com/sachkov-inside/platform/issues/19) — UI specification parent;
-   #22 native-blocked by #20/#21, #23 native-blocked by #22.
-7. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — bounded bootstrap
-   `inside-telegram`. Создание private repository выполняется только на Stage 4 trigger и после
-   owner confirmation имени; никакой messaging/admin scope не включается.
+1. [Platform #30](https://github.com/sachkov-inside/platform/issues/30) — первый retained vertical
+   create/load/revise slice; implementation начинается после обязательного owner-approved brief.
+2. [Platform #44](https://github.com/sachkov-inside/platform/issues/44) — синхронизация local UI
+   laboratory contract, после которой #45 проходит собственный owner brief/visual gates.
 
-Project status всех Platform #16/#19/#20/#21 сейчас `Blocked` до merge #61; readiness roles уже
-описывают будущего исполнителя. Для #60 native `blocked_by` edge откладывается до появления
-конкретного Platform Stage 3 issue. Identity и Stage 1 feature tickets не создаются, пока их inputs
-не закрыты; release/infrastructure backlog в #40 не создаётся вообще.
+Все dependent Platform tickets следуют каноническому graph из раздела 11; их readiness и
+исполнительные детали остаются в owning issues. Отдельно
+[Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) остаётся bounded bootstrap
+`inside-telegram` только для Stage 4 trigger и после owner confirmation имени.
+
+Закрытые #17/#18 и #20–#23, а также superseded Platform #40 сохраняют discussion/provenance, но не
+показываются как executable frontier. Full Platform issue bodies здесь не дублируются: Workspace
+хранит только cross-repository order, authority и provenance.
 
 ## 13. Open owner decisions и ADR inputs
 
 | Decision | Нужна к этапу | Default/recommendation | Если не принято |
 |---|---|---|---|
-| Sync canonical brief с no-import и deferred discussion | Stage 0 | принять более поздние #39 decisions | feature implementation blocked |
+| #30 modules/interfaces, transaction, validation и tests | Stage 1 create/revise | следовать accepted #27 contract; brief перед кодом | #30 blocked |
+| #31 lifecycle interfaces, publish transaction и recorded owner GO | Stage 1 publish/read | real application interfaces — authority для всех callers | dependent headless/frontend work blocked |
+| #45 Storybook/reference/component/token brief и visual/component GO | UI laboratory | bounded set из representative compositions на typed presentation contracts | UI adoption/integration blocked; backend не blocked |
+| #46 rendered shell adoption | production frontend shell | заменить visual заглушку #36 без Storybook runtime/fixtures | Stage 2 integration blocked; backend не blocked |
+| Rendered surfaces #37–#39 | Stage 2 integration | approved components + real application interfaces | reuse следующими surfaces blocked |
 | Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | identity proof | начать с branded redirect + email code; Better Auth fallback | Stage 3 blocked |
 | Identity link/unlink/recovery authority | identity proof | explicit verification; audited owner recovery без email-only merge | Stage 3 blocked |
-| Key UX surfaces/states и real content fixture | UI #20 | mobile-first structure before styling | visual concepts blocked |
-| Owner references, anti-references и preference axes | UI #21 | annotated/ranked evidence, не vague moodboard | visual concepts blocked |
-| Выбор одного visual direction | UI #22 | 2–3 distinct concepts with same content/surfaces | UI strategy blocked |
-| Component/primitives strategy и breadth своей UI foundation | UI #23 | proof current candidates after direction; extract only real needs | frontend implementation blocked |
 | Repository name `inside-telegram` | Stage 4 bootstrap | confirm current working name | repository creation blocked |
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Stage 4 proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
 | Kinescope strict callback mechanics и acceptable continued-play window | Stage 5 | strict fail-closed; measure current plan | video remains unavailable |
@@ -569,7 +603,7 @@ Hard-to-reverse Platform ADR inputs only when production implementation reveals 
 - `ContentAccess` placement and conformance surface;
 - private Asset delivery mechanism;
 - Kinescope upload/reconciliation/strict authorization mechanics;
-- UI component/primitives strategy только если proof выявит hard-to-reverse trade-off.
+- UI component/primitives strategy только если #45 implementation выявит hard-to-reverse trade-off.
 
 `inside-telegram` ADR inputs after bootstrap/proof:
 
