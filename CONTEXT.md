@@ -9,6 +9,25 @@ application. Repository-specific models may refine them without changing their o
 A person or machine identity recognized by an Inside application.
 _Avoid_: User when the distinction from a person matters, account role
 
+**External identity**:
+A provider-verified identity bound to one Principal independently of changeable profile data.
+_Avoid_: Email address, login, Member Profile
+
+**Platform session**:
+A finite authentication context through which Platform recognizes a Principal for subsequent
+authorization.
+_Avoid_: Membership, entitlement, permission
+
+**Platform account**:
+The private Platform state through which a human Principal manages identity, security, linking and
+recovery.
+_Avoid_: Member Profile, Principal, Membership
+
+**Member Profile**:
+A presentation of a human Principal that is visible only to active Inside members and never grants
+identity, Membership or content access.
+_Avoid_: Platform account, public internet profile, identity record
+
 **Membership signal**:
 The current presence of a linked Telegram identity in the canonical closed Inside chat.
 _Avoid_: Tribute subscription, payment status
