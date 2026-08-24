@@ -1,7 +1,7 @@
 # Inside Identity and Membership contract v1
 
 Статус: cross-repository contract для
-[Workspace specification #65](https://github.com/sachkov-inside/workspace/issues/65).
+[Workspace initiative #65](https://github.com/sachkov-inside/workspace/issues/65).
 
 Этот документ задаёт общую authority boundary, wire envelope и conformance corpus между Platform
 и будущей Telegram application. Он не задаёт application schema, HTTP framework, database tables,

@@ -2,15 +2,120 @@ name: Add to Inside project
 
 on:
   issues:
-    types: [opened, reopened, transferred, closed]
+    types: [opened, reopened, transferred, labeled, unlabeled, closed]
   pull_request:
     types: [opened, reopened, closed]
 
 permissions: {}
 
 jobs:
-  add-to-project:
-    if: github.event.action != 'closed'
+  route-issue:
+    if: >-
+      github.event_name == 'issues' &&
+      (github.event.action != 'labeled' && github.event.action != 'unlabeled' ||
+      github.event.label.name == 'backlog:human')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: inside-project-route-${{ github.event.issue.node_id }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.INSIDE_PROJECT_TOKEN }}
+      CONTENT_NODE_ID: ${{ github.event.issue.node_id }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Reconcile issue project
+        shell: bash
+        run: |
+          project_item_id() {
+            local project_id="$1"
+
+            # GraphQL variables must reach GitHub unchanged.
+            # shellcheck disable=SC2016
+            gh api graphql \
+              -f query='query($contentId: ID!) {
+                node(id: $contentId) {
+                  ... on Issue {
+                    projectItems(first: 100) { nodes { id project { id } } }
+                  }
+                }
+              }' \
+              -F contentId="$CONTENT_NODE_ID" \
+              --jq ".data.node.projectItems.nodes[] |
+                select(.project.id == \"$project_id\") | .id"
+          }
+
+          issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
+          is_closed="$(jq -r '.state == "closed"' <<<"$issue_json")"
+          is_human="$(jq -r '[.labels[].name] | index("backlog:human") != null' <<<"$issue_json")"
+
+          if [[ "$is_human" == "true" ]]; then
+            desired_project_number=2
+            desired_project_id=PVT_kwDOEviKY84BhRgh
+            desired_status_field=PVTSSF_lADOEviKY84BhRghzhgN1Yg
+            open_status=f75ad846
+            done_status=98236657
+            other_project_number=1
+            other_project_id=PVT_kwDOEviKY84Bg8D6
+          else
+            desired_project_number=1
+            desired_project_id=PVT_kwDOEviKY84Bg8D6
+            desired_status_field=PVTSSF_lADOEviKY84Bg8D6zhf5tfs
+            open_status=a2cf7574
+            done_status=8a1118e3
+            other_project_number=2
+            other_project_id=PVT_kwDOEviKY84BhRgh
+          fi
+
+          item_id="$(project_item_id "$desired_project_id")"
+
+          added_desired=false
+          if [[ -z "$item_id" ]]; then
+            # shellcheck disable=SC2016
+            item_id="$(
+              gh api graphql \
+                -f query='mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: {
+                    projectId: $projectId,
+                    contentId: $contentId
+                  }) { item { id } }
+                }' \
+                -F projectId="$desired_project_id" \
+                -F contentId="$CONTENT_NODE_ID" \
+                --jq '.data.addProjectV2ItemById.item.id'
+            )"
+            added_desired=true
+          fi
+
+          other_item_id="$(project_item_id "$other_project_id")"
+
+          if [[ -n "$other_item_id" ]]; then
+            if ! gh project item-delete "$other_project_number" \
+              --owner sachkov-inside \
+              --id "$other_item_id"; then
+              if [[ "$added_desired" == "true" ]]; then
+                gh project item-delete "$desired_project_number" \
+                  --owner sachkov-inside \
+                  --id "$item_id" || true
+              fi
+              exit 1
+            fi
+          fi
+
+          if [[ "$is_closed" == "true" ]]; then
+            status_option="$done_status"
+          else
+            status_option="$open_status"
+          fi
+
+          gh project item-edit \
+            --id "$item_id" \
+            --project-id "$desired_project_id" \
+            --field-id "$desired_status_field" \
+            --single-select-option-id "$status_option"
+
+  add-pull-request:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - id: add-to-project
@@ -21,18 +126,18 @@ jobs:
       - name: Set the initial project status
         env:
           GH_TOKEN: ${{ secrets.INSIDE_PROJECT_TOKEN }}
-          STATUS_OPTION_ID: ${{ github.event_name == 'pull_request' && 'f61aa86e' || 'a2cf7574' }}
         run: >-
           gh project item-edit
           --id "${{ steps.add-to-project.outputs.itemId }}"
           --project-id PVT_kwDOEviKY84Bg8D6
           --field-id PVTSSF_lADOEviKY84Bg8D6zhf5tfs
-          --single-select-option-id "$STATUS_OPTION_ID"
+          --single-select-option-id f61aa86e
 
-  mark-done:
+  mark-pull-request-done:
     if: >-
+      github.event_name == 'pull_request' &&
       github.event.action == 'closed' &&
-      (github.event_name == 'issues' || github.event.pull_request.merged == true)
+      github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.INSIDE_PROJECT_TOKEN }}

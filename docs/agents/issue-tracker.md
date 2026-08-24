@@ -11,6 +11,20 @@ repo-local child issues. Tracked pull requests use `Closes #<number>`; trivial d
 Pull requests are not an external request surface for triage. A bare `#<number>` can still be an
 issue or PR because GitHub shares their number space; resolve it before acting.
 
+## Project routing
+
+- Owner-facing goals live in [Inside — Human Backlog](https://github.com/orgs/sachkov-inside/projects/2)
+  as Workspace issues labelled `backlog:human`. Their body stays in product language: result,
+  acceptance, priority, and links to delivery tracks.
+- Repository-owned Initiatives, Specifications, Tickets, and pull requests live in
+  [Inside — Developer Pipeline](https://github.com/orgs/sachkov-inside/projects/1).
+- Never add the same issue to both Projects. Promotion creates or links delivery issues; it does not
+  move or copy the human issue.
+- Removing `backlog:human` is only a classification repair. Promotion never removes it or moves the
+  owner-facing issue into Developer Pipeline.
+- `backlog:human` is a routing label, not a readiness state. Human backlog inputs do not use
+  `needs-triage`, `ready-for-agent`, or `ready-for-human` until represented by a delivery issue.
+
 ## Wayfinder
 
 - A map is an issue labelled `wayfinder:map`.
