@@ -1,12 +1,12 @@
 # Техническая спецификация Sachkov Inside Platform v1
 
 Статус: accepted cross-repository specification из
-[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40). Живой delivery graph
-синхронизирован в [Workspace issue #62](https://github.com/sachkov-inside/workspace/issues/62), а
-отдельный Identity/Membership track — в
-[Workspace specification #65](https://github.com/sachkov-inside/workspace/issues/65).
+[Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40). Live delivery state
+принадлежит owning repository issues и Inside — Developer Pipeline, а отдельный
+Identity/Membership track координирует
+[Workspace initiative #65](https://github.com/sachkov-inside/workspace/issues/65).
 
-Дата: 2026-08-23.
+Дата: 2026-08-24.
 
 ## 1. Результат и authority
 
@@ -130,19 +130,20 @@ acceptance:
 |---|---|---|---|
 | Identity | Logto OSS: email code, branded redirect, Next BFF, Nest JWT | Better Auth при failed application UX/protocol gate; operational acceptance остаётся в future infrastructure work | Platform ADR только после application и operational proofs |
 
-Каждый implementing PR обновляет lockfile и фиксирует exact library versions. Закрытые Platform
-#17/#18 сохраняют provenance ранней горизонтальной декомпозиции, но не являются executable
-frontier. Production data/document path теперь поставляют vertical tickets #27–#31; #28 и #29
-добавляют Library/search и MCP outcomes. Их точный dependency order канонически задан в разделе 11.
+Каждый implementing PR обновляет lockfile и фиксирует exact library versions. Platform #17/#18
+сохраняют provenance ранней горизонтальной декомпозиции, а production data/document path задают
+vertical capabilities #27–#31; #28 и #29 добавляют Library/search и MCP outcomes. Их dependency
+order канонически задан в разделе 11, а live delivery state остаётся только в owning issues.
 Public application interfaces из #30/#31 являются authority для всех последующих callers. Если
 реализация обнаружит blocking limitation, owning PR фиксирует evidence и migration impact, после
 чего меняется один production path; параллельные ORM/document/data paths не поддерживаются.
 
-Platform [#36](https://github.com/sachkov-inside/platform/issues/36) уже поставила technical
-frontend foundation: один `apps/web`, App Router/FSD composition и backend connection seam. Её
-merged shell — временная visual заглушка, а не принятая component system. Owner-controlled UI lane
-идёт параллельно headless/backend работе: [#44](https://github.com/sachkov-inside/platform/issues/44)
-синхронизирует local contract, [#45](https://github.com/sachkov-inside/platform/issues/45) создаёт
+Technical frontend foundation из Platform
+[#36](https://github.com/sachkov-inside/platform/issues/36) задаёт один `apps/web`, App Router/FSD
+composition, backend connection seam и временный functional shell, который не является принятой
+component system. Owner-controlled UI lane идёт параллельно headless/backend работе:
+[#44](https://github.com/sachkov-inside/platform/issues/44) синхронизирует local contract,
+[#45](https://github.com/sachkov-inside/platform/issues/45) создаёт
 Storybook laboratory, bounded tokens/components и typed representative fixtures, а
 [#46](https://github.com/sachkov-inside/platform/issues/46) применяет принятую foundation к
 production shell. Laboratory — внутренний mergeable development surface, а не второй app или
@@ -412,22 +413,20 @@ Workspace specification, когда Stage 4 даст реальный process/da
 задают environments, deploy или production launch chronology. Headless/backend и UI laboratory
 lanes развиваются параллельно; только production frontend integration ждёт результаты обоих.
 
-### Stage 0 — принятые contracts и technical foundations
+### Stage 0 — contracts и technical foundations
 
 Среда: clean CI/ephemeral Compose.
 
 Результат:
 
-- Platform [#27](https://github.com/sachkov-inside/platform/issues/27) закрыла owner gate по
-  engineering organization, module/interface map, validation и testing seams;
-- Platform [#36](https://github.com/sachkov-inside/platform/issues/36) поставила один production
+- Platform [#27](https://github.com/sachkov-inside/platform/issues/27) задаёт engineering
+  organization, module/interface map, validation и testing seams;
+- Platform [#36](https://github.com/sachkov-inside/platform/issues/36) задаёт один production
   `apps/web`, App Router/FSD composition, backend connection seam, routes и accessible navigation;
 - shell #36 остаётся функциональной visual заглушкой до #45/#46, а не reusable UI authority;
-- superseded #17/#18 и закрытые #20–#23/#40 сохраняются только как provenance и не блокируют живой
-  graph.
+- #17/#18 и #20–#23/#40 сохраняются только как provenance и не входят в normative dependency graph.
 
-Exit: #27/#36 завершены; следующие lanes используют их contracts без второго backend/frontend
-foundation.
+Exit: следующие lanes используют contracts #27/#36 без второго backend/frontend foundation.
 
 ### Stage 1 — vertical headless/application delivery
 
@@ -550,7 +549,7 @@ reading state и UI evidence. Это feature-complete candidate, не released p
 Только тогда создаётся новая Workspace specification для environments, domains/callbacks,
 capacity, deployment/promotion/rollback, observability/alerts, secrets, provider operations,
 backup/recovery, RPO/RTO и production GO. Её решения опираются на измеренный Stage 4 profile, а не
-на сегодняшние предположения. Текущий #40 не создаёт этот backlog заранее.
+  на предположения до измерений. Эта specification не создаёт release backlog заранее.
 
 ## 11. Dependency graph
 
@@ -561,7 +560,7 @@ flowchart TD
     LIFE --> LIB[Platform #28: Library + search]
     LIFE --> MCP[Platform #29: MCP adapter]
 
-    F[Platform #36: completed technical frontend foundation] --> READER[Platform #37: reader]
+    F[Platform #36: technical frontend foundation] --> READER[Platform #37: reader]
     F --> EDITOR[Platform #38: editor + exact Preview]
     F --> DISCOVERY[Platform #39: Library + search UI]
 
@@ -576,7 +575,7 @@ flowchart TD
     LIFE --> EDITOR
     LIB --> DISCOVERY
 
-    S65[Workspace #65: Identity + Membership specification] --> C66[Workspace #66: shared contract sync]
+    S65[Workspace #65: Identity + Membership initiative] --> C66[Workspace #66: shared contract sync]
     C66 --> P53[Platform #53: local contract sync]
     C66 --> B60[Workspace #60: Telegram repository bootstrap + owner gates]
     DRAFT --> ID49[Platform #49: IdP + Principal + session]
@@ -609,46 +608,10 @@ Platform/Telegram сходятся впервые в #52 после незави
 work не является текущей downstream ticket: оно получает новую specification только из измеренного
 Stage 4 candidate.
 
-## 12. Актуальный implementation frontier
-
-Completed authority:
-
-- [Platform #27](https://github.com/sachkov-inside/platform/issues/27) — engineering contract;
-- [Platform #36](https://github.com/sachkov-inside/platform/issues/36) — technical frontend
-  foundation и временный functional shell;
-- [Platform #30](https://github.com/sachkov-inside/platform/issues/30) — retained
-  create/load/revise Material vertical;
-- [Platform #44](https://github.com/sachkov-inside/platform/issues/44) — parallel UI laboratory
-  contract sync.
-
-Параллельный frontier:
-
-1. [Workspace #66](https://github.com/sachkov-inside/workspace/issues/66) — versioned shared
-   Identity/Membership contract; после merge открывает Platform #53.
-2. [Platform #51](https://github.com/sachkov-inside/platform/issues/51) — owner-controlled private
-   Account/Member Profile brief; production persistence/UI ждут #49/#46, но brief готов сейчас.
-3. [Platform #45](https://github.com/sachkov-inside/platform/issues/45) — Storybook/UI laboratory с
-   собственными owner brief, visual/component и merge gates.
-4. [Platform #31](https://github.com/sachkov-inside/platform/issues/31) — lifecycle brief и retained
-   validate/preview/publish/read vertical поверх завершённой #30.
-5. [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) — Telegram repository
-   bootstrap после accepted contract slice и repository/operator confirmations; Platform #50 не
-   является blocker.
-
-После #66 Platform #53 синхронизирует repository-local contract; #49 ждёт #30/#53, #50 — #49/#31,
-а #52 — готовые Platform consumer/Profile и Telegram provider. Все readiness, owner gates и
-session-sized stopping conditions остаются в owning issues.
-
-Закрытые #17/#18 и #20–#23, а также superseded Platform #40 сохраняют discussion/provenance, но не
-показываются как executable frontier. Full Platform issue bodies здесь не дублируются: Workspace
-хранит только cross-repository order, authority и provenance.
-
-## 13. Open owner decisions и ADR inputs
+## 12. Owner decision gates и ADR inputs
 
 | Decision | Нужна к этапу | Default/recommendation | Если не принято |
 |---|---|---|---|
-| #30 modules/interfaces, transaction, validation и tests | Stage 1 create/revise | следовать accepted #27 contract; brief перед кодом | #30 blocked |
-| #31 lifecycle interfaces, publish transaction и recorded owner GO | Stage 1 publish/read | real application interfaces — authority для всех callers | dependent headless/frontend work blocked |
 | #45 Storybook/reference/component/token brief и visual/component GO | UI laboratory | bounded set из representative compositions на typed presentation contracts | UI adoption/integration blocked; backend не blocked |
 | #46 rendered shell adoption | production frontend shell | заменить visual заглушку #36 без Storybook runtime/fixtures | Stage 2 integration blocked; backend не blocked |
 | Rendered surfaces #37–#39 | Stage 2 integration | approved components + real application interfaces | reuse следующими surfaces blocked |
