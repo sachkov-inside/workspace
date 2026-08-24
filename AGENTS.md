@@ -9,8 +9,9 @@ product surface or application.
 
 ## Working agreements
 
-- For GitHub triage or Wayfinder operations, read `docs/agents/issue-tracker.md` and
-  `docs/agents/triage-labels.md`.
+- For GitHub issue routing, Project fields, or Wayfinder operations, read
+  `docs/agents/issue-tracker.md`.
+- For readiness-label triage, read `docs/agents/triage-labels.md`.
 - For product terminology, repository ownership or ADR placement, read `docs/agents/domain.md`.
 
 ## Verification
