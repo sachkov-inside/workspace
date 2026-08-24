@@ -4,7 +4,7 @@ Issues and specs for this repository live in `sachkov-inside/workspace` GitHub I
 inside this clone so repository identity comes from `git remote`.
 
 Product and cross-repository work belongs here; implementation owned by Landing or Platform
-belongs in that repository. A cross-repository initiative uses a Workspace parent issue and
+belongs in that repository. A cross-repository effort uses a Workspace parent issue and
 repo-local child issues. Tracked pull requests use `Closes #<number>`; trivial docs/chore may use
 `N/A` instead.
 
@@ -16,7 +16,7 @@ issue or PR because GitHub shares their number space; resolve it before acting.
 - Owner-facing goals live in [Inside — Human Backlog](https://github.com/orgs/sachkov-inside/projects/2)
   as Workspace issues labelled `backlog:human`. Their body stays in product language: result,
   acceptance, priority, and links to delivery tracks.
-- Repository-owned Initiatives, Specifications, Tickets, and pull requests live in
+- Repository-owned Wayfinder maps, Specifications, Tickets, and pull requests live in
   [Inside — Developer Pipeline](https://github.com/orgs/sachkov-inside/projects/1).
 - Never add the same issue to both Projects. Promotion creates or links delivery issues; it does not
   move or copy the human issue.

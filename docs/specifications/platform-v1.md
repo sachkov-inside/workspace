@@ -4,7 +4,7 @@
 [Workspace issue #40](https://github.com/sachkov-inside/workspace/issues/40). Live delivery state
 принадлежит owning repository issues и Inside — Developer Pipeline, а отдельный
 Identity/Membership track координирует
-[Workspace initiative #65](https://github.com/sachkov-inside/workspace/issues/65).
+[Workspace Specification #65](https://github.com/sachkov-inside/workspace/issues/65).
 
 Дата: 2026-08-24.
 
@@ -575,7 +575,7 @@ flowchart TD
     LIFE --> EDITOR
     LIB --> DISCOVERY
 
-    S65[Workspace #65: Identity + Membership initiative] --> C66[Workspace #66: shared contract sync]
+    S65[Workspace #65: Identity + Membership Specification] --> C66[Workspace #66: shared contract sync]
     C66 --> P53[Platform #53: local contract sync]
     C66 --> B60[Workspace #60: Telegram repository bootstrap + owner gates]
     DRAFT --> ID49[Platform #49: IdP + Principal + session]
