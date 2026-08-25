@@ -79,6 +79,19 @@ class HarnessCliTest(unittest.TestCase):
         )
         self.assertTrue(lifecycle_script.stat().st_mode & 0o111)
 
+    def test_lifecycle_authority_is_discoverable_from_owning_skills(self) -> None:
+        package = WORKSPACE / "harness/packages/inside-engineering"
+        workflow = (package / "WORKFLOW.md").read_text()
+        implementation = (package / "skills/implement/SKILL.md").read_text()
+        adr_format = (package / "skills/domain-modeling/ADR-FORMAT.md").read_text()
+
+        for section in ("Review closure", "Architecture fitness", "Pruning"):
+            self.assertEqual(workflow.count(f"### {section}"), 1)
+            self.assertIn(f"`{section}`", implementation)
+        self.assertIn("repository-root `WORKFLOW.md`", implementation)
+        self.assertIn("`Pruning`", adr_format)
+        self.assertIn("repository-root `WORKFLOW.md`", adr_format)
+
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
         skill.mkdir(parents=True)
