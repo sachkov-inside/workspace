@@ -1,7 +1,7 @@
 # Harness Sachkov Inside
 
-Текущая package-версия — `inside-engineering 0.3.7`; её canonical release boundary — tag
-`inside-engineering-v0.3.7`. Package распространяется в Workspace, Landing и Platform через
+Текущая package-версия — `inside-engineering 0.3.8`; её canonical release boundary — tag
+`inside-engineering-v0.3.8`. Package распространяется в Workspace, Landing и Platform через
 явный rollout lifecycle ниже.
 
 ## Итоговая модель
@@ -15,7 +15,7 @@
 Inside Workspace
   └─ canonical source общего product harness
        ├─ installer и проверки
-       ├─ inside-engineering 0.3.6
+       ├─ inside-engineering 0.3.8
        └─ adapters общих instructions
             │
             ├─ install/update → Workspace repository
@@ -54,8 +54,9 @@ harness/
 └── tests/
 ```
 
-`inside-engineering 0.3.7` содержит общий Developer Pipeline, triage labels, lifecycle script для
-автоматического закрытия completed parent issues и 32 skills: полный
+`inside-engineering 0.3.8` содержит общий Developer Pipeline с review closure, architecture fitness
+и pruning, triage labels, lifecycle script для автоматического закрытия completed parent issues и
+32 skills: полный
 stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills (`frontend-design`,
 `impeccable`, `karpathy-guidelines`,
 `modern-web-guidance`, `playwright-cli`, `vercel-react-best-practices`,
