@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",
@@ -46,6 +46,10 @@
     {
       "source": "docs/agents/triage-labels.md",
       "target": "docs/agents/triage-labels.md"
+    },
+    {
+      "source": "github/close-completed-parents.sh",
+      "target": ".github/scripts/close-completed-parents.sh"
     }
   ],
   "skills": [

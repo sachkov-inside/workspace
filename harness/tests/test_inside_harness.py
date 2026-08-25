@@ -69,6 +69,15 @@ class HarnessCliTest(unittest.TestCase):
                 / "harness/packages/inside-engineering/docs/agents/triage-labels.md"
             ).read_text(),
         )
+        lifecycle_script = self.repo / ".github/scripts/close-completed-parents.sh"
+        self.assertEqual(
+            lifecycle_script.read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/github/close-completed-parents.sh"
+            ).read_text(),
+        )
+        self.assertTrue(lifecycle_script.stat().st_mode & 0o111)
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
