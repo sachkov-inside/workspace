@@ -79,6 +79,20 @@ class HarnessCliTest(unittest.TestCase):
         )
         self.assertTrue(lifecycle_script.stat().st_mode & 0o111)
 
+    def test_package_carries_review_fitness_and_pruning_contracts(self) -> None:
+        package = WORKSPACE / "harness/packages/inside-engineering"
+        workflow = (package / "WORKFLOW.md").read_text()
+        implementation = (package / "skills/implement/SKILL.md").read_text()
+        adr_format = (package / "skills/domain-modeling/ADR-FORMAT.md").read_text()
+
+        self.assertIn("### Review closure", workflow)
+        self.assertIn("### Architecture fitness", workflow)
+        self.assertIn("### Pruning", workflow)
+        self.assertIn("## Review closure", implementation)
+        self.assertIn("re-run `/code-review`", implementation.lower())
+        self.assertIn("Status is required", adr_format)
+        self.assertIn("superseded by ADR-NNNN", adr_format)
+
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
         skill.mkdir(parents=True)
@@ -119,6 +133,45 @@ class HarnessCliTest(unittest.TestCase):
         agents.write_text(agents.read_text().replace("owner-controlled merge", "merge"))
         result = self.run_cli("diff", str(self.repo), expected=1)
         self.assertIn("entrypoint/AGENTS.md/M", result.stdout)
+
+    def test_health_requires_coding_standards_to_be_discoverable(self) -> None:
+        self.install()
+        (self.repo / "CODING_STANDARDS.md").write_text("# Coding Standards\n")
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("AGENTS.md must point to CODING_STANDARDS.md", result.stderr)
+
+        agents = self.repo / "AGENTS.md"
+        agents.write_text(
+            agents.read_text()
+            + "\nFor coding and review rules, read `CODING_STANDARDS.md`.\n"
+        )
+        self.run_cli("health", str(self.repo))
+
+    def test_health_requires_an_explicit_adr_lifecycle_status(self) -> None:
+        self.install()
+        adr = self.repo / "docs/adr/0001-runtime-shape.md"
+        adr.parent.mkdir(parents=True)
+        adr.write_text("# Runtime shape\n\nUse one runtime.\n")
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("ADR must declare a lifecycle status", result.stderr)
+
+    def test_health_requires_a_superseding_adr_to_exist(self) -> None:
+        self.install()
+        adr_root = self.repo / "docs/adr"
+        adr_root.mkdir(parents=True)
+        (adr_root / "0001-old-shape.md").write_text(
+            "---\nstatus: superseded by ADR-0002\n---\n\n# Old shape\n"
+        )
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("references missing ADR-0002", result.stderr)
+
+        (adr_root / "0002-new-shape.md").write_text(
+            "---\nstatus: accepted\n---\n\n# New shape\n"
+        )
+        self.run_cli("health", str(self.repo))
 
     def test_update_allows_a_new_manifest_skill_in_an_uncommitted_install(self) -> None:
         self.install()

@@ -7,6 +7,10 @@ Create the `docs/adr/` directory lazily: only when the first ADR is needed.
 ## Template
 
 ```md
+---
+status: proposed
+---
+
 # {Short title of the decision}
 
 {1-3 sentences: what's the context, what did we decide, and why.}
@@ -14,17 +18,27 @@ Create the `docs/adr/` directory lazily: only when the first ADR is needed.
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why*, not in filling out sections.
 
+Status is required. Use `proposed` while the owner decision is open and change it to `accepted`
+when the decision lands. Use `deprecated` when the constraint no longer applies without a
+replacement, or `superseded by ADR-NNNN` when another ADR replaces it.
+
 ## Optional sections
 
 Only include these when they add genuine value. Most ADRs won't need them.
 
-- **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`): useful when decisions are revisited
 - **Considered Options**: only when the rejected alternatives are worth remembering
 - **Consequences**: only when non-obvious downstream effects need to be called out
 
 ## Numbering
 
 Scan `docs/adr/` for the highest existing number and increment by one.
+
+## Lifecycle and pruning
+
+Keep accepted ADRs as decision history. When an accepted decision changes, create the next ADR and
+set the old status to `superseded by ADR-NNNN`; when its constraint simply disappears, use
+`deprecated`. Delete only an unaccepted proposal whose discussion has no remaining value. Keep the
+reason for a past decision in its owning ADR instead of copying it into later standards or specs.
 
 ## When to offer an ADR
 

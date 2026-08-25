@@ -34,6 +34,9 @@ CLAUDE_MD_REL = Path("CLAUDE.md")
 PACKAGE_NAME = "inside-engineering"
 AGENTS_START = "<!-- inside-product-harness:start -->"
 AGENTS_END = "<!-- inside-product-harness:end -->"
+ADR_FILENAME = re.compile(r"^(?P<number>[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+ADR_SUPERSEDED = re.compile(r"^superseded by ADR-(?P<number>[0-9]{4})$")
+ADR_LIFECYCLE_STATUSES = {"proposed", "accepted", "deprecated"}
 
 
 class HarnessError(RuntimeError):
@@ -530,6 +533,43 @@ def require_managed_block(path: Path, expected: str) -> None:
         raise HarnessError(f"Managed entrypoint block differs: {path}")
 
 
+def validate_repository_architecture(repo: Path) -> None:
+    standards = repo / "CODING_STANDARDS.md"
+    agents = repo / AGENTS_REL
+    if standards.is_file() and (
+        not agents.is_file() or "CODING_STANDARDS.md" not in agents.read_text()
+    ):
+        raise HarnessError("AGENTS.md must point to CODING_STANDARDS.md when it exists")
+
+    adr_root = repo / "docs/adr"
+    if not adr_root.exists():
+        return
+    if not adr_root.is_dir():
+        raise HarnessError(f"ADR path is not a directory: {adr_root}")
+
+    adrs: dict[str, tuple[Path, str]] = {}
+    for path in sorted(adr_root.glob("*.md")):
+        match = ADR_FILENAME.fullmatch(path.name)
+        if match is None:
+            raise HarnessError(f"ADR filename must be NNNN-lowercase-slug.md: {path}")
+        try:
+            status = read_frontmatter(path).get("status")
+        except HarnessError as error:
+            raise HarnessError(f"ADR must declare a lifecycle status: {path}") from error
+        if status is None:
+            raise HarnessError(f"ADR must declare a lifecycle status: {path}")
+        if status not in ADR_LIFECYCLE_STATUSES and ADR_SUPERSEDED.fullmatch(status) is None:
+            raise HarnessError(f"Unsupported ADR lifecycle status {status!r}: {path}")
+        adrs[match.group("number")] = (path, status)
+
+    for path, status in adrs.values():
+        superseded = ADR_SUPERSEDED.fullmatch(status)
+        if superseded is not None and superseded.group("number") not in adrs:
+            raise HarnessError(
+                f"{path} references missing ADR-{superseded.group('number')}"
+            )
+
+
 def health_command(repo: Path, package: Path, adapters: Path) -> None:
     manifest = load_manifest(package)
     validate_package(package, manifest)
@@ -550,6 +590,7 @@ def health_command(repo: Path, package: Path, adapters: Path) -> None:
 
     require_managed_block(repo / AGENTS_REL, (adapters / "AGENTS.product.md").read_text())
     require_managed_block(repo / CLAUDE_MD_REL, (adapters / "CLAUDE.product.md").read_text())
+    validate_repository_architecture(repo)
     print(
         f"Healthy: {manifest['name']} {manifest['version']} in {repo}\n"
         f"  Snapshot: {SNAPSHOT_REL}\n"

@@ -1,4 +1,4 @@
-# inside-engineering 0.3.6
+# inside-engineering 0.3.8
 
 This package contains 32 shared skills:
 
@@ -13,7 +13,7 @@ excluded.
 
 | Skills | Source | Imported snapshot | License |
 | --- | --- | --- | --- |
-| Matt Pocock stable suite (25) | [`mattpocock/skills`](https://github.com/mattpocock/skills), release `v1.2.3`, commit `885e2ca4d842d139e9aef4e48d366c63cb1b8013` | Direct import on 2026-08-19 | MIT; package `LICENSE` |
+| Matt Pocock stable suite (25) | [`mattpocock/skills`](https://github.com/mattpocock/skills), release `v1.2.3`, commit `885e2ca4d842d139e9aef4e48d366c63cb1b8013` | Base import on 2026-08-19; Inside adaptations below | MIT; package `LICENSE` |
 | `frontend-design` | [`anthropics/skills`](https://github.com/anthropics/skills) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | Apache-2.0; skill `LICENSE.txt` |
 | `impeccable` | [`pbakaus/impeccable`](https://github.com/pbakaus/impeccable) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | Apache-2.0 upstream |
 | `karpathy-guidelines` | [Andrej Karpathy's original guidance](https://x.com/karpathy/status/2015883857489522876) | Landing `bdd0177905df723ca4e4e2fb9288a4d8dc95701b` | MIT declared in skill metadata |
@@ -24,6 +24,13 @@ excluded.
 
 The package-level `LICENSE` applies to the Matt Pocock suite only. Each additional skill remains
 subject to its own upstream terms.
+
+## Inside adaptations to the Matt base
+
+- `implement` closes every review finding, repeats review after fixes, and promotes only reusable
+  learning to a durable authority.
+- `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
+  deprecation or supersession.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other
