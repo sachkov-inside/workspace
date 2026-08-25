@@ -166,8 +166,8 @@ verification.
 Every actionable review finding receives one explicit disposition before work is ready for merge:
 fix it in the current change, defer it to a linked issue when it is valid but outside scope, or
 reject it with concrete evidence. After fixes, re-run the relevant verification and both review
-axes from the same fixed point. Completion means both axes pass or every remaining finding has a
-linked disposition; a raw review report is not a completion artifact.
+axes from the same fixed point. Completion means both axes pass or every remaining finding has an
+explicit disposition; a raw review report is not a completion artifact.
 
 Promote a finding only when it generalizes beyond one diff. Prefer the strongest durable home:
 type, schema, test, lint or guardrail first; repository coding standard for recurring judgement;
@@ -177,12 +177,12 @@ repository review ledger.
 
 ### Architecture fitness
 
-Every durable architecture rule names its owning Module and the closest executable fitness
-function. Prefer types and schemas for shape, focused tests for behaviour, import or dependency
-guardrails for seams, and integration checks for infrastructure ownership. A new or changed
-architecture seam includes a passing representative case and a negative fixture that proves the
-guardrail fails when the rule is broken. Repository-specific fitness functions run as part of that
-repository's full verification command.
+Every durable architecture rule names its owning repository or Module and the closest executable
+fitness function. Prefer types and schemas for shape, focused tests for behaviour, import or
+dependency guardrails for seams, and integration checks for infrastructure ownership. A new or
+changed architecture seam includes a passing representative case and a negative fixture that
+proves the guardrail fails when the rule is broken. Repository-specific fitness functions run as
+part of that repository's full verification command.
 
 `inside-harness health` owns shared harness fitness: managed-package integrity, runtime discovery,
 coding-standard discoverability, and ADR lifecycle. A prose-only architecture rule states why it

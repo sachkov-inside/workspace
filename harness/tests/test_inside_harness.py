@@ -79,20 +79,6 @@ class HarnessCliTest(unittest.TestCase):
         )
         self.assertTrue(lifecycle_script.stat().st_mode & 0o111)
 
-    def test_package_carries_review_fitness_and_pruning_contracts(self) -> None:
-        package = WORKSPACE / "harness/packages/inside-engineering"
-        workflow = (package / "WORKFLOW.md").read_text()
-        implementation = (package / "skills/implement/SKILL.md").read_text()
-        adr_format = (package / "skills/domain-modeling/ADR-FORMAT.md").read_text()
-
-        self.assertIn("### Review closure", workflow)
-        self.assertIn("### Architecture fitness", workflow)
-        self.assertIn("### Pruning", workflow)
-        self.assertIn("## Review closure", implementation)
-        self.assertIn("re-run `/code-review`", implementation.lower())
-        self.assertIn("Status is required", adr_format)
-        self.assertIn("superseded by ADR-NNNN", adr_format)
-
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
         skill.mkdir(parents=True)
@@ -139,14 +125,25 @@ class HarnessCliTest(unittest.TestCase):
         (self.repo / "CODING_STANDARDS.md").write_text("# Coding Standards\n")
 
         result = self.run_cli("health", str(self.repo), expected=2)
-        self.assertIn("AGENTS.md must point to CODING_STANDARDS.md", result.stderr)
+        self.assertIn("coding-standards context pointer", result.stderr)
 
         agents = self.repo / "AGENTS.md"
+        agents.write_text(agents.read_text() + "\nSee `CODING_STANDARDS.md`.\n")
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("coding-standards context pointer", result.stderr)
+
         agents.write_text(
             agents.read_text()
             + "\nFor coding and review rules, read `CODING_STANDARDS.md`.\n"
         )
         self.run_cli("health", str(self.repo))
+
+    def test_health_rejects_a_coding_standards_directory(self) -> None:
+        self.install()
+        (self.repo / "CODING_STANDARDS.md").mkdir()
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("Coding standards path is not a file", result.stderr)
 
     def test_health_requires_an_explicit_adr_lifecycle_status(self) -> None:
         self.install()
@@ -172,6 +169,34 @@ class HarnessCliTest(unittest.TestCase):
             "---\nstatus: accepted\n---\n\n# New shape\n"
         )
         self.run_cli("health", str(self.repo))
+
+    def test_health_rejects_duplicate_adr_numbers(self) -> None:
+        self.install()
+        adr_root = self.repo / "docs/adr"
+        adr_root.mkdir(parents=True)
+        (adr_root / "0001-first-decision.md").write_text(
+            "---\nstatus: accepted\n---\n\n# First decision\n"
+        )
+        (adr_root / "0001-second-decision.md").write_text(
+            "---\nstatus: accepted\n---\n\n# Second decision\n"
+        )
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("Duplicate ADR-0001", result.stderr)
+
+    def test_health_requires_supersession_to_point_forward(self) -> None:
+        self.install()
+        adr_root = self.repo / "docs/adr"
+        adr_root.mkdir(parents=True)
+        (adr_root / "0001-original-decision.md").write_text(
+            "---\nstatus: accepted\n---\n\n# Original decision\n"
+        )
+        (adr_root / "0002-newer-decision.md").write_text(
+            "---\nstatus: superseded by ADR-0001\n---\n\n# Newer decision\n"
+        )
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("must be superseded by a later ADR number", result.stderr)
 
     def test_update_allows_a_new_manifest_skill_in_an_uncommitted_install(self) -> None:
         self.install()

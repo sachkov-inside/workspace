@@ -37,6 +37,7 @@ AGENTS_END = "<!-- inside-product-harness:end -->"
 ADR_FILENAME = re.compile(r"^(?P<number>[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 ADR_SUPERSEDED = re.compile(r"^superseded by ADR-(?P<number>[0-9]{4})$")
 ADR_LIFECYCLE_STATUSES = {"proposed", "accepted", "deprecated"}
+CODING_STANDARDS_POINTER = "For coding and review rules, read `CODING_STANDARDS.md`."
 
 
 class HarnessError(RuntimeError):
@@ -536,10 +537,15 @@ def require_managed_block(path: Path, expected: str) -> None:
 def validate_repository_architecture(repo: Path) -> None:
     standards = repo / "CODING_STANDARDS.md"
     agents = repo / AGENTS_REL
+    if standards.exists() and not standards.is_file():
+        raise HarnessError(f"Coding standards path is not a file: {standards}")
     if standards.is_file() and (
-        not agents.is_file() or "CODING_STANDARDS.md" not in agents.read_text()
+        not agents.is_file() or CODING_STANDARDS_POINTER not in agents.read_text()
     ):
-        raise HarnessError("AGENTS.md must point to CODING_STANDARDS.md when it exists")
+        raise HarnessError(
+            "AGENTS.md must include the coding-standards context pointer: "
+            f"{CODING_STANDARDS_POINTER}"
+        )
 
     adr_root = repo / "docs/adr"
     if not adr_root.exists():
@@ -560,14 +566,22 @@ def validate_repository_architecture(repo: Path) -> None:
             raise HarnessError(f"ADR must declare a lifecycle status: {path}")
         if status not in ADR_LIFECYCLE_STATUSES and ADR_SUPERSEDED.fullmatch(status) is None:
             raise HarnessError(f"Unsupported ADR lifecycle status {status!r}: {path}")
-        adrs[match.group("number")] = (path, status)
+        number = match.group("number")
+        if number in adrs:
+            raise HarnessError(f"Duplicate ADR-{number}: {adrs[number][0]}, {path}")
+        adrs[number] = (path, status)
 
-    for path, status in adrs.values():
+    for number, (path, status) in adrs.items():
         superseded = ADR_SUPERSEDED.fullmatch(status)
-        if superseded is not None and superseded.group("number") not in adrs:
+        if superseded is None:
+            continue
+        replacement = superseded.group("number")
+        if replacement not in adrs:
             raise HarnessError(
-                f"{path} references missing ADR-{superseded.group('number')}"
+                f"{path} references missing ADR-{replacement}"
             )
+        if int(replacement) <= int(number):
+            raise HarnessError(f"{path} must be superseded by a later ADR number")
 
 
 def health_command(repo: Path, package: Path, adapters: Path) -> None:

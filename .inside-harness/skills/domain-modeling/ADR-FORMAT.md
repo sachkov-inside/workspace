@@ -18,9 +18,8 @@ status: proposed
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why*, not in filling out sections.
 
-Status is required. Use `proposed` while the owner decision is open and change it to `accepted`
-when the decision lands. Use `deprecated` when the constraint no longer applies without a
-replacement, or `superseded by ADR-NNNN` when another ADR replaces it.
+Status is required. Before creating an ADR or changing its status, read and follow `Pruning` in the
+repository-root `WORKFLOW.md`; that section owns the allowed lifecycle states and retention rules.
 
 ## Optional sections
 
@@ -32,13 +31,6 @@ Only include these when they add genuine value. Most ADRs won't need them.
 ## Numbering
 
 Scan `docs/adr/` for the highest existing number and increment by one.
-
-## Lifecycle and pruning
-
-Keep accepted ADRs as decision history. When an accepted decision changes, create the next ADR and
-set the old status to `superseded by ADR-NNNN`; when its constraint simply disappears, use
-`deprecated`. Delete only an unaccepted proposal whose discussion has no remaining value. Keep the
-reason for a past decision in its owning ADR instead of copying it into later standards or specs.
 
 ## When to offer an ADR
 

@@ -13,19 +13,10 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 ## Review closure
 
-Run `/code-review` from the fixed point. Account for every actionable finding:
+For implementation, specification, or architecture changes, read and follow `Review closure`,
+`Architecture fitness`, and `Pruning` in the repository-root `WORKFLOW.md`. Those sections are the
+authority for finding dispositions, learning promotion, and completion.
 
-- fix it in this change;
-- defer it to a linked tracker issue when it is valid but outside scope;
-- or reject it with concrete evidence when it does not apply.
-
-After fixes, re-run the relevant checks and re-run `/code-review` from the same fixed point. Repeat
-until both review axes pass or every remaining finding has an explicit disposition.
-
-Promote only reusable learning. Prefer an executable constraint; use a repository coding standard
-for recurring judgement, an ADR for a hard-to-reverse trade-off, and the tracker for deferred work.
-Keep one-off findings in the pull request history rather than creating a review ledger. Apply the
-review-closure, architecture-fitness, and pruning rules in `WORKFLOW.md` before committing.
-
-Commit only after the implementation, verification, durable learning, and review dispositions are
-all complete.
+Invoke `/code-review` from the original fixed point. When review changes code or durable documents,
+re-run the relevant verification and invoke `/code-review` from that same fixed point again. Commit
+only after the `WORKFLOW.md` readiness gate is satisfied.
