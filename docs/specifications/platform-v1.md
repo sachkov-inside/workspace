@@ -86,8 +86,10 @@ infrastructure specification, созданной позже на основе и
   migrations-as-authority как production baseline;
 - [identity](../research/platform-identity-architecture.md) — Logto OSS target, Better Auth fallback,
   Platform-owned authorization;
-- [Telegram Membership](../research/platform-telegram-tribute-membership.md) — отдельная application,
-  OIDC linking, `getChatMember` evidence и five-minute freshness;
+- [Telegram Membership](../research/platform-telegram-tribute-membership.md) — исходное evidence для
+  отдельной application, OIDC linking и `getChatMember`; принятый
+  [cross-repository contract](../contracts/identity-membership-v1.md) дополняет этот baseline
+  member-status events, background reconciliation и five-minute freshness;
 - [Kinescope lifecycle](../research/platform-kinescope-video-lifecycle.md) — выбранный provider,
   local Video identity, reconciliation и strict authorization adapter;
 - [ContentAccess](../research/platform-content-access.md) — единый provider-neutral policy module;
@@ -212,7 +214,7 @@ adapter.
 | `ContentSchema` | validate, migrate, safely render и extract projection из versioned document | schema versions, node/mark allowlist, fixture corpus |
 | `ContentLibrary` | читать public/member projections, search, topic/series navigation и related materials | published projections и ranking rules |
 | `ContentAccess` | `authorize(Subject, Resource, Action) -> AccessDecision` | provider-neutral access policy and reason codes |
-| `MembershipEntitlements` | получить bounded evidence и построить Platform-owned entitlement | entitlement state/version/validity, refresh single-flight |
+| `MembershipEntitlements` | принять bounded evidence и построить Platform-owned entitlement | entitlement state/version/validity, event/reconciliation projection |
 | `AccountProfiles` | управлять private Platform Account и отдельной member-visible Profile projection | account lifecycle, profile visibility/content/version |
 | `Assets` | upload intent, finalize, revision binding и bounded delivery | Asset metadata, immutable object keys/renditions |
 | `Videos` | Kinescope upload/status/reconcile/bind/playback lifecycle | local Video identity, provider mapping/status |
@@ -311,7 +313,7 @@ read/download/play path.
    non-member и crawler не получают projection; email, internal IDs, Telegram identity/evidence и
    security history никогда в неё не входят.
 
-### Membership linking и refresh
+### Membership linking и projection
 
 1. Signed-in Principal создаёт short-lived link transaction через Platform.
 2. Browser проходит Telegram OIDC через Telegram application; та проверяет token, uniqueness и
@@ -319,8 +321,11 @@ read/download/play path.
 3. Telegram application возвращает normalized, signed/authenticated evidence без raw Telegram
    model по [versioned contract](../contracts/identity-membership-v1.md). Platform строит собственный
    entitlement не позднее `validUntil` evidence.
-4. Первый protected request после expiry делает single-flight refresh. Positive evidence живёт не
-   более пяти минут; confirmed removal denies immediately; outage после expiry fails closed.
+4. Telegram application durable-принимает member-status events и background-процессом проверяет
+   due known linked identities. Platform асинхронно применяет normalized evidence к локальной
+   PostgreSQL projection; user-facing request читает только её и не вызывает Telegram.
+5. Positive evidence живёт не более пяти минут; confirmed removal denies immediately; stale или
+   unavailable projection fails closed. Free public read от Membership не зависит.
 
 ### Assets, downloads и video
 
@@ -513,8 +518,9 @@ Telegram provider lane:
 - [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) после accepted contract
   slice и explicit repository/operator confirmations создаёт private repository, harness, root
   Specification и первый production ticket; завершённый Platform #50 не является trigger;
-- Telegram application независимо реализует OIDC linking, uniqueness/recovery и read-only
-  `getChatMember` evidence и проходит provider-side corpus того же contract;
+- Telegram application независимо реализует OIDC linking, uniqueness/recovery, durable
+  member-status event ingestion и background `getChatMember` reconciliation для known linked
+  identities; user-facing Platform requests не вызывают provider;
 - applications не делят database, source package или migration history и vendor-ят versioned test
   snapshot вместо runtime dependency на Workspace/соседний checkout.
 
@@ -524,10 +530,11 @@ corpus. Ни один результат ещё не объявляет producti
 ### Stage 3 — end-to-end Identity и Membership convergence
 
 [Platform #52](https://github.com/sachkov-inside/platform/issues/52) соединяет независимо готовые
-consumer/provider implementations через authenticated versioned HTTP adapter. Link, member,
-non-member, removal, expiry, rejoin, replay, duplicate identity, contract mismatch и outage проходят
-end-to-end; Account показывает точные linking/Membership states, а `ContentAccess` остаётся final
-authority для page/REST/MCP/resource paths.
+consumer/provider implementations через authenticated versioned evidence ingestion и reconciliation
+adapters. Link, member-status event, missed-event recovery, member, non-member, removal, expiry,
+rejoin, replay, duplicate identity, contract mismatch и outage проходят end-to-end; Account
+показывает точные linking/Membership states, а `ContentAccess` остаётся final authority для
+page/REST/MCP/resource paths и читает только local Platform projection.
 
 Exit: anonymous/authenticated/active/expired/author/admin, cross-Subject cache leak и dependency
 outage cases зелёные; positive entitlement не переживает evidence/five-minute bound. IdP и Telegram

@@ -14,7 +14,7 @@ deployment или secret distribution. Каждый repository хранит со
 |---|---|---|
 | Email Identity Provider | Контроль External identity для Platform sign-in | Membership, Platform permission или content access |
 | Platform | Principal, Platform session/account, permissions, Member Profile, Membership Entitlement и каждый ContentAccess decision | Telegram identity proof или raw chat status |
-| Telegram application | Контроль одной Telegram identity, linking invariants и bounded Membership Evidence | Platform session, entitlement, role или final content access |
+| Telegram application | Контроль одной Telegram identity, linking invariants, member-status events и bounded reconciliation evidence | Platform session, entitlement, role или final content access |
 | Канонический закрытый Telegram chat | Membership Signal через фактическое присутствие linked identity | Platform identity или permanent entitlement |
 | Tribute/payment provider | Может менять roster через отдельный operational lifecycle | Identity, evidence или entitlement напрямую |
 
@@ -65,6 +65,33 @@ cross-Principal или unsupported evidence fails closed.
 
 Envelope никогда не содержит email, raw Platform Principal ID, Telegram user ID/username,
 `ChatMember`, OIDC access/ID token, bot token, payment/subscription data или provider exception.
+
+## Evidence production and request-path isolation
+
+Telegram application производит один и тот же normalized envelope из трёх источников:
+
+1. link-time `getChatMember` observation для конкретной verified Telegram identity;
+2. Telegram member-status update о join, leave, removal или rejoin;
+3. background `getChatMember` reconciliation для known linked identities, срок evidence которых
+   подходит к концу.
+
+Bot обязан быть administrator канонического chat и явно подписаться на member-status updates.
+Provider durably сохраняет update до успешного acknowledgement, deduplicate-ит повторную доставку и
+monotonic version не позволяет позднему старому update заменить новое evidence. Member-status event
+сразу после provider acceptance создаёт новое evidence; доступ меняется только после того, как
+Platform принимает его более новую версию в локальную projection. Пока доставка не завершилась,
+five-minute validity bound ограничивает stale positive state. Reconciliation восстанавливает
+состояние после пропущенного update, долгого outage или ручного изменения состава chat.
+
+Bot API не используется для перечисления всего roster. Reconciliation проверяет конкретные known
+linked identities из provider-owned state. Если link-time или due reconciliation не может получить
+authoritative observation, provider возвращает `unavailable`; он не продлевает старый positive
+result.
+
+Platform принимает evidence асинхронно, строит собственную bounded PostgreSQL projection и отвечает
+на Library/Material requests только из неё. User-facing request не вызывает Telegram и не ждёт
+reconciliation. Positive projection после `validUntil` fails closed до нового accepted evidence;
+free content от Telegram availability не зависит.
 
 ## Stable decision and reason codes
 
@@ -117,10 +144,16 @@ contract outcome не меняются.
 | `unsupported-major` | Contract major is unknown/missing | Consumer rejects as `unsupported_contract` |
 | `malformed-envelope` | Required field/decision/reason combination is invalid | Consumer rejects as `invalid_evidence` |
 
-Provider-side tests prove normalized outcomes and monotonic evidence. Consumer-side tests prove
-validation, bounded entitlement and fail-closed mapping. Cross-repository integration later joins
-the independently passing implementations; production credentials and enablement remain separate
-owner gates.
+The shared corpus above and its machine-readable fixtures cover normalized evidence outcomes on
+both provider and consumer sides. Consumer-side tests additionally prove validation, bounded
+entitlement, zero provider I/O in user-facing reads and fail-closed mapping.
+
+The envelope schema and existing single-evidence fixtures remain unchanged. A separate normative
+provider sequence corpus for durable acknowledgement, duplicate/out-of-order delivery and
+missed-event reconciliation belongs to the first Telegram repository ticket created under
+Workspace #60. It must pass before provider conformance or Platform integration can be declared
+complete. Cross-repository integration later joins the independently passing implementations;
+production credentials and enablement remain separate owner gates.
 
 ## Delivery ownership
 
@@ -135,7 +168,10 @@ owner gates.
   repository after contract acceptance plus explicit repository/operator confirmations; it does
   not wait for completed Platform protected-content implementation.
 - The new Telegram repository creates its own root Specification and owns OIDC linking,
-  uniqueness/recovery, `getChatMember` observation and provider-side contract tests.
+  uniqueness/recovery, durable member-status event ingestion, `getChatMember` reconciliation and
+  provider-side contract tests.
 
 Telegram commands, messaging, notifications, Tribute/billing, anonymous internet-public profiles,
-social graph, production deployment and credentials are outside this contract.
+social graph, production deployment and credentials remain outside this contract. Member-status
+updates are included only as Membership Evidence input; they do not create a general bot event or
+messaging platform.
