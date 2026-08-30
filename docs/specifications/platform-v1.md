@@ -155,9 +155,10 @@ deployable. Stories используют те же typed presentation contracts,
 fake backend/client, business rules или второй production data path. Production routes #37–#39
 соединяют approved UI только с реальными #30/#31/#28 interfaces.
 
-`inside-telegram` выбирает application stack в собственной root Specification и ADRs. Общая
-граница требует только автономности: Platform и Telegram application не делят database, source
-package или migration history.
+`inside-telegram` владеет starting production baseline в собственных
+[seed decisions](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/decisions/seed-decisions.md),
+root Specification и ADRs. Общая граница требует только автономности: Platform и Telegram
+application не делят database, source package или migration history.
 
 ## 5. System context и process boundaries
 
