@@ -1,7 +1,8 @@
 # Shared Inside product context
 
-This glossary names the cross-repository concepts shared by Platform and the future Telegram
-application. Repository-specific models may refine them without changing their ownership.
+This glossary names the cross-repository concepts shared by Platform and the separate
+`inside-telegram` application. Repository-specific models may refine them without changing their
+ownership.
 
 ## Identity and Membership
 

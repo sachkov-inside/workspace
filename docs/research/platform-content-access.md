@@ -19,8 +19,8 @@ The module is deliberately provider-neutral:
 
 - authentication supplies a stable Platform Principal reference, never an IdP role that grants
   Membership;
-- the future Telegram application supplies bounded Membership evidence, never raw Telegram or
-  Tribute data;
+- the separate `inside-telegram` application supplies bounded Membership evidence, never raw
+  Telegram or Tribute data;
 - Platform derives and stores a bounded Membership entitlement and makes the final content
   decision;
 - Kinescope and object storage receive short-lived delivery credentials derived from an allowed
@@ -80,15 +80,15 @@ This choice has three consequences:
 3. Tribute remains replaceable: it may add or remove chat members, but neither its payments nor
    webhooks appear in Platform's access contract.
 
-On the first protected request after linking, and whenever the stored evidence is stale, Platform
-refreshes that specific Principal. Concurrent refreshes for the same Principal should be
-single-flight. A confirmed `not_member` replaces the positive entitlement immediately; an outage
-does not turn the last observation into confirmed non-membership, but stale positive evidence may
-no longer grant access.
+Telegram evidence reaches Platform through authenticated asynchronous ingestion. Member-status
+events and provider-owned reconciliation update Platform's local entitlement projection outside
+the user-facing request path. A confirmed `not_member` replaces the positive entitlement when
+Platform accepts the newer evidence; an outage does not turn the last observation into confirmed
+non-membership, but stale positive evidence may no longer grant access.
 
 The selected five-minute positive lifetime means removal from the Telegram chat stops **new**
-protected operations within at most five minutes. Rejoining restores access on the next stale or
-explicit rate-limited refresh without relinking or creating a new Platform account.
+protected operations within at most five minutes. Rejoining restores access after newer positive
+evidence reaches the local projection, without relinking or creating a new Platform account.
 
 ## Canonical policy vocabulary
 
@@ -323,16 +323,11 @@ sequenceDiagram
     participant C as Next.js or REST/MCP adapter
     participant A as ContentAccess
     participant P as Platform policy stores
-    participant T as Telegram Membership adapter
 
     U->>C: request published Material
     C->>C: resolve optional authenticated Subject
     C->>A: authorize(Subject, revisionId, read)
     A->>P: load Resource, Principal policy, entitlement
-    opt Membership evidence is stale
-        P->>T: refresh one linked Principal
-        T-->>P: bounded member/not_member/unavailable evidence
-    end
     A-->>C: AccessDecision
     alt allow
         C-->>U: body with public/private cache policy
@@ -343,8 +338,10 @@ sequenceDiagram
     end
 ```
 
-The adapter does not fetch or serialize the closed body before `allow`. A stale positive
-entitlement cannot be extended locally if the Telegram application is unavailable.
+The adapter does not fetch or serialize the closed body before `allow`. It reads only Platform's
+local projection: missing or stale positive evidence denies, and the request neither calls
+Telegram nor waits for provider reconciliation. Authenticated ingestion and reconciliation may
+update the projection asynchronously for a later request.
 
 ### Author preview
 
@@ -460,7 +457,7 @@ provider mechanism or replacement adapter meets the bound; the application does 
 | Identity login unavailable | Still public | New login unavailable; unverifiable Subject denied | Unverifiable Subject denied | Existing locally verifiable identity may be used only if its normal contract allows it. |
 | Platform Principal/policy store unavailable | Still public from isolated public projection | Deny | Deny | `DEPENDENCY_UNAVAILABLE`, alert; no inferred roles. |
 | Entitlement store unavailable | Still public | Deny | Permission-based access may continue if its own facts are available | Never ask callers to trust session claims. |
-| Telegram application/API unavailable | Still public | Still-fresh positive entitlement may run to `validUntil`; stale/missing denies | Unaffected by Membership if permission facts are available | Retry/single-flight and controlled unavailable UI. |
+| Telegram application/API unavailable | Still public | Still-fresh positive entitlement may run to `validUntil`; stale/missing denies | Unaffected by Membership if permission facts are available | Provider delivery/reconciliation retries asynchronously; request shows controlled unavailable UI. |
 | Object storage unavailable | Body without failed Asset may render | Asset/download unavailable | Same affected Resource unavailable | No public-bucket or alternate-secret fallback. |
 | Kinescope unavailable/callback timeout | Non-video body may render | Video unavailable | Video preview unavailable | Never return callback 200 for availability. |
 | Audit sink unavailable | Delivery follows the already computed policy decision | Same | Same | Buffer/best-effort telemetry and alert; audit outage is not an allow condition. |
@@ -615,13 +612,12 @@ Candidate task areas for #40, not a speculative backlog:
 
 1. Platform core `ContentAccess` interface, facts/readers, policy matrix and conformance fixture.
 2. Public projection plus Next.js/REST/MCP read and preview adapters with cache-leak tests.
-3. Platform entitlement persistence/refresh adapter and authenticated contract with the future
-   Telegram application.
+3. Platform entitlement projection/ingestion adapter and authenticated contract with
+   `inside-telegram`.
 4. Private Asset/download delivery adapter and cross-revision negative tests.
 5. Kinescope playback-token/callback adapter and credentialed production acceptance proof.
 6. Audit/observability/privacy controls and outage runbooks.
-7. Bootstrap of the separate Telegram repository at the stage selected by #40, followed by its
-   identity-link and Membership-evidence implementation.
+7. Provider convergence with the autonomous Telegram root Specification and its vertical tickets.
 
 Application ADR inputs:
 
@@ -631,8 +627,9 @@ Application ADR inputs:
   negative proof.
 - **Platform:** record Kinescope DRM/callback configuration only after the credentialed proof,
   including the measured continued-play bound.
-- **Telegram application:** record OIDC/linking and bounded evidence implementation after repository
-  bootstrap and credentialed Telegram proof.
+- **Telegram application:** application ADR inputs belong to its owning Specification; the former
+  OIDC/linking proposal is superseded by the
+  [shared Identity and Membership contract](../contracts/identity-membership-v1.md).
 
 These ADRs belong to their application repositories. Workspace retains this cross-repository
 authority split and policy design without duplicating application structure.

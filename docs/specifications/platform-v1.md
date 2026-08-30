@@ -6,7 +6,7 @@
 Identity/Membership track координирует
 [Workspace Specification #65](https://github.com/sachkov-inside/workspace/issues/65).
 
-Дата: 2026-08-24.
+Дата: 2026-08-30.
 
 ## 1. Результат и authority
 
@@ -14,14 +14,14 @@ Platform v1 становится каноническим домом матер�
 материалы, публичный посетитель находит и читает открытый контент, а участник связывает Platform
 account с Telegram и получает закрытый контент, пока состоит в одном каноническом закрытом chat.
 
-Эта спецификация фиксирует общую архитектуру, границы `platform` и будущего `inside-telegram`,
+Эта спецификация фиксирует общую архитектуру, границы `platform` и отдельного `inside-telegram`,
 последовательность поставки и cross-repository зависимости. Она не является application ADR:
 
 - продуктовый scope принадлежит каноническому
   [Platform MVP brief](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md);
 - Platform implementation contract, код и ADR принадлежат `sachkov-inside/platform`;
-- Telegram application contract, код и ADR будут принадлежать отдельному private repository после
-  его bootstrap;
+- Telegram application contract, код и ADR принадлежат private
+  [`sachkov-inside/inside-telegram`](https://github.com/sachkov-inside/inside-telegram);
 - Workspace хранит только общие продуктовые и cross-repository решения.
 
 Ссылка на Platform brief задаёт human-facing authority, но не runtime или agent dependency:
@@ -55,7 +55,8 @@ relation не входит в обязательный v1 scope. Первый Pl
 
 - billing, Tribute integration, тарифная матрица, trial, promo, gifts или продажа отдельных серий;
 - Telegram roster import, Telegram content export/import и migration pipeline;
-- bot messaging, announcements, campaigns, moderation/admin UI или marketing automation;
+- Telegram application behavior, general bot commands, broadcasts, campaigns, moderation/admin UI
+  или marketing automation; provider scope принадлежит owning Telegram Specification;
 - anonymous/indexable internet-public profile, social graph, follows, direct messages или broad
   member directory до отдельного owner decision;
 - comments/community внутри Platform и обязательная ссылка на discussion каждого Material;
@@ -86,9 +87,10 @@ infrastructure specification, созданной позже на основе и
   migrations-as-authority как production baseline;
 - [identity](../research/platform-identity-architecture.md) — Logto OSS target, Better Auth fallback,
   Platform-owned authorization;
-- [Telegram Membership](../research/platform-telegram-tribute-membership.md) — исходное evidence для
-  отдельной application, OIDC linking и `getChatMember`; принятый
-  [cross-repository contract](../contracts/identity-membership-v1.md) дополняет этот baseline
+- [Telegram Membership](../research/platform-telegram-tribute-membership.md) — историческое
+  исследование отдельной application, canonical chat и `getChatMember`; его OIDC proposal
+  superseded owner decision от 2026-08-30. Принятый
+  [cross-repository contract](../contracts/identity-membership-v1.md) задаёт `/start` linking,
   member-status events, background reconciliation и five-minute freshness;
 - [Kinescope lifecycle](../research/platform-kinescope-video-lifecycle.md) — выбранный provider,
   local Video identity, reconciliation и strict authorization adapter;
@@ -153,9 +155,10 @@ deployable. Stories используют те же typed presentation contracts,
 fake backend/client, business rules или второй production data path. Production routes #37–#39
 соединяют approved UI только с реальными #30/#31/#28 interfaces.
 
-Будущий `inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY,
-PostgreSQL и Kysely + `pg` как production baseline. Platform и Telegram application не делят
-database, source package или migration history.
+`inside-telegram` владеет starting production baseline в собственных
+[seed decisions](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/decisions/seed-decisions.md),
+root Specification и ADRs. Общая граница требует только автономности: Platform и Telegram
+application не делят database, source package или migration history.
 
 ## 5. System context и process boundaries
 
@@ -174,9 +177,11 @@ flowchart LR
     Web --> IdP[Logto or proved fallback]
     API --> IdP
     IdP --> Email[Email delivery provider]
-    App --> Tg[Inside Telegram application]
+    App -->|begin / confirm link| Tg[Inside Telegram application]
+    Tg -->|Membership Evidence| App
     Tg --> TDB[(Telegram PostgreSQL)]
-    Tg --> Telegram[Telegram OIDC and Bot API]
+    Telegram -->|provider updates| Tg
+    Tg -->|provider calls| Telegram[Telegram Bot API]
 ```
 
 ### Platform processes
@@ -192,10 +197,11 @@ Process entrypoints используют одни application modules и мог�
 deployment topology остаётся вне этой specification; новые repositories/services не создаются до
 появления реального distribution seam.
 
-`inside-telegram` — отдельная application, потому что владеет Telegram credentials, OIDC linking и
-Bot API calls. Platform вызывает её только через versioned, authenticated HTTP interface; tests
-используют in-memory adapter того же port. Deployment shape обеих applications будет определён
-позже.
+`inside-telegram` — отдельная owning application по
+[Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1). Platform
+вызывает contract-defined linking interface, а Telegram application доставляет evidence в
+Platform-owned ingestion port; оба направления versioned и authenticated, tests используют
+in-memory adapters тех же ports. Deployment shape обеих applications будет определён позже.
 
 Next.js process, App Router/FSD composition и application seams уже заданы technical foundation
 #36. Visual/component foundation принадлежит #45 и попадает в production shell через #46; никакой
@@ -229,8 +235,9 @@ Seam rules:
   migrations, FTS, constraints или transaction semantics;
 - Logto, S3 и Kinescope являются true external dependencies и получают narrow internal ports плюс
   test adapters;
-- Telegram application является remote-but-owned dependency: Platform владеет port и entitlement
-  logic, production HTTP adapter только переносит versioned evidence;
+- Telegram application является remote-but-owned dependency: Platform владеет outbound linking
+  port и inbound evidence-ingestion interface/entitlement logic. Два production authenticated HTTP
+  adapters реализуют противоположные направления; controlled adapters проверяют те же seams;
 - generic multi-provider interfaces не создаются до второго реального adapter. Provider-neutral
   `ContentAccess` существует потому, что policy используется многими delivery callers, а не ради
   гипотетической смены S3/Kinescope.
@@ -315,15 +322,18 @@ read/download/play path.
 
 ### Membership linking и projection
 
-1. Signed-in Principal создаёт short-lived link transaction через Platform.
-2. Browser проходит Telegram OIDC через Telegram application; та проверяет token, uniqueness и
-   configured chat membership.
-3. Telegram application возвращает normalized, signed/authenticated evidence без raw Telegram
+1. Normative linking protocol целиком задан в
+   [cross-repository contract](../contracts/identity-membership-v1.md#linking-and-recovery-invariants).
+   Platform владеет recently authenticated Account/session entrypoint, opaque `principalRef` и
+   adapter к этому protocol; Telegram-specific token/identity state остаётся за remote provider.
+2. Platform проецирует pending/linked/conflict/recovery outcomes в private Account, но ни receipt,
+   ни завершённый link сами по себе не создают MembershipEntitlement или ContentAccess allow.
+3. После link Telegram application возвращает normalized, signed/authenticated evidence без raw
+   Telegram
    model по [versioned contract](../contracts/identity-membership-v1.md). Platform строит собственный
    entitlement не позднее `validUntil` evidence.
-4. Telegram application durable-принимает member-status events и background-процессом проверяет
-   due known linked identities. Platform асинхронно применяет normalized evidence к локальной
-   PostgreSQL projection; user-facing request читает только её и не вызывает Telegram.
+4. Platform асинхронно применяет provider evidence к локальной PostgreSQL projection;
+   user-facing request читает только её и не вызывает Telegram.
 5. Positive evidence живёт не более пяти минут; confirmed removal denies immediately; stale или
    unavailable projection fails closed. Free public read от Membership не зависит.
 
@@ -515,12 +525,12 @@ Platform consumer lane:
 
 Telegram provider lane:
 
-- [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) после accepted contract
-  slice и explicit repository/operator confirmations создаёт private repository, harness, root
-  Specification и первый production ticket; завершённый Platform #50 не является trigger;
-- Telegram application независимо реализует OIDC linking, uniqueness/recovery, durable
-  member-status event ingestion и background `getChatMember` reconciliation для known linked
-  identities; user-facing Platform requests не вызывают provider;
+- [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) синхронизирует contract,
+  topology и shared harness routing после создания private repository; завершённый Platform #50 не
+  является trigger;
+- [Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1) и её
+  native tickets #2–#9 реализуют provider responsibilities из cross-repository contract и проходят
+  provider-side conformance независимо от Platform consumer;
 - applications не делят database, source package или migration history и vendor-ят versioned test
   snapshot вместо runtime dependency на Workspace/соседний checkout.
 
@@ -584,7 +594,7 @@ flowchart TD
 
     S65[Workspace #65: Identity + Membership Specification] --> C66[Workspace #66: shared contract sync]
     C66 --> P53[Platform #53: local contract sync]
-    C66 --> B60[Workspace #60: Telegram repository bootstrap + owner gates]
+    C66 --> B60[Workspace #60: Telegram contract + harness sync]
     DRAFT --> ID49[Platform #49: IdP + Principal + session]
     P53 --> ID49
     ID49 --> ACCESS50[Platform #50: ContentAccess + test Membership adapter]
@@ -594,7 +604,7 @@ flowchart TD
     ID49 -. persistence input .-> PROFILE51
     SHELL -. production UI input .-> PROFILE51
 
-    B60 --> TG[Telegram root Specification: linking + bounded evidence]
+    B60 --> TG[inside-telegram #1: /start linking + bounded evidence]
     ACCESS50 --> JOIN52[Platform #52: end-to-end convergence]
     PROFILE51 --> JOIN52
     TG --> JOIN52
@@ -609,8 +619,8 @@ flowchart TD
 
 Graph отражает три параллельных delivery lane: content/application, owner-controlled UI и
 Identity/Membership consumer/provider. #45 не ждёт backend identity; #51 может начать owner brief до
-#49/#46, но production persistence/UI используют их принятые contracts. Telegram bootstrap #60
-ждёт только accepted Workspace contract slice и explicit repository/operator gates, не готовый #50.
+#49/#46, но production persistence/UI используют их принятые contracts. Telegram repository уже
+создан; Workspace #60 синхронизирует confirmed contract/harness и не ждёт готовый #50.
 Platform/Telegram сходятся впервые в #52 после независимых conformance tests. Release/infrastructure
 work не является текущей downstream ticket: оно получает новую specification только из измеренного
 Stage 4 candidate.
@@ -625,7 +635,6 @@ Stage 4 candidate.
 | Identity UX: email code/password, redirect/inline, Yandex и OIDC/M2M horizon | Platform #49 proof | начать с branded redirect + email code; Better Auth fallback | #49 production code blocked |
 | Identity link/unlink/recovery authority | Platform #49/#52 | explicit verification; audited owner recovery без email-only merge | linking/convergence blocked |
 | Member Profile fields, avatar/moderation и discovery | Platform #51 brief | member-only, noindex, separate private Account; exact fields owner-approved | #51 production code blocked |
-| Repository name `inside-telegram` и private visibility | Workspace #60 bootstrap | confirm current working name | repository creation blocked |
 | Bot username/name/avatar/recovery owner и exceptional relink policy | Telegram provider proof | one recoverable Inside owner; no self-service replacement | credentialed proof blocked |
 | Kinescope strict callback mechanics и acceptable continued-play window | Stage 4 | strict fail-closed; measure current plan | video remains unavailable |
 
@@ -639,12 +648,7 @@ Hard-to-reverse Platform ADR inputs only when production implementation reveals 
 - Kinescope upload/reconciliation/strict authorization mechanics;
 - UI component/primitives strategy только если #45 implementation выявит hard-to-reverse trade-off.
 
-`inside-telegram` ADR inputs after bootstrap/proof:
-
-- OIDC linking, identity uniqueness/recovery and exact validation policy;
-- Membership evidence interface, five-minute validity and outage semantics;
-- grammY/Nest/PostgreSQL adapters and credential ownership.
-
-No ADR is created in Workspace for these application implementation choices. Future
+Telegram application ADR inputs принадлежат owning repository и его Specification; Workspace не
+дублирует их application-specific перечень. No ADR is created in Workspace for these choices. Future
 release/infrastructure specification отдельно решит environments, capacity, domains/callbacks,
 deployment/rollback, provider operations, secrets, observability, backup/recovery и production GO.

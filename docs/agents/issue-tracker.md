@@ -3,10 +3,10 @@
 Issues and specs for this repository live in `sachkov-inside/workspace` GitHub Issues. Run `gh`
 inside this clone so repository identity comes from `git remote`.
 
-Product and cross-repository work belongs here; implementation owned by Landing or Platform
-belongs in that repository. A cross-repository effort uses a Workspace parent issue and
-repo-local child issues. Tracked pull requests use `Closes #<number>`; trivial docs/chore may use
-`N/A` instead.
+Product and cross-repository work belongs here; implementation owned by `inside-landing`,
+`platform`, `inside-telegram` or another application belongs in that repository. A
+cross-repository effort uses a Workspace parent issue and repo-local child issues. Tracked pull
+requests use `Closes #<number>`; trivial docs/chore may use `N/A` instead.
 
 Pull requests are not an external request surface for triage. A bare `#<number>` can still be an
 issue or PR because GitHub shares their number space; resolve it before acting.
