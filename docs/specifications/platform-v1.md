@@ -155,9 +155,9 @@ deployable. Stories используют те же typed presentation contracts,
 fake backend/client, business rules или второй production data path. Production routes #37–#39
 соединяют approved UI только с реальными #30/#31/#28 interfaces.
 
-`inside-telegram` начинает с TypeScript, Node.js 24 LTS, NestJS + Fastify, grammY,
-PostgreSQL и Kysely + `pg` как production baseline. Platform и Telegram application не делят
-database, source package или migration history.
+`inside-telegram` выбирает application stack в собственной root Specification и ADRs. Общая
+граница требует только автономности: Platform и Telegram application не делят database, source
+package или migration history.
 
 ## 5. System context и process boundaries
 
