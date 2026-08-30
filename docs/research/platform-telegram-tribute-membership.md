@@ -1,5 +1,20 @@
 # Telegram Membership service for Sachkov Inside Platform
 
+> **Status update, 2026-08-30:** owner decisions superseded this note's OIDC linking proposal and
+> its assumption that v1 has no bot update loop. Current linking uses a Platform-issued,
+> short-lived single-use deep link and private `/start`, with final confirmation in the
+> authenticated Platform session. Ordinary `/start` also creates an independent BotContact;
+> Telegram application v1 durably receives `message`, `chat_member` and `my_chat_member` updates.
+> Do not implement the OIDC-specific recommendations retained below as historical research.
+> Normative authority is the [cross-repository contract](../contracts/identity-membership-v1.md),
+> [Telegram product brief](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/product/telegram-application-brief.md)
+> and [Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1).
+
+The canonical-chat Membership Signal, Tribute exclusion, autonomous repository, normalized
+evidence, bounded freshness and Platform authorization boundary remain valid. Telegram-specific
+current API facts and credentialed proof gaps moved to the owning repository's
+[`telegram-bot-membership-v1.md`](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/research/telegram-bot-membership-v1.md).
+
 **Status:** selected product/access contract and service stack direction for
 [Workspace issue #41](https://github.com/sachkov-inside/workspace/issues/41)
 

@@ -4,7 +4,7 @@
 [Workspace Specification #65](https://github.com/sachkov-inside/workspace/issues/65).
 
 Этот документ задаёт общую authority boundary, wire envelope и conformance corpus между Platform
-и будущей Telegram application. Он не задаёт application schema, HTTP framework, database tables,
+и отдельной Telegram application. Он не задаёт application schema, HTTP framework, database tables,
 deployment или secret distribution. Каждый repository хранит собственную implementation и
 проверяет её против versioned snapshot этого контракта без runtime import соседнего checkout.
 
@@ -64,7 +64,7 @@ Positive `member` evidence удовлетворяет `validUntil > checkedAt` �
 cross-Principal или unsupported evidence fails closed.
 
 Envelope никогда не содержит email, raw Platform Principal ID, Telegram user ID/username,
-`ChatMember`, OIDC access/ID token, bot token, payment/subscription data или provider exception.
+`ChatMember`, `/start` bearer token, bot token, payment/subscription data или provider exception.
 
 ## Evidence production and request-path isolation
 
@@ -110,8 +110,17 @@ decision. Platform маппит accepted/failed evidence в собственны
 
 ## Linking and recovery invariants
 
-- Link начинается только из recently authenticated Platform session. Single-use link transaction
-  связывает её с opaque `principalRef`; email или Telegram ID от caller не принимается как proof.
+- Link начинается только из recently authenticated Platform session. Platform создаёт
+  high-entropy short-lived single-use base64url bearer token и deep link, регистрируя только его
+  digest, expiry и opaque `principalRef` через authenticated Telegram application interface.
+- Telegram application принимает `/start <token>` только из private chat от provider-verified
+  non-bot sender. Этот receipt создаёт pending candidate, но не завершает PlatformLink и не даёт
+  Membership или content access.
+- Link завершается отдельным authenticated Platform confirmation, связанным с исходной Platform
+  session, `principalRef` и pending transaction. Email или Telegram ID от caller не принимается
+  как proof; Telegram OIDC не участвует.
+- Обычный `/start` без link token создаёт или реактивирует независимый `BotContact`; invalid link
+  token не отменяет этот contact outcome и не раскрывает существование Platform Account.
 - Durable Telegram identity определяется verified provider identity, а не username/display name,
   picture, phone или похожий email.
 - Одна Telegram identity исторически принадлежит одному Principal; unlink сохраняет tombstone и не
@@ -164,14 +173,15 @@ production credentials and enablement remain separate owner gates.
   [#50](https://github.com/sachkov-inside/platform/issues/50) ContentAccess/entitlement,
   [#51](https://github.com/sachkov-inside/platform/issues/51) Account/Member Profile и
   [#52](https://github.com/sachkov-inside/platform/issues/52) final convergence.
-- [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) bootstraps the Telegram
-  repository after contract acceptance plus explicit repository/operator confirmations; it does
-  not wait for completed Platform protected-content implementation.
-- The new Telegram repository creates its own root Specification and owns OIDC linking,
-  uniqueness/recovery, durable member-status event ingestion, `getChatMember` reconciliation and
-  provider-side contract tests.
+- [Workspace #60](https://github.com/sachkov-inside/workspace/issues/60) synchronizes this contract,
+  shared harness routing and the created Telegram repository topology after explicit owner
+  confirmations; it does not wait for completed Platform protected-content implementation.
+- [Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1) owns
+  `/start` linking, BotContact, uniqueness/recovery, durable member-status event ingestion,
+  `getChatMember` reconciliation and provider-side contract tests.
 
-Telegram commands, messaging, notifications, Tribute/billing, anonymous internet-public profiles,
-social graph, production deployment and credentials remain outside this contract. Member-status
-updates are included only as Membership Evidence input; they do not create a general bot event or
-messaging platform.
+General commands, broadcasts/campaigns, marketing, notification preferences, Tribute/billing,
+anonymous internet-public profiles, social graph, production deployment and credentials remain
+outside this cross-repository contract. Telegram v1 may own ordinary/tokenized `/start` and bounded
+transactional responses under its own Specification. Member-status updates are included only as
+Membership Evidence input; they do not create a general messaging platform.

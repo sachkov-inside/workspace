@@ -1,4 +1,4 @@
-# inside-engineering 0.3.8
+# inside-engineering 0.3.9
 
 This package contains 32 shared skills:
 
@@ -31,6 +31,7 @@ subject to its own upstream terms.
   learning to a durable authority.
 - `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
   deprecation or supersession.
+- Shared delivery routing includes the autonomous `inside-telegram` application repository.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other
