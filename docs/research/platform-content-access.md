@@ -19,8 +19,8 @@ The module is deliberately provider-neutral:
 
 - authentication supplies a stable Platform Principal reference, never an IdP role that grants
   Membership;
-- the future Telegram application supplies bounded Membership evidence, never raw Telegram or
-  Tribute data;
+- the separate `inside-telegram` application supplies bounded Membership evidence, never raw
+  Telegram or Tribute data;
 - Platform derives and stores a bounded Membership entitlement and makes the final content
   decision;
 - Kinescope and object storage receive short-lived delivery credentials derived from an allowed
@@ -615,13 +615,12 @@ Candidate task areas for #40, not a speculative backlog:
 
 1. Platform core `ContentAccess` interface, facts/readers, policy matrix and conformance fixture.
 2. Public projection plus Next.js/REST/MCP read and preview adapters with cache-leak tests.
-3. Platform entitlement persistence/refresh adapter and authenticated contract with the future
-   Telegram application.
+3. Platform entitlement persistence/refresh adapter and authenticated contract with
+   `inside-telegram`.
 4. Private Asset/download delivery adapter and cross-revision negative tests.
 5. Kinescope playback-token/callback adapter and credentialed production acceptance proof.
 6. Audit/observability/privacy controls and outage runbooks.
-7. Bootstrap of the separate Telegram repository at the stage selected by #40, followed by its
-   identity-link and Membership-evidence implementation.
+7. Provider convergence with the autonomous Telegram root Specification and its vertical tickets.
 
 Application ADR inputs:
 
@@ -631,8 +630,9 @@ Application ADR inputs:
   negative proof.
 - **Platform:** record Kinescope DRM/callback configuration only after the credentialed proof,
   including the measured continued-play bound.
-- **Telegram application:** record OIDC/linking and bounded evidence implementation after repository
-  bootstrap and credentialed Telegram proof.
+- **Telegram application:** application ADR inputs belong to its owning Specification; the former
+  OIDC/linking proposal is superseded by the
+  [shared Identity and Membership contract](../contracts/identity-membership-v1.md).
 
 These ADRs belong to their application repositories. Workspace retains this cross-repository
 authority split and policy design without duplicating application structure.
