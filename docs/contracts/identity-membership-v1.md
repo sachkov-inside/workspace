@@ -159,10 +159,11 @@ entitlement, zero provider I/O in user-facing reads and fail-closed mapping.
 
 The envelope schema and existing single-evidence fixtures remain unchanged. A separate normative
 provider sequence corpus for durable acknowledgement, duplicate/out-of-order delivery and
-missed-event reconciliation belongs to the first Telegram repository ticket created under
-Workspace #60. It must pass before provider conformance or Platform integration can be declared
-complete. Cross-repository integration later joins the independently passing implementations;
-production credentials and enablement remain separate owner gates.
+missed-event reconciliation belongs to Telegram Specification #1 and is implemented incrementally
+by its provider tickets #3–#8. Repository bootstrap #2 owns no application-runtime corpus. The
+applicable sequence cases must pass before the corresponding provider behavior or Platform
+integration can be declared complete. Cross-repository integration later joins the independently
+passing implementations; production credentials and enablement remain separate owner gates.
 
 ## Delivery ownership
 
