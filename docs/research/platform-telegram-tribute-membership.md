@@ -15,8 +15,9 @@ evidence, bounded freshness and Platform authorization boundary remain valid. Te
 current API facts and credentialed proof gaps moved to the owning repository's
 [`telegram-bot-membership-v1.md`](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/research/telegram-bot-membership-v1.md).
 
-**Status:** selected product/access contract and service stack direction for
-[Workspace issue #41](https://github.com/sachkov-inside/workspace/issues/41)
+**Historical status:** selected product/access contract and service stack direction for
+[Workspace issue #41](https://github.com/sachkov-inside/workspace/issues/41) before the superseding
+owner decisions above.
 
 **Snapshot:** 2026-08-21
 

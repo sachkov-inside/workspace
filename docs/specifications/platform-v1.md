@@ -177,7 +177,8 @@ flowchart LR
     Web --> IdP[Logto or proved fallback]
     API --> IdP
     IdP --> Email[Email delivery provider]
-    App --> Tg[Inside Telegram application]
+    App -->|begin / confirm link| Tg[Inside Telegram application]
+    Tg -->|Membership Evidence| App
     Tg --> TDB[(Telegram PostgreSQL)]
     Telegram -->|message / chat_member / my_chat_member| Tg
     Tg -->|getChatMember / sendMessage| Telegram[Telegram Bot API]
@@ -198,8 +199,9 @@ deployment topology остаётся вне этой specification; новые r
 
 `inside-telegram` — отдельная application, потому что владеет Telegram credentials, BotContact,
 `/start` identity linking, durable member-status events, reconciliation и Bot API calls. Platform
-вызывает её только через versioned, authenticated HTTP interface; tests используют in-memory
-adapter того же port. Deployment shape обеих applications будет определён позже.
+вызывает link interface, а Telegram application доставляет evidence в Platform-owned ingestion
+port; оба направления versioned и authenticated, tests используют in-memory adapters тех же
+ports. Deployment shape обеих applications будет определён позже.
 
 Next.js process, App Router/FSD composition и application seams уже заданы technical foundation
 #36. Visual/component foundation принадлежит #45 и попадает в production shell через #46; никакой
@@ -233,8 +235,9 @@ Seam rules:
   migrations, FTS, constraints или transaction semantics;
 - Logto, S3 и Kinescope являются true external dependencies и получают narrow internal ports плюс
   test adapters;
-- Telegram application является remote-but-owned dependency: Platform владеет port и entitlement
-  logic, production HTTP adapter только переносит versioned evidence;
+- Telegram application является remote-but-owned dependency: Platform владеет outbound linking
+  port и inbound evidence-ingestion interface/entitlement logic. Два production authenticated HTTP
+  adapters реализуют противоположные направления; controlled adapters проверяют те же seams;
 - generic multi-provider interfaces не создаются до второго реального adapter. Provider-neutral
   `ContentAccess` существует потому, что policy используется многими delivery callers, а не ради
   гипотетической смены S3/Kinescope.
@@ -319,22 +322,19 @@ read/download/play path.
 
 ### Membership linking и projection
 
-1. Recently signed-in Principal создаёт через Platform high-entropy short-lived single-use link
-   transaction. Platform регистрирует token digest, expiry и opaque `principalRef` через
-   authenticated Telegram application interface и показывает private bot deep link.
-2. Пользователь нажимает Telegram Start. Private `/start <token>` доказывает provider-verified
-   TelegramIdentity и создаёт pending candidate; link не завершён и access не выдан.
-3. Пользователь возвращается в исходную authenticated Platform session, которая отдельно
-   подтверждает ту же transaction. Telegram application атомарно завершает unique PlatformLink;
-   conflict не делает silent merge/transfer. Telegram OIDC не участвует.
-4. Telegram application проверяет configured chat membership и возвращает normalized,
-   signed/authenticated evidence без raw Telegram
+1. Normative linking protocol целиком задан в
+   [cross-repository contract](../contracts/identity-membership-v1.md#linking-and-recovery-invariants).
+   Platform владеет recently authenticated Account/session entrypoint, opaque `principalRef` и
+   adapter к этому protocol; Telegram-specific token/identity state остаётся за remote provider.
+2. Platform проецирует pending/linked/conflict/recovery outcomes в private Account, но ни receipt,
+   ни завершённый link сами по себе не создают MembershipEntitlement или ContentAccess allow.
+3. После link Telegram application возвращает normalized, signed/authenticated evidence без raw
+   Telegram
    model по [versioned contract](../contracts/identity-membership-v1.md). Platform строит собственный
    entitlement не позднее `validUntil` evidence.
-5. Telegram application durable-принимает member-status events и background-процессом проверяет
-   due known linked identities. Platform асинхронно применяет normalized evidence к локальной
-   PostgreSQL projection; user-facing request читает только её и не вызывает Telegram.
-6. Positive evidence живёт не более пяти минут; confirmed removal denies immediately; stale или
+4. Platform асинхронно применяет provider evidence к локальной PostgreSQL projection;
+   user-facing request читает только её и не вызывает Telegram.
+5. Positive evidence живёт не более пяти минут; confirmed removal denies immediately; stale или
    unavailable projection fails closed. Free public read от Membership не зависит.
 
 ### Assets, downloads и video
@@ -529,9 +529,8 @@ Telegram provider lane:
   topology и shared harness routing после создания private repository; завершённый Platform #50 не
   является trigger;
 - [Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1) и её
-  native tickets #2–#9 независимо поставляют ordinary `/start`, BotContact, tokenized linking,
-  uniqueness/recovery, initial evidence, durable member-status events и background
-  `getChatMember` reconciliation; user-facing Platform requests не вызывают provider;
+  native tickets #2–#9 реализуют provider responsibilities из cross-repository contract и проходят
+  provider-side conformance независимо от Platform consumer;
 - applications не делят database, source package или migration history и vendor-ят versioned test
   snapshot вместо runtime dependency на Workspace/соседний checkout.
 
