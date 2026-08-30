@@ -55,9 +55,8 @@ relation не входит в обязательный v1 scope. Первый Pl
 
 - billing, Tribute integration, тарифная матрица, trial, promo, gifts или продажа отдельных серий;
 - Telegram roster import, Telegram content export/import и migration pipeline;
-- general bot commands, broadcasts, announcements, campaigns, moderation/admin UI или marketing
-  automation; ordinary/tokenized `/start` и bounded transactional responses принадлежат Telegram
-  Membership bridge, а не Platform application;
+- Telegram application behavior, general bot commands, broadcasts, campaigns, moderation/admin UI
+  или marketing automation; provider scope принадлежит owning Telegram Specification;
 - anonymous/indexable internet-public profile, social graph, follows, direct messages или broad
   member directory до отдельного owner decision;
 - comments/community внутри Platform и обязательная ссылка на discussion каждого Material;
@@ -180,8 +179,8 @@ flowchart LR
     App -->|begin / confirm link| Tg[Inside Telegram application]
     Tg -->|Membership Evidence| App
     Tg --> TDB[(Telegram PostgreSQL)]
-    Telegram -->|message / chat_member / my_chat_member| Tg
-    Tg -->|getChatMember / sendMessage| Telegram[Telegram Bot API]
+    Telegram -->|provider updates| Tg
+    Tg -->|provider calls| Telegram[Telegram Bot API]
 ```
 
 ### Platform processes
@@ -197,11 +196,11 @@ Process entrypoints используют одни application modules и мог�
 deployment topology остаётся вне этой specification; новые repositories/services не создаются до
 появления реального distribution seam.
 
-`inside-telegram` — отдельная application, потому что владеет Telegram credentials, BotContact,
-`/start` identity linking, durable member-status events, reconciliation и Bot API calls. Platform
-вызывает link interface, а Telegram application доставляет evidence в Platform-owned ingestion
-port; оба направления versioned и authenticated, tests используют in-memory adapters тех же
-ports. Deployment shape обеих applications будет определён позже.
+`inside-telegram` — отдельная owning application по
+[Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1). Platform
+вызывает contract-defined linking interface, а Telegram application доставляет evidence в
+Platform-owned ingestion port; оба направления versioned и authenticated, tests используют
+in-memory adapters тех же ports. Deployment shape обеих applications будет определён позже.
 
 Next.js process, App Router/FSD composition и application seams уже заданы technical foundation
 #36. Visual/component foundation принадлежит #45 и попадает в production shell через #46; никакой
@@ -648,12 +647,7 @@ Hard-to-reverse Platform ADR inputs only when production implementation reveals 
 - Kinescope upload/reconciliation/strict authorization mechanics;
 - UI component/primitives strategy только если #45 implementation выявит hard-to-reverse trade-off.
 
-`inside-telegram` ADR inputs after implementation/proof:
-
-- `/start` LinkTransaction, identity uniqueness/recovery and exact validation policy;
-- Membership evidence interface, five-minute validity and outage semantics;
-- grammY/Nest/PostgreSQL adapters and credential ownership.
-
-No ADR is created in Workspace for these application implementation choices. Future
+Telegram application ADR inputs принадлежат owning repository и его Specification; Workspace не
+дублирует их application-specific перечень. No ADR is created in Workspace for these choices. Future
 release/infrastructure specification отдельно решит environments, capacity, domains/callbacks,
 deployment/rollback, provider operations, secrets, observability, backup/recovery и production GO.
