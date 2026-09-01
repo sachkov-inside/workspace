@@ -1,4 +1,4 @@
-# inside-engineering 0.3.10
+# inside-engineering 0.3.11
 
 This package contains 32 shared skills:
 
