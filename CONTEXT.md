@@ -57,3 +57,41 @@ _Avoid_: URL, provider object, storage key
 **AccessDecision**:
 The allow or deny outcome for one Subject, Action, and Resource, including its reason and validity.
 _Avoid_: Boolean Membership check, provider response
+
+## Production Workshop
+
+**Workshop**:
+An Inside learning product in which an Account works through Production Cases and receives
+structured practice feedback. It is commercially and operationally distinct from Membership even
+when Membership temporarily grants beta access.
+_Avoid_: Course, Material Series, Membership feature
+
+**Learning Branch**:
+A curated path through Production Cases and related Materials around a technology or transferable
+engineering capability. It is not a Git branch and need not map one-to-one to a content Topic.
+_Avoid_: Git branch, Topic, grade track
+
+**Production Case**:
+A versioned, multi-stage engineering situation with existing context, constraints, evidence and a
+mastery rubric. One Production Case may have several stack-specific Case Variants.
+_Avoid_: Coding exercise, homework, quiz
+
+**Case Variant**:
+A supported stack-specific working form of one Production Case that preserves its learning outcome
+and observable contract. Availability is declared explicitly in the case-to-stack coverage matrix.
+_Avoid_: Separate case, reference solution
+
+**Assignment**:
+An Account's private working instance of one Case Variant. It owns the starter baseline and the
+submitted Attempts without becoming the Production Case itself.
+_Avoid_: Production Case, repository template, course enrollment
+
+**Attempt**:
+An immutable declaration that one Assignment state is ready for evaluation, bound to an exact
+source revision and the versions of the case and evaluator that interpret it.
+_Avoid_: Commit, push, local test run
+
+**Workshop Entitlement**:
+Platform's grant that an Account may access a Workshop scope and the Materials explicitly included
+with it. It is independent of MembershipEntitlement.
+_Avoid_: MembershipEntitlement, purchase record, permanent member flag
