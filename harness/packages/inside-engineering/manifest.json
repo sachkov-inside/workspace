@@ -9,10 +9,6 @@
     "commit": "885e2ca4d842d139e9aef4e48d366c63cb1b8013"
   },
   "additionalSources": {
-    "frontend-design": {
-      "repository": "https://github.com/anthropics/skills",
-      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
-    },
     "impeccable": {
       "repository": "https://github.com/pbakaus/impeccable",
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
@@ -30,10 +26,6 @@
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     },
     "vercel-react-best-practices": {
-      "repository": "https://github.com/vercel-labs/agent-skills",
-      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
-    },
-    "web-design-guidelines": {
       "repository": "https://github.com/vercel-labs/agent-skills",
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     }
@@ -58,7 +50,6 @@
     "codebase-design",
     "diagnosing-bugs",
     "domain-modeling",
-    "frontend-design",
     "grill-me",
     "grill-with-docs",
     "grilling",
@@ -82,8 +73,70 @@
     "vercel-react-best-practices",
     "wait-what",
     "wayfinder",
-    "web-design-guidelines",
     "wizard",
     "writing-for-agents"
-  ]
+  ],
+  "defaultProfile": "core",
+  "skillProfiles": {
+    "core": [
+      "ask-matt",
+      "code-review",
+      "codebase-design",
+      "diagnosing-bugs",
+      "domain-modeling",
+      "grill-me",
+      "grill-with-docs",
+      "grilling",
+      "handoff",
+      "implement",
+      "improve-codebase-architecture",
+      "karpathy-guidelines",
+      "prototype",
+      "research",
+      "resolving-merge-conflicts",
+      "setup-matt-pocock-skills",
+      "tdd",
+      "teach",
+      "to-questionnaire",
+      "to-spec",
+      "to-tickets",
+      "triage",
+      "wait-what",
+      "wayfinder",
+      "wizard",
+      "writing-for-agents"
+    ],
+    "frontend": [
+      "ask-matt",
+      "code-review",
+      "codebase-design",
+      "diagnosing-bugs",
+      "domain-modeling",
+      "grill-me",
+      "grill-with-docs",
+      "grilling",
+      "handoff",
+      "impeccable",
+      "implement",
+      "improve-codebase-architecture",
+      "karpathy-guidelines",
+      "modern-web-guidance",
+      "playwright-cli",
+      "prototype",
+      "research",
+      "resolving-merge-conflicts",
+      "setup-matt-pocock-skills",
+      "tdd",
+      "teach",
+      "to-questionnaire",
+      "to-spec",
+      "to-tickets",
+      "triage",
+      "vercel-react-best-practices",
+      "wait-what",
+      "wayfinder",
+      "wizard",
+      "writing-for-agents"
+    ]
+  }
 }

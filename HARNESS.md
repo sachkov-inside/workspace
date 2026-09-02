@@ -1,8 +1,8 @@
 # Harness Sachkov Inside
 
-Текущая package-версия — `inside-engineering 0.3.8`; её canonical release boundary — tag
-`inside-engineering-v0.3.8`. Package распространяется в Workspace, Landing и Platform через
-явный rollout lifecycle ниже.
+Canonical package `inside-engineering` распространяется в Workspace, Landing, Platform и Telegram
+через явный rollout lifecycle ниже. Точное содержимое и версия принадлежат package manifest, а не
+этому описанию.
 
 ## Итоговая модель
 
@@ -15,12 +15,13 @@
 Inside Workspace
   └─ canonical source общего product harness
        ├─ installer и проверки
-       ├─ inside-engineering 0.3.8
+       ├─ inside-engineering package
        └─ adapters общих instructions
             │
             ├─ install/update → Workspace repository
             ├─ install/update → platform repository
-            └─ install/update → landing repository
+            ├─ install/update → landing repository
+            └─ install/update → telegram repository
 
 Каждый repository
   ├─ управляемая копия общего product harness
@@ -54,14 +55,12 @@ harness/
 └── tests/
 ```
 
-`inside-engineering 0.3.8` содержит общий Developer Pipeline с review closure, architecture fitness
-и pruning, triage labels, lifecycle script для автоматического закрытия completed parent issues и
-32 skills: полный
-stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills (`frontend-design`,
-`impeccable`, `karpathy-guidelines`,
-`modern-web-guidance`, `playwright-cli`, `vercel-react-best-practices`,
-`web-design-guidelines`). `in-progress` и `misc` Matt Pocock не импортированы. Источники и условия
-лицензирования зафиксированы в package metadata и `SOURCE.md`.
+Package содержит общий Developer Pipeline с review closure, architecture fitness и pruning,
+triage labels, lifecycle script для автоматического закрытия completed parent issues и два skill
+profile. `core` содержит stable-набор Matt Pocock и `karpathy-guidelines`; `frontend` добавляет
+`impeccable`, `modern-web-guidance`, `playwright-cli` и `vercel-react-best-practices`.
+`in-progress` и `misc` Matt Pocock не импортированы. Точный состав и provenance зафиксированы в
+package metadata и `SOURCE.md`.
 
 В каждом repository installer создаёт:
 
@@ -70,6 +69,7 @@ stable-набор Matt Pocock из 25 skills и 7 общих frontend/web skills
 .agents/skills -> ../.inside-harness/skills
 .claude/skills -> ../.inside-harness/skills
 .inside-harness/product-harness.json    # package, версия и managed skill names
+.inside-harness/integrations.json       # repository-owned native integration inventory, если нужен
 AGENTS.md                               # общий entrypoint + repo-specific правила
 CLAUDE.md                               # импорт AGENTS.md
 WORKFLOW.md                             # общий Developer Pipeline
@@ -78,16 +78,16 @@ docs/agents/triage-labels.md            # общие readiness-роли
 
 Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
 OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они
-не входят в `managedSkills` package state. После переноса frontend-набора у Landing остаётся один
-локальный skill: `add-reference`.
+не входят в `managedSkills` package state. Workspace и Telegram используют `core`; Landing и
+Platform — `frontend`. У Landing дополнительно остаётся локальный skill `add-reference`.
 
 ## Рабочий цикл
 
 Команды запускаются из корня Workspace:
 
 ```bash
-harness/bin/inside-harness install <repository>
-harness/bin/inside-harness update <repository>
+harness/bin/inside-harness install <repository> --profile core|frontend
+harness/bin/inside-harness update <repository> [--profile core|frontend]
 harness/bin/inside-harness diff <repository>
 harness/bin/inside-harness health <repository>
 harness/bin/inside-harness rollback <repository> --to <workspace-git-ref>
@@ -102,6 +102,12 @@ harness/bin/inside-harness rollback <repository> --to <workspace-git-ref>
 - оставляет обычный reviewable Git diff;
 - повторяет no-op установку идемпотентно;
 - не изменяет user-level settings.
+
+После первой установки profile хранится в state; `update`, `diff` и `rollback` используют его без
+повторного флага. Если repository содержит native Codex/Claude/Cursor/MCP config, `health` требует
+`.inside-harness/integrations.json` с точным path, SHA-256, runtime ownership, verification command
+и именами secret environment variables. Inventory не хранит credentials и не запускает внешнюю
+интеграцию автоматически.
 
 Rollback читает package и adapters из выбранного Git ref Workspace. Он станет доступен после
 первого commit/release, содержащего текущую структуру harness.

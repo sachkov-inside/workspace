@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 
 SCRIPT = Path(__file__).resolve()
@@ -23,6 +25,7 @@ DEFAULT_ADAPTERS = WORKSPACE / "harness/adapters"
 STATE_REL = Path(".inside-harness/product-harness.json")
 SNAPSHOT_REL = Path(".inside-harness/skills")
 REGISTRY_REL = SNAPSHOT_REL / "REGISTRY.md"
+INTEGRATIONS_REL = Path(".inside-harness/integrations.json")
 PORTABLE_REL = Path(".agents/skills")
 CLAUDE_SKILLS_REL = Path(".claude/skills")
 DISCOVERY_LINKS = {
@@ -38,6 +41,16 @@ ADR_FILENAME = re.compile(r"^(?P<number>[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$"
 ADR_SUPERSEDED = re.compile(r"^superseded by ADR-(?P<number>[0-9]{4})$")
 ADR_LIFECYCLE_STATUSES = {"proposed", "accepted", "deprecated"}
 CODING_STANDARDS_POINTER = "For coding and review rules, read `CODING_STANDARDS.md`."
+NATIVE_INTEGRATIONS = {
+    Path(".codex/config.toml"): ("codex",),
+    Path(".codex/hooks.json"): ("codex",),
+    Path(".claude/settings.json"): ("claude",),
+    Path(".cursor/hooks.json"): ("cursor",),
+    Path(".mcp.json"): ("claude", "portable"),
+}
+MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)")
+MACHINE_LOCAL_PATH = re.compile(r"(?:/(?:Users|home|Applications)/|[A-Za-z]:\\\\)")
+SECRET_ENVIRONMENT_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
 class HarnessError(RuntimeError):
@@ -73,6 +86,30 @@ def load_manifest(package: Path) -> dict:
     skills = manifest["skills"]
     if not isinstance(skills, list) or not skills or len(skills) != len(set(skills)):
         raise HarnessError("Package skills must be a non-empty unique list")
+    profiles = manifest.get("skillProfiles")
+    default_profile = manifest.get("defaultProfile")
+    if profiles is None and default_profile is None:
+        profiles = {"full": list(skills)}
+        default_profile = "full"
+        manifest["skillProfiles"] = profiles
+        manifest["defaultProfile"] = default_profile
+    if not isinstance(profiles, dict) or not profiles or default_profile not in profiles:
+        raise HarnessError("Package must define skillProfiles and a valid defaultProfile")
+    declared = set(skills)
+    used: set[str] = set()
+    for name, profile_skills in profiles.items():
+        if not isinstance(name, str) or not name:
+            raise HarnessError("Skill profile names must be non-empty strings")
+        if (
+            not isinstance(profile_skills, list)
+            or not profile_skills
+            or len(profile_skills) != len(set(profile_skills))
+            or not set(profile_skills) <= declared
+        ):
+            raise HarnessError(f"Invalid skill profile: {name}")
+        used.update(profile_skills)
+    if used != declared:
+        raise HarnessError("Every package skill must belong to at least one profile")
     return manifest
 
 
@@ -108,13 +145,17 @@ def read_frontmatter(skill_file: Path) -> dict[str, str]:
     return values
 
 
-def validated_skill_metadata(directory: Path) -> tuple[str, str]:
+def validated_skill_metadata(directory: Path) -> tuple[str, str, str]:
     metadata = read_frontmatter(directory / "SKILL.md")
     name = metadata.get("name")
     description = metadata.get("description")
     if name != directory.name or not description:
         raise HarnessError(f"Invalid project skill metadata: {directory}")
-    return name, description
+    disabled = metadata.get("disable-model-invocation", "false").lower()
+    if disabled not in {"true", "false"}:
+        raise HarnessError(f"Invalid disable-model-invocation value: {directory}")
+    invocation = "User" if disabled == "true" else "Model"
+    return name, description, invocation
 
 
 def validate_package(package: Path, manifest: dict) -> None:
@@ -151,7 +192,7 @@ def validate_package(package: Path, manifest: dict) -> None:
         targets.add(target)
     seen_names: set[str] = set()
     for name in manifest["skills"]:
-        actual_name, _ = validated_skill_metadata(skill_root / name)
+        actual_name, _, _ = validated_skill_metadata(skill_root / name)
         if actual_name in seen_names:
             raise HarnessError(f"Duplicate skill name: {actual_name}")
         seen_names.add(actual_name)
@@ -176,6 +217,32 @@ def managed_files(manifest: dict) -> list[tuple[Path, Path]]:
     ]
 
 
+def profile_skills(manifest: dict, profile: str) -> list[str]:
+    profiles = manifest["skillProfiles"]
+    if profile not in profiles:
+        raise HarnessError(
+            f"Unknown skill profile {profile!r}; choose one of: {', '.join(sorted(profiles))}"
+        )
+    return profiles[profile]
+
+
+def resolve_profile(manifest: dict, old_state: dict, requested: str | None) -> str:
+    if requested is not None:
+        profile_skills(manifest, requested)
+        return requested
+    stored = old_state.get("profile")
+    if isinstance(stored, str):
+        if stored not in manifest["skillProfiles"] and set(manifest["skillProfiles"]) == {"full"}:
+            return "full"
+        profile_skills(manifest, stored)
+        return stored
+    if old_state:
+        raise HarnessError(
+            "Installed state predates skill profiles; rerun with --profile core or --profile frontend"
+        )
+    return manifest["defaultProfile"]
+
+
 def files(root: Path) -> dict[Path, Path]:
     if not root.exists():
         return {}
@@ -183,25 +250,26 @@ def files(root: Path) -> dict[Path, Path]:
 
 
 def registry_content(root: Path) -> str:
-    rows: list[tuple[str, str]] = []
+    rows: list[tuple[str, str, str]] = []
     seen: set[str] = set()
     for directory in sorted(path for path in root.iterdir() if path.is_dir()):
-        name, description = validated_skill_metadata(directory)
+        name, description, invocation = validated_skill_metadata(directory)
         if name in seen:
             raise HarnessError(f"Duplicate project skill name: {name}")
         seen.add(name)
-        rows.append((name, description.replace("|", "\\|")))
+        rows.append((name, invocation, description.replace("|", "\\|")))
     lines = [
         "# Project Skill Registry",
         "",
-        "Search metadata here, then open only the exact matching `SKILL.md`.",
+        "Fallback runtimes may route by intent only to `Model` skills. Open a `User` skill only",
+        "when the user names it explicitly, then read only that skill's `SKILL.md`.",
         "",
-        "| Skill | Project path | When to use |",
-        "|---|---|---|",
+        "| Skill | Invocation | Project path | When to use |",
+        "|---|---|---|---|",
     ]
     lines.extend(
-        f"| `{name}` | `.inside-harness/skills/{name}` | {description} |"
-        for name, description in rows
+        f"| `{name}` | {invocation} | `.inside-harness/skills/{name}` | {description} |"
+        for name, invocation, description in rows
     )
     return "\n".join(lines) + "\n"
 
@@ -222,9 +290,9 @@ def ensure_discovery_links(repo: Path) -> None:
         path.symlink_to(target)
 
 
-def migrate_legacy_roots(repo: Path, manifest: dict) -> None:
+def migrate_legacy_roots(repo: Path, active_skills: list[str]) -> None:
     snapshot = repo / SNAPSHOT_REL
-    managed = set(manifest["skills"])
+    managed = set(active_skills)
     local_sources: dict[str, Path] = {}
     legacy_roots: list[Path] = []
     for relative in DISCOVERY_LINKS:
@@ -347,12 +415,14 @@ def write_entrypoints(repo: Path, adapters: Path) -> None:
     replace_managed_block(repo / CLAUDE_MD_REL, claude_snippet)
 
 
-def state_value(manifest: dict) -> dict:
+def state_value(manifest: dict, profile: str) -> dict:
+    active_skills = profile_skills(manifest, profile)
     return {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "package": manifest["name"],
         "version": manifest["version"],
-        "managedSkills": manifest["skills"],
+        "profile": profile,
+        "managedSkills": active_skills,
         "snapshot": str(SNAPSHOT_REL),
         "managedFiles": [str(target) for _, target in managed_files(manifest)],
         "targets": {
@@ -362,12 +432,22 @@ def state_value(manifest: dict) -> dict:
     }
 
 
-def target_diffs(repo: Path, package: Path, manifest: dict) -> list[str]:
+def target_diffs(
+    repo: Path,
+    package: Path,
+    manifest: dict,
+    active_skills: list[str],
+    obsolete_skills: set[str] | None = None,
+) -> list[str]:
     changes: list[str] = []
-    for name in manifest["skills"]:
+    for name in active_skills:
         source = package / "skills" / name
         target = repo / SNAPSHOT_REL / name
         changes.extend(f"snapshot/{name}/{item}" for item in tree_diff(source, target))
+    for name in sorted(obsolete_skills or set()):
+        target = repo / SNAPSHOT_REL / name
+        if target.exists() or target.is_symlink():
+            changes.append(f"snapshot/{name}/D")
     for source_rel, target_rel in managed_files(manifest):
         source = package / source_rel
         target = repo / target_rel
@@ -395,13 +475,22 @@ def entrypoint_diffs(repo: Path, adapters: Path) -> list[str]:
     return changes
 
 
-def installation_diffs(repo: Path, package: Path, manifest: dict, adapters: Path) -> list[str]:
-    return target_diffs(repo, package, manifest) + entrypoint_diffs(repo, adapters)
+def installation_diffs(
+    repo: Path,
+    package: Path,
+    manifest: dict,
+    adapters: Path,
+    active_skills: list[str],
+    obsolete_skills: set[str] | None = None,
+) -> list[str]:
+    return target_diffs(repo, package, manifest, active_skills, obsolete_skills) + entrypoint_diffs(
+        repo, adapters
+    )
 
 
-def managed_paths(repo: Path, manifest: dict) -> list[Path]:
+def managed_paths(repo: Path, manifest: dict, skill_names: set[str]) -> list[Path]:
     result = [STATE_REL, REGISTRY_REL, PORTABLE_REL, CLAUDE_SKILLS_REL, AGENTS_REL, CLAUDE_MD_REL]
-    result.extend(SNAPSHOT_REL / name for name in manifest["skills"])
+    result.extend(SNAPSHOT_REL / name for name in sorted(skill_names))
     result.extend(target for _, target in managed_files(manifest))
     return result
 
@@ -430,18 +519,22 @@ def install_or_update(
     *,
     adopt_existing: bool = False,
     initial_only: bool = False,
+    requested_profile: str | None = None,
 ) -> None:
     manifest = load_manifest(package)
     validate_package(package, manifest)
     state_path = repo / STATE_REL
     old_state = load_json(state_path)
+    profile = resolve_profile(manifest, old_state, requested_profile)
+    active_skills = profile_skills(manifest, profile)
+    obsolete_skills = set(old_state.get("managedSkills", [])) - set(active_skills)
     if initial_only and old_state:
         print(f"Already installed in {repo}; checking for an idempotent update.")
     if old_state and old_state.get("package") != manifest["name"]:
         raise HarnessError(f"Another harness package owns {state_path}")
     conflicts: list[str] = []
     if not old_state:
-        for name in manifest["skills"]:
+        for name in active_skills:
             for candidate in (repo / SNAPSHOT_REL / name, repo / PORTABLE_REL / name, repo / CLAUDE_SKILLS_REL / name):
                 if candidate.exists() or candidate.is_symlink():
                     conflicts.append(str(candidate.relative_to(repo)))
@@ -464,38 +557,62 @@ def install_or_update(
 
     migrated = False
     if old_state and old_state.get("schemaVersion") == 1:
-        dirty = git_changes(repo, managed_paths(repo, manifest))
+        dirty = git_changes(
+            repo,
+            managed_paths(repo, manifest, set(active_skills) | obsolete_skills),
+        )
         if dirty:
             raise HarnessError(
                 "Legacy managed files have uncommitted changes; refusing to migrate:\n"
                 + "\n".join(dirty)
             )
-        migrate_legacy_roots(repo, manifest)
+        migrate_legacy_roots(repo, active_skills)
         migrated = True
     elif not old_state and (
         adopt_existing
         or any((repo / relative).is_dir() and not (repo / relative).is_symlink() for relative in DISCOVERY_LINKS)
     ):
-        migrate_legacy_roots(repo, manifest)
+        migrate_legacy_roots(repo, active_skills)
         migrated = True
     else:
         ensure_discovery_links(repo)
 
-    changes = installation_diffs(repo, package, manifest, adapters)
+    changes = installation_diffs(
+        repo,
+        package,
+        manifest,
+        adapters,
+        active_skills,
+        obsolete_skills,
+    )
     if old_state and changes and not migrated:
         additions_only = changes_add_only_new_content(changes, old_state)
-        dirty = git_changes(repo, managed_paths(repo, manifest)) if not additions_only else []
+        dirty = (
+            git_changes(
+                repo,
+                managed_paths(repo, manifest, set(active_skills) | obsolete_skills),
+            )
+            if not additions_only
+            else []
+        )
         if dirty:
             raise HarnessError(
                 "Managed files differ from the package and have uncommitted changes; refusing to overwrite:\n"
                 + "\n".join(dirty)
             )
 
-    for name in manifest["skills"]:
+    for name in active_skills:
         source = package / "skills" / name
         target = repo / SNAPSHOT_REL / name
         if tree_diff(source, target):
             exact_copy(source, target)
+
+    for name in sorted(obsolete_skills):
+        target = repo / SNAPSHOT_REL / name
+        if target.is_symlink() or (target.exists() and not target.is_dir()):
+            raise HarnessError(f"Refusing to remove invalid obsolete skill path: {target}")
+        if target.exists():
+            shutil.rmtree(target)
 
     for source_rel, target_rel in managed_files(manifest):
         source = package / source_rel
@@ -510,15 +627,31 @@ def install_or_update(
 
     write_registry(repo)
     write_entrypoints(repo, adapters)
-    write_json(state_path, state_value(manifest))
+    write_json(state_path, state_value(manifest, profile))
     action = "Installed" if not old_state else "Updated"
-    print(f"{action} {manifest['name']} {manifest['version']} in {repo}")
+    print(f"{action} {manifest['name']} {manifest['version']} ({profile}) in {repo}")
 
 
-def diff_command(repo: Path, package: Path, adapters: Path) -> int:
+def diff_command(
+    repo: Path,
+    package: Path,
+    adapters: Path,
+    requested_profile: str | None = None,
+) -> int:
     manifest = load_manifest(package)
     validate_package(package, manifest)
-    changes = installation_diffs(repo, package, manifest, adapters)
+    old_state = load_json(repo / STATE_REL)
+    profile = resolve_profile(manifest, old_state, requested_profile)
+    active_skills = profile_skills(manifest, profile)
+    obsolete_skills = set(old_state.get("managedSkills", [])) - set(active_skills)
+    changes = installation_diffs(
+        repo,
+        package,
+        manifest,
+        adapters,
+        active_skills,
+        obsolete_skills,
+    )
     if changes:
         print("\n".join(changes))
         return 1
@@ -534,6 +667,135 @@ def require_managed_block(path: Path, expected: str) -> None:
         raise HarnessError(f"Managed entrypoint block differs: {path}")
 
 
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def local_markdown_targets(path: Path, repo: Path) -> list[tuple[str, Path]]:
+    targets: list[tuple[str, Path]] = []
+    content = re.sub(r"```.*?```", "", path.read_text(), flags=re.DOTALL)
+    for raw_target in MARKDOWN_LINK.findall(content):
+        target = raw_target.strip("<>")
+        target = unquote(target.split("#", 1)[0].split("?", 1)[0])
+        if (
+            not target
+            or target.startswith(("#", "/"))
+            or re.match(r"^[a-z][a-z\d+.-]*:", target, re.IGNORECASE)
+        ):
+            continue
+        resolved = (path.parent / target).resolve()
+        try:
+            resolved.relative_to(repo)
+        except ValueError as error:
+            raise HarnessError(
+                f"Agent documentation pointer escapes repository: "
+                f"{path.relative_to(repo)} -> {target}"
+            ) from error
+        targets.append((target, resolved))
+    return targets
+
+
+def base_agent_documents(repo: Path) -> set[Path]:
+    result = {
+        repo / relative
+        for relative in (
+            AGENTS_REL,
+            CLAUDE_MD_REL,
+            Path("WORKFLOW.md"),
+            Path("CODING_STANDARDS.md"),
+            Path("CONTEXT.md"),
+        )
+        if (repo / relative).is_file()
+    }
+    for root in (repo / "docs/agents", repo / "apps"):
+        if not root.exists():
+            continue
+        result.update(
+            path
+            for path in root.rglob("*.md")
+            if path.name in {"AGENTS.md", "CLAUDE.md", "CODING_STANDARDS.md"}
+            or root == repo / "docs/agents"
+        )
+    snapshot = repo / SNAPSHOT_REL
+    if snapshot.exists():
+        result.update(path for path in snapshot.glob("*/SKILL.md") if path.is_file())
+    return result
+
+
+def validate_agent_documents(repo: Path) -> None:
+    base = base_agent_documents(repo)
+    documents = set(base)
+    failures: list[str] = []
+    for path in sorted(base):
+        for target, resolved in local_markdown_targets(path, repo):
+            if not resolved.exists():
+                failures.append(f"{path.relative_to(repo)}: local pointer does not resolve: {target}")
+            elif resolved.is_file() and resolved.suffix.lower() == ".md":
+                documents.add(resolved)
+
+    for path in sorted(documents):
+        content = path.read_text()
+        if MACHINE_LOCAL_PATH.search(content):
+            failures.append(f"{path.relative_to(repo)}: machine-local path is not portable")
+        for target, resolved in local_markdown_targets(path, repo):
+            if not resolved.exists():
+                failures.append(f"{path.relative_to(repo)}: local pointer does not resolve: {target}")
+
+    if failures:
+        raise HarnessError("Agent documentation is not portable:\n" + "\n".join(sorted(set(failures))))
+
+
+def validate_integration_inventory(repo: Path) -> None:
+    discovered = {path for path in NATIVE_INTEGRATIONS if (repo / path).is_file()}
+    inventory_path = repo / INTEGRATIONS_REL
+    if not discovered and not inventory_path.exists():
+        return
+    inventory = load_json(inventory_path)
+    if inventory.get("schemaVersion") != 1 or not isinstance(inventory.get("integrations"), list):
+        raise HarnessError(f"Invalid integration inventory: {inventory_path}")
+
+    entries: dict[Path, dict] = {}
+    for entry in inventory["integrations"]:
+        if not isinstance(entry, dict):
+            raise HarnessError(f"Invalid integration inventory entry: {entry!r}")
+        path = safe_relative_path(entry.get("path"), "integration path")
+        if path in entries:
+            raise HarnessError(f"Duplicate integration inventory path: {path}")
+        entries[path] = entry
+
+    if set(entries) != discovered:
+        raise HarnessError(
+            "Integration inventory differs from native project configs: "
+            f"missing={sorted(str(path) for path in discovered - set(entries))}, "
+            f"extra={sorted(str(path) for path in set(entries) - discovered)}"
+        )
+
+    for path, entry in entries.items():
+        runtimes = entry.get("runtimes")
+        verification = entry.get("verification")
+        secrets = entry.get("secretEnvironmentVariables")
+        digest = entry.get("sha256")
+        if not isinstance(runtimes, list) or not runtimes or not all(
+            isinstance(value, str) and value for value in runtimes
+        ):
+            raise HarnessError(f"Integration runtimes must be a non-empty list: {path}")
+        expected_runtimes = list(NATIVE_INTEGRATIONS.get(path, ()))
+        if runtimes != expected_runtimes:
+            raise HarnessError(
+                f"Integration runtimes differ for {path}: "
+                f"expected={expected_runtimes}, actual={runtimes}"
+            )
+        if not isinstance(verification, str) or not verification.strip():
+            raise HarnessError(f"Integration verification is required: {path}")
+        if not isinstance(secrets, list) or not all(
+            isinstance(value, str) and SECRET_ENVIRONMENT_NAME.fullmatch(value) for value in secrets
+        ):
+            raise HarnessError(f"Invalid secret environment-variable names: {path}")
+        target = repo / path
+        if not isinstance(digest, str) or digest != sha256(target):
+            raise HarnessError(f"Integration hash differs: {path}")
+
+
 def validate_repository_architecture(repo: Path) -> None:
     standards = repo / "CODING_STANDARDS.md"
     agents = repo / AGENTS_REL
@@ -546,6 +808,9 @@ def validate_repository_architecture(repo: Path) -> None:
             "AGENTS.md must include the coding-standards context pointer: "
             f"{CODING_STANDARDS_POINTER}"
         )
+
+    validate_agent_documents(repo)
+    validate_integration_inventory(repo)
 
     adr_root = repo / "docs/adr"
     if not adr_root.exists():
@@ -583,14 +848,15 @@ def validate_repository_architecture(repo: Path) -> None:
         if int(replacement) <= int(number):
             raise HarnessError(f"{path} must be superseded by a later ADR number")
 
-
 def health_command(repo: Path, package: Path, adapters: Path) -> None:
     manifest = load_manifest(package)
     validate_package(package, manifest)
     state = load_json(repo / STATE_REL)
-    if state != state_value(manifest):
+    profile = resolve_profile(manifest, state, None)
+    active_skills = profile_skills(manifest, profile)
+    if state != state_value(manifest, profile):
         raise HarnessError(f"Installed state differs from package: {repo / STATE_REL}")
-    changes = target_diffs(repo, package, manifest)
+    changes = target_diffs(repo, package, manifest, active_skills)
     if changes:
         raise HarnessError("Managed harness drift detected:\n" + "\n".join(changes))
     for relative, target in DISCOVERY_LINKS.items():
@@ -606,14 +872,14 @@ def health_command(repo: Path, package: Path, adapters: Path) -> None:
     require_managed_block(repo / CLAUDE_MD_REL, (adapters / "CLAUDE.product.md").read_text())
     validate_repository_architecture(repo)
     print(
-        f"Healthy: {manifest['name']} {manifest['version']} in {repo}\n"
+        f"Healthy: {manifest['name']} {manifest['version']} ({profile}) in {repo}\n"
         f"  Snapshot: {SNAPSHOT_REL}\n"
         f"  Discovery: {PORTABLE_REL}, {CLAUDE_SKILLS_REL}\n"
-        f"  Skills: {len(manifest['skills'])} unique"
+        f"  Skills: {len(active_skills)} managed"
     )
 
 
-def rollback_command(repo: Path, git_ref: str) -> None:
+def rollback_command(repo: Path, git_ref: str, requested_profile: str | None = None) -> None:
     with tempfile.TemporaryDirectory(prefix="inside-harness-rollback-") as temp_value:
         archive = Path(temp_value) / "harness.tar"
         result = run(
@@ -642,7 +908,7 @@ def rollback_command(repo: Path, git_ref: str) -> None:
             bundle.extractall(extracted, filter="data")
         package = extracted / "harness/packages/inside-engineering"
         adapters = extracted / "harness/adapters"
-        install_or_update(repo, package, adapters)
+        install_or_update(repo, package, adapters, requested_profile=requested_profile)
         print(f"Rolled back using Workspace ref {git_ref}")
 
 
@@ -652,6 +918,7 @@ def parser() -> argparse.ArgumentParser:
     install = subcommands.add_parser("install", help="Install the current product harness")
     install.add_argument("repository")
     install.add_argument("--adopt-existing", action="store_true")
+    install.add_argument("--profile")
     for name, help_text in (
         ("update", "Update managed files to the current package"),
         ("diff", "Compare installed skills with the current package"),
@@ -659,9 +926,12 @@ def parser() -> argparse.ArgumentParser:
     ):
         command = subcommands.add_parser(name, help=help_text)
         command.add_argument("repository")
+        if name in {"update", "diff"}:
+            command.add_argument("--profile")
     rollback = subcommands.add_parser("rollback", help="Install a package from an older Workspace ref")
     rollback.add_argument("repository")
     rollback.add_argument("--to", required=True, dest="git_ref")
+    rollback.add_argument("--profile")
     return result
 
 
@@ -676,15 +946,26 @@ def main() -> int:
                 DEFAULT_ADAPTERS,
                 adopt_existing=args.adopt_existing,
                 initial_only=True,
+                requested_profile=args.profile,
             )
         elif args.command == "update":
-            install_or_update(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
+            install_or_update(
+                repo,
+                DEFAULT_PACKAGE,
+                DEFAULT_ADAPTERS,
+                requested_profile=args.profile,
+            )
         elif args.command == "diff":
-            return diff_command(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
+            return diff_command(
+                repo,
+                DEFAULT_PACKAGE,
+                DEFAULT_ADAPTERS,
+                requested_profile=args.profile,
+            )
         elif args.command == "health":
             health_command(repo, DEFAULT_PACKAGE, DEFAULT_ADAPTERS)
         elif args.command == "rollback":
-            rollback_command(repo, args.git_ref)
+            rollback_command(repo, args.git_ref, args.profile)
         return 0
     except HarnessError as error:
         print(f"error: {error}", file=sys.stderr)
