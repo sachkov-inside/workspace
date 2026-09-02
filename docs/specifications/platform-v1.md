@@ -103,8 +103,11 @@ infrastructure specification, созданной позже на основе и
 будущей отдельной specification. Его environments, release, observability и recovery choices не
 являются scope или gate текущего delivery graph.
 
-Общий словарь `Principal`, External identity, Platform Account/session, Member Profile, Membership
-evidence/entitlement и `ContentAccess` находится в [`CONTEXT.md`](../../CONTEXT.md).
+Общий словарь Account, External Identity, TelegramIdentity, Member Profile, Membership
+Evidence/Entitlement и `ContentAccess` находится в [`CONTEXT.md`](../../CONTEXT.md). Старые
+`Principal`, `Platform Account` и `Platform session` ниже сохранены только в историческом delivery
+плане этой принятой спецификации; текущая implementation authority — Platform ADR 0006 и local
+specifications owning repository.
 
 ## 4. Cross-repository stack constraints
 

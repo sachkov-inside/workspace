@@ -13,8 +13,8 @@ deployment или secret distribution. Каждый repository хранит со
 | Authority | Доказывает или решает | Не даёт |
 |---|---|---|
 | Email Identity Provider | Контроль External identity для Platform sign-in | Membership, Platform permission или content access |
-| Platform | Principal, Platform session/account, permissions, Member Profile, Membership Entitlement и каждый ContentAccess decision | Telegram identity proof или raw chat status |
-| Telegram application | Контроль одной Telegram identity, linking invariants, member-status events и bounded reconciliation evidence | Platform session, entitlement, role или final content access |
+| Platform | Account, permissions, Member Profile, Membership Entitlement и каждый ContentAccess decision | Telegram identity proof или raw chat status |
+| Telegram application | Контроль одной Telegram identity, linking invariants, member-status events и bounded reconciliation evidence | Platform authentication, entitlement, role или final content access |
 | Канонический закрытый Telegram chat | Membership Signal через фактическое присутствие linked identity | Platform identity или permanent entitlement |
 | Tribute/payment provider | Может менять roster через отдельный operational lifecycle | Identity, evidence или entitlement напрямую |
 
@@ -48,7 +48,7 @@ Envelope переносит normalized application facts, а не provider model
 | Field | Contract |
 |---|---|
 | `contractVersion` | Ровно `inside.membership-evidence.v1` для этого major |
-| `principalRef` | Opaque Platform-issued integration reference bound to one Principal; не email и не raw Principal ID |
+| `principalRef` | Legacy v1 wire name: opaque Platform-issued integration reference bound to one Account; не email и не raw Account ID |
 | `decision` | `member`, `not_member`, `identity_not_linked`, `identity_conflict` или `unavailable` |
 | `reasonCode` | Stable reason из таблицы ниже, согласованный с `decision` |
 | `checkedAt` | UTC instant authoritative observation; отсутствует, если observation не состоялось |
@@ -61,9 +61,9 @@ Positive `member` evidence удовлетворяет `validUntil > checkedAt` �
 `validUntil <= checkedAt + 5 minutes`. `not_member` прекращает новые protected operations сразу;
 его finite validity не превращает deny в permanent member flag. `identity_not_linked`,
 `identity_conflict` и `unavailable` не создают Membership Entitlement. Expired, malformed,
-cross-Principal или unsupported evidence fails closed.
+cross-Account или unsupported evidence fails closed.
 
-Envelope никогда не содержит email, raw Platform Principal ID, Telegram user ID/username,
+Envelope никогда не содержит email, raw Platform Account ID, Telegram user ID/username,
 `ChatMember`, `/start` bearer token, bot token, payment/subscription data или provider exception.
 
 ## Evidence production and request-path isolation
@@ -99,33 +99,35 @@ free content от Telegram availability не зависит.
 |---|---|---|
 | `member` | `chat_member` | Linked identity сейчас присутствует в каноническом chat |
 | `not_member` | `chat_not_member` | Authoritative observation подтверждает отсутствие/removal |
-| `identity_not_linked` | `identity_not_linked` | Principal ещё не имеет verified active Telegram link |
+| `identity_not_linked` | `identity_not_linked` | Account ещё не имеет verified active Telegram link |
 | `identity_conflict` | `identity_conflict` | Verified Telegram identity historically/actively связана иначе; silent transfer запрещён |
 | `unavailable` | `provider_unavailable` | Authoritative observation сейчас нельзя получить |
 
 Consumer-local validation failures используют `unsupported_contract`, `invalid_evidence`,
 `principal_mismatch`, `expired_evidence` или `replayed_evidence` и не принимаются как provider
-decision. Platform маппит accepted/failed evidence в собственные ContentAccess reason codes; IdP
-или Telegram codes не становятся permissions.
+decision. `principalRef` и `principal_mismatch` остаются стабильными legacy wire labels v1; в
+текущей доменной модели они обозначают Account binding и cross-Account mismatch. Platform маппит
+accepted/failed evidence в собственные ContentAccess reason codes; IdP или Telegram codes не
+становятся permissions.
 
 ## Linking and recovery invariants
 
-- Link начинается только из recently authenticated Platform session. Platform создаёт
+- Link начинается только из recently authenticated Account flow. Platform создаёт
   high-entropy short-lived single-use base64url bearer token и deep link, регистрируя только его
   digest, expiry и opaque `principalRef` через authenticated Telegram application interface.
 - Telegram application принимает `/start <token>` только из private chat от provider-verified
   non-bot sender. Этот receipt создаёт pending candidate, но не завершает PlatformLink и не даёт
   Membership или content access.
-- Link завершается отдельным authenticated Platform confirmation, связанным с исходной Platform
-  session, `principalRef` и pending transaction. Email или Telegram ID от caller не принимается
+- Link завершается отдельным authenticated Platform confirmation, связанным с исходным Account,
+  `principalRef` и pending transaction. Email или Telegram ID от caller не принимается
   как proof; Telegram OIDC не участвует.
 - Обычный `/start` без link token создаёт или реактивирует независимый `BotContact`; invalid link
-  token не отменяет этот contact outcome и не раскрывает существование Platform Account.
+  token не отменяет этот contact outcome и не раскрывает существование Account.
 - Durable Telegram identity определяется verified provider identity, а не username/display name,
   picture, phone или похожий email.
-- Одна Telegram identity исторически принадлежит одному Principal; unlink сохраняет tombstone и не
+- Одна Telegram identity исторически принадлежит одному Account; unlink сохраняет tombstone и не
   освобождает identity для silent transfer.
-- Same Principal + same identity link идемпотентен. Conflict никогда не делает auto-merge.
+- Same Account + same identity link идемпотентен. Conflict никогда не делает auto-merge.
 - Exceptional transfer требует отдельного audited owner recovery; его operational procedure не
   определяется v1 wire contract.
 - Membership removal не удаляет link/profile/history. Rejoin может дать newer positive evidence
@@ -143,12 +145,12 @@ contract outcome не меняются.
 | `linked-non-member` | Linked identity, authoritative left/kicked/non-member observation | `not_member/chat_not_member`, immediate deny for new operations |
 | `member-removed` | Newer negative follows positive evidence | Once observed, negative supersedes still-unexpired older positive evidence |
 | `member-rejoined` | Newer positive follows confirmed removal | Access can return without relink; version increases |
-| `identity-not-linked` | Principal has no verified Telegram link | `identity_not_linked/identity_not_linked`; no entitlement |
-| `identity-conflict` | Telegram identity is bound to another Principal | `identity_conflict/identity_conflict`; no merge/transfer |
+| `identity-not-linked` | Account has no verified Telegram link | `identity_not_linked/identity_not_linked`; no entitlement |
+| `identity-conflict` | Telegram identity is bound to another Account | `identity_conflict/identity_conflict`; no merge/transfer |
 | `provider-unavailable` | No authoritative observation can be obtained | `unavailable/provider_unavailable`; stale/absent evidence fails closed |
 | `positive-expired` | `validUntil` is not in the future | Consumer rejects as `expired_evidence` |
 | `positive-over-five-minutes` | Positive validity exceeds five minutes | Consumer rejects as `invalid_evidence` |
-| `principal-mismatch` | Evidence `principalRef` differs from requesting Principal binding | Consumer rejects as `principal_mismatch` |
+| `principal-mismatch` | Evidence `principalRef` differs from requesting Account binding | Consumer rejects as legacy `principal_mismatch` |
 | `replayed-version` | Evidence version is older/equal to an already consumed different effect | Consumer rejects as `replayed_evidence` |
 | `unsupported-major` | Contract major is unknown/missing | Consumer rejects as `unsupported_contract` |
 | `malformed-envelope` | Required field/decision/reason combination is invalid | Consumer rejects as `invalid_evidence` |
@@ -168,9 +170,9 @@ passing implementations; production credentials and enablement remain separate o
 ## Delivery ownership
 
 - [Platform specification #48](https://github.com/sachkov-inside/platform/issues/48) owns
-  sign-in/Principal/session, Platform Account, Member Profile, authorization, entitlement and the
+  sign-in, Account, Member Profile, authorization, entitlement and the
   consumer/test adapters.
-- [Platform #49](https://github.com/sachkov-inside/platform/issues/49) delivers IdP/Principal/session,
+- [Platform #49](https://github.com/sachkov-inside/platform/issues/49) delivers IdP/Account flow,
   [#50](https://github.com/sachkov-inside/platform/issues/50) ContentAccess/entitlement,
   [#51](https://github.com/sachkov-inside/platform/issues/51) Account/Member Profile и
   [#52](https://github.com/sachkov-inside/platform/issues/52) final convergence.

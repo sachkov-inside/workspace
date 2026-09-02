@@ -7,18 +7,19 @@
 
 - `workspace` — этот repository: общая продуктовая картина и cross-repo решения;
 - `inside-landing` — публичный landing;
-- `platform` — Membership-платформа.
+- `platform` — Membership-платформа;
+- `inside-telegram` — Telegram application и Membership Evidence provider.
 
 Актуальная карта находится в [`REPOSITORIES.md`](REPOSITORIES.md).
 Cross-repository архитектура и этапы первой версии Platform описаны в
 [`docs/specifications/platform-v1.md`](docs/specifications/platform-v1.md).
 
-Каждый repository автономен: имеет собственную историю, настройки, CI и в будущем собственный
-harness. Build, test и deploy дочернего repository не должны зависеть от наличия этого workspace
-на диске.
+Каждый repository автономен: имеет собственную историю, настройки, CI, repository-specific
+instructions и project-local harness snapshot. Build, test и deploy дочернего repository не должны
+зависеть от наличия этого workspace на диске.
 
 Общий product harness хранится в [`harness/`](harness/) и устанавливается в каждый repository
-управляемой project-local копией. Архитектура и release lifecycle описаны в
+управляемой project-local копией. Архитектура и update lifecycle описаны в
 [`HARNESS.md`](HARNESS.md), а общий путь от issue до owner-controlled merge — в
 [`WORKFLOW.md`](WORKFLOW.md).
 

@@ -16,27 +16,32 @@ The two runtime directories are repository-relative discovery links to one commi
 user-level installation, or custom prompt routing.
 
 The harness assumes no user-level skills, MCP, plugins or hooks. A repository that needs an
-integration owns its native project config and health check; credentials remain outside Git.
+integration owns its native project config and `.inside-harness/integrations.json`; `health`
+verifies its path, SHA-256, runtime ownership, verification command, and secret-variable names.
+Credentials remain outside Git and the verification command is run explicitly by the repository.
 
-The current `inside-engineering 0.3.11` package contains the Developer Pipeline, triage labels, the
-completed-parent lifecycle script, and 32 shared skills: Matt Pocock's complete stable suite of 25
-plus 7 frontend and web-development skills. Their exact sources and licensing notes are recorded in
-`packages/inside-engineering/SOURCE.md`.
+The package contains the Developer Pipeline, triage labels, the completed-parent lifecycle script,
+and two skill profiles. `core` contains Matt Pocock's complete stable suite plus
+`karpathy-guidelines`; `frontend` adds four browser/UI skills. Exact contents and sources are in
+`packages/inside-engineering/manifest.json` and `SOURCE.md`.
 
 ## Commands
 
 Run commands from the Workspace root:
 
 ```bash
-harness/bin/inside-harness install .
-harness/bin/inside-harness install repositories/platform
-harness/bin/inside-harness install repositories/landing --adopt-existing
+harness/bin/inside-harness install . --profile core
+harness/bin/inside-harness install repositories/platform --profile frontend
+harness/bin/inside-harness install repositories/landing --profile frontend --adopt-existing
 
 harness/bin/inside-harness diff repositories/platform
 harness/bin/inside-harness health repositories/platform
 harness/bin/inside-harness update repositories/platform
 harness/bin/inside-harness rollback repositories/platform --to <workspace-git-ref>
 ```
+
+After installation, `update`, `diff`, and `rollback` preserve the stored profile. Pass `--profile`
+only for the initial profile migration or an intentional profile change.
 
 `--adopt-existing` is only for the first install when a repository already contains skills with
 managed names and those directories are deliberately being brought under product-harness ownership.
@@ -64,4 +69,5 @@ release notes or downloadable assets. The current installer does not download Gi
 `update` reads the canonical Workspace package and `rollback --to` reads the selected Workspace
 Git ref.
 
-There are no automatic upstream updates, machine-local links, profiles, or complex lock files.
+There are no automatic upstream updates, machine-local links, user-level project profiles, or
+complex lock files. Repository skill profiles are explicit, versioned package selections.
