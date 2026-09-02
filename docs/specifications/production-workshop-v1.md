@@ -106,6 +106,19 @@ Branches. Верхний уровень taxonomy намеренно гибрид
 Polished interactive skill tree не входит в первый slice. До реальных веток Platform показывает
 простой ordered flow и сохранённый mastery result.
 
+Workshop имеет ровно один ordered core и 0..N Learning Branches. Core и branches ссылаются на
+Production Cases через placements, а не копируют CaseSpec. Placement задаёт ordinal и explicit
+prerequisite case IDs; отсутствие prerequisite не выводится из визуального соседства карточек.
+
+Progression вычисляется для Account:
+
+- core открывает первый Case сразу, а следующий — после completed prerequisite placements;
+- branch может быть видна до выполнения prerequisites, но locked Case явно объясняет условие;
+- Production Case считается completed, когда любой его supported Case Variant имеет `Verified`
+  Attempt, если placement отдельно не требует variant-specific outcome;
+- один Case может входить в несколько branches без повторного прохождения;
+- первый slice содержит один сразу доступный core Case и не требует generic graph engine.
+
 ### 4.2 Production Cases
 
 Базовая единица Workshop — самостоятельный многоэтапный Production Case. Вся Мастерская не живёт
@@ -173,18 +186,21 @@ logical entities имеют следующие роли:
 
 | Entity | Cardinality и invariant |
 |---|---|
-| `Workshop` | содержит 1..N Learning Branches и задаёт access/progression boundary |
+| `Workshop` | содержит ровно один ordered core и 0..N Learning Branches; задаёт access/progression boundary |
 | `LearningBranch` | содержит 1..N ordered Case memberships; Case может входить в 0..N branches |
+| `CasePlacement` | включает один Production Case в core или Learning Branch, задаёт ordinal и 0..N explicit prerequisites |
 | `ProductionCase` | stable identity; имеет 1..N immutable published versions |
 | `CaseVariant` | принадлежит одной case version и одному supported stack identity |
 | `WorkshopEntitlement` | связывает Account с bounded Workshop scope независимо от Membership |
 | `Assignment` | принадлежит одному Account и одному Case Variant; хранит starter baseline и managed repository identity |
 | `LocalEvaluationRun` | mutable learner-side run; сам по себе не является Attempt или trusted evidence |
-| `Attempt` | immutable link на Assignment, exact source revision, case/variant/evaluator versions и submitted evidence |
+| `Attempt` | immutable evaluation identity и inputs: Assignment, exact source revision и case/variant/evaluator versions |
+| `AttemptEvidence` | append-only typed evidence set одного Attempt: source snapshot, local report, Decision Record и AI defense transcript |
 | `DecisionRecord` | принадлежит Attempt и объясняет constraints, alternatives, choice и expected consequences |
 | `AIDefense` | принадлежит Attempt; содержит versioned questions/answers и advisory rubric evidence |
 | `MasteryResult` | принадлежит Attempt; хранит dimensions, feedback и completion state |
 | `SolutionReveal` | фиксирует, когда exact author solution стал доступен для Account/Case version |
+| `WorkshopProgress` | derived Account projection по placements и completed Production Cases; не является authority для Attempt result |
 
 Ключевые invariants:
 
@@ -196,6 +212,21 @@ logical entities имеют следующие роли:
   статус;
 - Membership не становится неявным permanent Workshop purchase;
 - один Case Variant не считается parity-доказательством другого стека.
+
+### 6.1 Canonical states
+
+| Entity | States и transitions |
+|---|---|
+| `Assignment` | `provisioning → ready → archived`; provisioning failure даёт `unavailable`, из которого explicit retry создаёт/восстанавливает ready Assignment без фиктивного Attempt |
+| `LocalEvaluationRun` | `running → passed`, `failed` или `aborted`; состояние learner-controlled и никогда само не завершает Case |
+| `Attempt` | `submitted → defense_pending → evaluated`; immutable inputs не меняются, AI outage оставляет resumable `defense_pending` |
+| `AIDefense` | `pending → in_progress → completed`; retry продолжает ту же versioned defense, а не создаёт новый technical Attempt |
+| `MasteryResult` | terminal `needs_work` или `verified` для одного evaluated Attempt; новый результат требует нового Attempt |
+| `SolutionReveal` | derived `locked → revealed`; обратный переход запрещён для той же Account/Case version |
+| `WorkshopProgress` | derived `locked`, `available`, `in_progress` или `completed` per placement; source authority — prerequisites и Attempt results |
+
+`AttemptEvidence` добавляется только известными typed records и не переписывает уже принятый record.
+MasteryResult может ссылаться только на evidence versions того же Attempt.
 
 ## 7. Assignment и GitHub UX
 
@@ -387,7 +418,7 @@ Workshop имеет evergreen content access и периодические seaso
 
 ### 13.1 Входит
 
-- beta Workshop Entitlement для current Membership Accounts через controlled grant;
+- beta Workshop Entitlement для Accounts с current MembershipEntitlement через controlled grant;
 - простая Workshop/case page без polished skill tree;
 - один representative multi-stage Production Case;
 - два supported Case Variants и coverage metadata;
@@ -473,6 +504,26 @@ own Workshop access, completion policy or source authority.
 Future Remote Evaluation Runtime is an execution plane, not a second product backend. It receives
 versioned evaluation work and returns evidence through a narrow contract; it does not read Platform
 database, decide entitlement or call GitHub with broad credentials.
+
+### 14.1 Architecture fitness contract
+
+Каждый implementing repository обязан поставить guardrail вместе с первым реальным seam. Shared
+specification задаёт ближайшую fitness function, но не выдумывает package path до application
+design:
+
+| Rule / seam | Owner | Closest executable fitness |
+|---|---|---|
+| Workshop access не выводится из Membership | Platform Workshop access module + ContentAccess | access-matrix test принимает explicit WorkshopEntitlement и negative fixture отклоняет один MembershipEntitlement там, где Workshop grant обязателен |
+| Attempt source authority — managed repository и exact SHA | Platform GitHub/Assignment module | integration contract принимает matching repository/SHA и negative fixtures отклоняют foreign repo, unpushed/stale SHA и report без source snapshot |
+| CaseSpec, evaluator report и AI rubric имеют совместимые versions | Platform + owning local evaluator module/repository | shared schema/conformance corpus с representative valid case и invalid version/field fixtures в full checks обоих owners |
+| AI не выдаёт access и не является единственным technical pass authority | Platform Workshop evaluation module | controlled-provider test сохраняет technical evidence при AI outage; negative fixture доказывает, что AI-only result не создаёт Verified Attempt |
+| Local evaluator не владеет completion policy | Platform Workshop module + local evaluator adapter | contract test показывает одинаковый report input для `needs_work` и `verified` policy cases; evaluator не возвращает Platform status |
+| Future remote worker не читает Platform DB и не получает broad GitHub credentials | owning Evaluation Runtime | controlled adapter test проходит через one-use snapshot/evidence contract; negative fixture пытается использовать forbidden credential/network route и обязана завершиться deny |
+| Новый deployable не делит runtime package или database с Platform | owning application repository | dependency/import guardrail и integration contract появляются в том же change, который создаёт process boundary |
+
+Последние две remote/deployable fitness functions пока не исполнимы: соответствующих processes и
+owning repositories ещё нет. Их создание является trigger, после которого prose-only rule без
+positive representative case и failing negative fixture не считается implementation-ready.
 
 ## 15. Technology-selection policy
 

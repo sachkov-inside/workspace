@@ -1,6 +1,6 @@
 # Shared Inside product context
 
-This glossary names concepts that cross the Platform and Telegram application boundary.
+This glossary names shared Inside product concepts that cross application or repository boundaries.
 Repository-specific glossaries refine local concepts without renaming these shared terms.
 
 ## Identity and Membership
@@ -90,6 +90,17 @@ _Avoid_: Production Case, repository template, course enrollment
 An immutable declaration that one Assignment state is ready for evaluation, bound to an exact
 source revision and the versions of the case and evaluator that interpret it.
 _Avoid_: Commit, push, local test run
+
+**Attempt Evidence**:
+The versioned facts collected for one Attempt, including its source revision, evaluation report,
+decision explanation and defense. Evidence records how a result was reached without becoming a
+certificate.
+_Avoid_: Local report, certificate, log bundle
+
+**Mastery Result**:
+Workshop's assessment of one Attempt across the case rubric, including whether the case is complete.
+It is not a grade, leaderboard score or external professional certification.
+_Avoid_: Certificate, grade, XP
 
 **Workshop Entitlement**:
 Platform's grant that an Account may access a Workshop scope and the Materials explicitly included
