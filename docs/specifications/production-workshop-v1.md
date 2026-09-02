@@ -114,8 +114,9 @@ Progression вычисляется для Account:
 
 - core открывает первый Case сразу, а следующий — после completed prerequisite placements;
 - branch может быть видна до выполнения prerequisites, но locked Case явно объясняет условие;
-- Production Case считается completed, когда любой его supported Case Variant имеет `Verified`
-  Attempt, если placement отдельно не требует variant-specific outcome;
+- Production Case считается completed, когда любой его supported Case Variant имеет evaluated
+  Attempt с `MasteryResult.status=verified`, если placement отдельно не требует variant-specific
+  outcome;
 - один Case может входить в несколько branches без повторного прохождения;
 - первый slice содержит один сразу доступный core Case и не требует generic graph engine.
 
@@ -149,7 +150,7 @@ Editorial bias — brownfield-first: участник чаще получает 
   приёмки ecosystem-specific поведения;
 - варианты сохраняют общий learning outcome и observable contract, но starter code, build adapter,
   diagnostics и idiomatic solution могут различаться;
-- первый vertical slice имеет два verified stack variants;
+- первый vertical slice имеет два supported stack variants;
 - точные первые два стека выбираются вместе с representative case, а не заранее для всего
   каталога;
 - отсутствие варианта не блокирует публикацию кейса на уже проверенном стеке.
@@ -190,6 +191,7 @@ logical entities имеют следующие роли:
 | `LearningBranch` | содержит 1..N ordered Case memberships; Case может входить в 0..N branches |
 | `CasePlacement` | включает один Production Case в core или Learning Branch, задаёт ordinal и 0..N explicit prerequisites |
 | `ProductionCase` | stable identity; имеет 1..N immutable published versions |
+| `ProductionCaseVersion` | immutable после publish CaseSpec snapshot; ровно одна current published version используется для новых Assignments |
 | `CaseVariant` | принадлежит одной case version и одному supported stack identity |
 | `WorkshopEntitlement` | связывает Account с bounded Workshop scope независимо от Membership |
 | `Assignment` | принадлежит одному Account и одному Case Variant; хранит starter baseline и managed repository identity |
@@ -217,6 +219,9 @@ logical entities имеют следующие роли:
 
 | Entity | States и transitions |
 |---|---|
+| `ProductionCase` | `draft → published → retired`; retired Case не выдаёт новые Assignments, но сохраняет Materials, history и results |
+| `ProductionCaseVersion` | `draft → published → withdrawn`; published snapshot immutable, новая версия supersede-ит current, withdrawn закрывает новые starts без удаления historical Attempts |
+| `CaseVariant` | `draft → available → retired`; available Variant принадлежит published CaseVersion и проходит declared conformance |
 | `Assignment` | `provisioning → ready → archived`; provisioning failure даёт `unavailable`, из которого explicit retry создаёт/восстанавливает ready Assignment без фиктивного Attempt |
 | `LocalEvaluationRun` | `running → passed`, `failed` или `aborted`; состояние learner-controlled и никогда само не завершает Case |
 | `Attempt` | `submitted → defense_pending → evaluated`; immutable inputs не меняются, AI outage оставляет resumable `defense_pending` |
@@ -232,8 +237,9 @@ MasteryResult может ссылаться только на evidence versions 
 
 ### 7.1 Managed assignment
 
-Первый slice использует dedicated GitHub organization и private repository per Assignment.
-GitHub остаётся source host и transport, а не grader runtime.
+Первый slice использует существующую managed GitHub organization `sachkov-inside` и private
+repository per Assignment. Отдельная organization не создаётся без обновления `REPOSITORIES.md` и
+нового owner decision. GitHub остаётся source host и transport, а не grader runtime.
 
 Happy path:
 
@@ -299,10 +305,10 @@ infrastructure files только когда это входит в learning out
 Поэтому nonce, client signature или structured schema могут предотвратить случайный replay, но не
 доказывают честность выполнения.
 
-Owner decision для v1: Platform доверяет принятому local report и использует один learner-facing
-статус `Verified`. Этот статус означает прохождение contract Мастерской, а не независимую
-adversarial certification или employer-facing proof. Public portfolio/certificate не входит в
-первый slice.
+Owner decision для v1: Platform доверяет принятому local report. Единственный learner-facing
+display label `Verified` отображает только `MasteryResult.status=verified`. Он означает прохождение
+contract Мастерской, а не независимую adversarial certification или employer-facing proof. Public
+portfolio/certificate не входит в первый slice.
 
 Внутри Platform всё равно сохраняются:
 
@@ -324,7 +330,8 @@ immutable; повторная работа происходит через но�
 
 ## 9. Multilayer evaluation и result
 
-Case считается completed и получает один статус `Verified`, когда выполнены все условия:
+Attempt получает `MasteryResult.status=verified`, а Case становится completed и показывает label
+`Verified`, когда выполнены все условия:
 
 1. accepted structured local report сообщает pass по required public scenarios;
 2. Platform получила immutable source snapshot exact pushed commit;
@@ -398,7 +405,7 @@ Qualifying attempt требует:
 - заполненный Decision Record;
 - выполненный public local evaluation flow, даже если required scenarios ещё не прошли.
 
-Platform фиксирует `solutionRevealedAt`; один итоговый `Verified` status не должен уничтожать эту
+Platform фиксирует `solutionRevealedAt`; `MasteryResult.status=verified` не должен уничтожать эту
 историю. Exact solution нельзя получить через direct Material URL без Workshop access/reveal
 decision.
 
@@ -430,7 +437,8 @@ Workshop имеет evergreen content access и периодические seaso
 - unlimited versioned Attempts с operational limits;
 - Decision Record;
 - adaptive AI defense и advisory feedback;
-- mastery rubric и один learner-facing `Verified` completion status;
+- mastery rubric и один learner-facing display label `Verified` для
+  `MasteryResult.status=verified`;
 - exact solution reveal после qualifying attempt;
 - Telegram handoff для season/community.
 
@@ -460,7 +468,7 @@ Slice принят, когда один beta Account без ручного ис�
 6. пушит решение и видит совпадающий HEAD в Platform;
 7. отправляет structured attempt;
 8. заполняет Decision Record и проходит adaptive AI defense;
-9. получает mastery feedback и `Verified` после всех required layers;
+9. получает mastery feedback и label `Verified` после всех required layers;
 10. открывает author solution и может создать следующую attempt.
 
 Negative acceptance покрывает mismatched repository/SHA, unsupported Docker, stale evaluator,
@@ -516,8 +524,8 @@ design:
 | Workshop access не выводится из Membership | Platform Workshop access module + ContentAccess | access-matrix test принимает explicit WorkshopEntitlement и negative fixture отклоняет один MembershipEntitlement там, где Workshop grant обязателен |
 | Attempt source authority — managed repository и exact SHA | Platform GitHub/Assignment module | integration contract принимает matching repository/SHA и negative fixtures отклоняют foreign repo, unpushed/stale SHA и report без source snapshot |
 | CaseSpec, evaluator report и AI rubric имеют совместимые versions | Platform + owning local evaluator module/repository | shared schema/conformance corpus с representative valid case и invalid version/field fixtures в full checks обоих owners |
-| AI не выдаёт access и не является единственным technical pass authority | Platform Workshop evaluation module | controlled-provider test сохраняет technical evidence при AI outage; negative fixture доказывает, что AI-only result не создаёт Verified Attempt |
-| Local evaluator не владеет completion policy | Platform Workshop module + local evaluator adapter | contract test показывает одинаковый report input для `needs_work` и `verified` policy cases; evaluator не возвращает Platform status |
+| AI не выдаёт access и не является единственным technical pass authority | Platform Workshop evaluation module | controlled-provider test сохраняет technical evidence при AI outage; negative fixture доказывает, что AI-only result не создаёт `MasteryResult.status=verified` |
+| Local evaluator не владеет completion policy | Platform Workshop module + local evaluator adapter | valid fixture принимает report без Platform status; failing negative fixture добавляет запрещённое поле `platformStatus` и обязана быть отклонена schema validation |
 | Future remote worker не читает Platform DB и не получает broad GitHub credentials | owning Evaluation Runtime | controlled adapter test проходит через one-use snapshot/evidence contract; negative fixture пытается использовать forbidden credential/network route и обязана завершиться deny |
 | Новый deployable не делит runtime package или database с Platform | owning application repository | dependency/import guardrail и integration contract появляются в том же change, который создаёт process boundary |
 
@@ -653,12 +661,14 @@ Go/no-go расширения каталога принимается по фа�
    graph в `sachkov-inside/platform`.
 4. **Platform — vertical tickets.** Поставлять user-visible slices, а enabling GitHub/CLI work
    связывать с ближайшим convergence ticket.
-5. **Owning repository — CLI/evaluator ADR.** Только prototype решает, остаётся ли evaluator в
-   Platform repository или получает отдельный repository, и выбирает Go либо fallback.
+5. **Platform — CLI/evaluator ADR.** До accepted separation evaluator принадлежит Platform.
+   Prototype решает, остаётся ли он там или получает отдельный repository, и выбирает Go либо
+   fallback; при separation authority переносится один раз вместе с contract.
 6. **Workspace — remote evaluation specification.** Создаётся после local beta и threat/cost data;
    cross-repository parent нужен только если появляется отдельный runtime owner.
-7. **Commercial release specification.** Price, Edition, checkout, support, retention, production
-   infrastructure и public claims получают отдельный owner-approved gate.
+7. **Workspace — commercial release specification.** Price, Edition, checkout, support, retention,
+   production infrastructure и public claims получают отдельный cross-product owner-approved gate;
+   implementation tickets маршрутизируются в owning application repositories.
 
 ## 21. Open decisions и triggers
 
