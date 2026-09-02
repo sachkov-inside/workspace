@@ -1,6 +1,6 @@
 # Sachkov Inside — продуктовый brief
 
-Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-08-21. Документ
+Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-09-02. Документ
 отделяет ядро Membership от гипотез и открытых решений и служит общей исходной точкой для
 позиционирования, визуального стиля, лендинга, Telegram-запуска и контентного портфеля.
 
@@ -76,7 +76,9 @@ Inside не рассчитан на человека, которому снач�
 - связанные артефакты: схемы, документы решений, код, дизайн и другие материалы, которые помогают
   воспроизвести ход мысли, а не только прочитать вывод.
 
-Полные материалы и связанные артефакты остаются внутри Membership. В публичных каналах могут
+Полные материалы и связанные артефакты остаются внутри Membership. Принятая спецификация отдельного
+Inside-продукта может включить bounded access к явно связанным Materials, но такой grant не
+открывает остальную Membership и не становится MembershipEntitlement. В публичных каналах могут
 выходить тизеры и отдельные выводы, но не полная закрытая единица.
 
 ### Флагманская build-series
@@ -233,6 +235,9 @@ production-инциденты внутрь материалов не попад�
   bootstrap.
 - GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions
   2026-08-15 и acceptance этого master-документа.
+- [Production Workshop specification](../docs/specifications/production-workshop-v1.md) и
+  Workspace [#98](https://github.com/sachkov-inside/workspace/issues/98) — отдельная коммерческая
+  граница Workshop и bounded access к явно включённым Materials без доступа ко всей Membership.
 
 Новые GitHub issues по открытым решениям создаются только при начале реальной работы по Developer
 Pipeline; до этого подтверждённый контекст и открытые решения остаются в versioned product
