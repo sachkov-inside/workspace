@@ -94,7 +94,12 @@ class HarnessCliTest(unittest.TestCase):
         implementation = (package / "skills/implement/SKILL.md").read_text()
         adr_format = (package / "skills/domain-modeling/ADR-FORMAT.md").read_text()
 
-        for section in ("Review closure", "Architecture fitness", "Pruning"):
+        for section in (
+            "Review closure",
+            "Pull request CI closure",
+            "Architecture fitness",
+            "Pruning",
+        ):
             self.assertEqual(workflow.count(f"### {section}"), 1)
             self.assertIn(f"`{section}`", implementation)
         self.assertIn("repository-root `WORKFLOW.md`", implementation)
