@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",

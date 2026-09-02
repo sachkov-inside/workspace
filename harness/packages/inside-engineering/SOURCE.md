@@ -1,4 +1,4 @@
-# inside-engineering 0.3.11
+# inside-engineering 0.3.12
 
 This package contains 30 skills selected through repository profiles:
 
@@ -31,8 +31,8 @@ their recurring branches are already covered by this smaller set.
 
 ## Inside adaptations to the Matt base
 
-- `implement` closes every review finding, repeats review after fixes, and promotes only reusable
-  learning to a durable authority.
+- `implement` closes every review finding, repeats review after fixes, owns current-head pull
+  request CI through a terminal result, and promotes only reusable learning to a durable authority.
 - `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
   deprecation or supersession.
 - Shared delivery routing includes the autonomous `inside-telegram` application repository.
