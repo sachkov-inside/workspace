@@ -190,8 +190,8 @@ logical entities имеют следующие роли:
 | `Workshop` | содержит ровно один ordered core и 0..N Learning Branches; задаёт access/progression boundary |
 | `LearningBranch` | содержит 1..N ordered Case memberships; Case может входить в 0..N branches |
 | `CasePlacement` | включает один Production Case в core или Learning Branch, задаёт ordinal и 0..N explicit prerequisites |
-| `ProductionCase` | stable identity; имеет 1..N immutable published versions |
-| `ProductionCaseVersion` | immutable после publish CaseSpec snapshot; ровно одна current published version используется для новых Assignments |
+| `ProductionCase` | stable identity; имеет 0..N historical versions; published/startable Case имеет ровно одну current published version |
+| `ProductionCaseVersion` | immutable после publish CaseSpec snapshot; только current version published/startable Case используется для новых Assignments |
 | `CaseVariant` | принадлежит одной case version и одному supported stack identity |
 | `WorkshopEntitlement` | связывает Account с bounded Workshop scope независимо от Membership |
 | `Assignment` | принадлежит одному Account и одному Case Variant; хранит starter baseline и managed repository identity |
