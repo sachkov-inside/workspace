@@ -14,7 +14,7 @@ DELIVERY_DEADLINE_SECONDS = int(os.environ["DELIVERY_DEADLINE_SECONDS"])
 STARTED = time.monotonic()
 
 
-def write(status, code=None, message=None):
+def finish_scenario(status, code=None, message=None):
     result = {
         "id": "temporary-partner-failure",
         "status": status,
@@ -46,15 +46,15 @@ for index in range(BURST_EVENTS):
         with urllib.request.urlopen(request, timeout=1) as response:
             acceptance_ms = round((time.monotonic() - accepted_at) * 1000)
             if response.status != 202:
-                write("failed", "order_not_accepted", f"expected HTTP 202, got {response.status}")
+                finish_scenario("failed", "order_not_accepted", f"expected HTTP 202, got {response.status}")
             if acceptance_ms > 250:
-                write("failed", "order_flow_blocked", f"acceptance took {acceptance_ms}ms, limit is 250ms")
+                finish_scenario("failed", "order_flow_blocked", f"acceptance took {acceptance_ms}ms, limit is 250ms")
     except (TimeoutError, urllib.error.URLError) as error:
-        write("failed", "candidate_unreachable", str(error))
+        finish_scenario("failed", "candidate_unreachable", str(error))
 
 burst_seconds = time.monotonic() - burst_started
 if burst_seconds > BURST_WINDOW_SECONDS:
-    write("failed", "burst_window_exceeded", f"accepted burst in {burst_seconds:.3f}s, limit is {BURST_WINDOW_SECONDS}s")
+    finish_scenario("failed", "burst_window_exceeded", f"accepted burst in {burst_seconds:.3f}s, limit is {BURST_WINDOW_SECONDS}s")
 
 deadline = time.monotonic() + DELIVERY_DEADLINE_SECONDS
 last_state = None
@@ -63,12 +63,12 @@ while time.monotonic() < deadline:
         last_state = json.load(response)
     if last_state["deliveredCount"] == BURST_EVENTS:
         if last_state["attempts"] != BURST_EVENTS + 1:
-            write("failed", "retry_contract_mismatch", f"expected {BURST_EVENTS + 1} attempts, got {last_state['attempts']}")
+            finish_scenario("failed", "retry_contract_mismatch", f"expected {BURST_EVENTS + 1} attempts, got {last_state['attempts']}")
         if last_state["maxConcurrent"] > MAX_CONCURRENT:
-            write("failed", "unbounded_concurrency", f"observed {last_state['maxConcurrent']} concurrent partner calls")
-        write("passed")
+            finish_scenario("failed", "unbounded_concurrency", f"observed {last_state['maxConcurrent']} concurrent partner calls")
+        finish_scenario("passed")
     if last_state["lastStatus"] == 401:
-        write("failed", "signature_rejected", "partner rejected the HMAC signature with HTTP 401")
+        finish_scenario("failed", "signature_rejected", "partner rejected the HMAC signature with HTTP 401")
     time.sleep(0.1)
 
-write("failed", "delivery_timeout", f"delivery did not complete; last partner state: {last_state}")
+finish_scenario("failed", "delivery_timeout", f"delivery did not complete; last partner state: {last_state}")

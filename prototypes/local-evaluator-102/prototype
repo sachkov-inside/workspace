@@ -39,7 +39,6 @@ run_language() {
 
   node "${prototype_root}/platform/source-snapshot-stub.mts" \
     --assignment "${prototype_root}/assignment.json" \
-    --sha "$(git -C "${repository_root}" rev-parse HEAD)" \
     --output "${snapshot_path}"
   node "${prototype_root}/platform/ingress.mts" \
     "${report_path}" \

@@ -72,6 +72,7 @@
         schemaVersion: 'inside.evaluation-report.v1',
         caseVersion: expectedVersion,
         commitSha: expectedSha,
+        attemptDraftId: 'attempt-draft-prototype-102',
         verdict: 'passed',
         platformStatus: null,
         ...overrides,
@@ -82,6 +83,7 @@
         if (report.platformStatus) return { status: 'rejected', reason: 'forbidden_report_field' };
         if (report.schemaVersion !== 'inside.evaluation-report.v1') return { status: 'rejected', reason: 'incompatible_report_version' };
         if (report.caseVersion !== expectedVersion) return { status: 'rejected', reason: 'incompatible_case_contract' };
+        if (report.attemptDraftId !== 'attempt-draft-prototype-102') return { status: 'rejected', reason: 'attempt_draft_mismatch' };
         if (report.commitSha !== snapshot.commitSha) return { status: 'rejected', reason: 'stale_source_revision' };
         return { status: 'accepted', reason: 'Evidence связано с exact source snapshot' };
       }
@@ -93,6 +95,7 @@
           case 'MALFORMED_REPORT': return { ...state, report: makeReport({ schemaVersion: null }), decision: initial().decision, lastChange: 'Report лишён schema version' };
           case 'INCOMPATIBLE_REPORT': return { ...state, report: makeReport({ schemaVersion: 'inside.evaluation-report.v2' }), decision: initial().decision, lastChange: 'Report использует неизвестную schema' };
           case 'STALE_REPORT': return { ...state, report: makeReport({ commitSha: 'b'.repeat(40) }), decision: initial().decision, lastChange: 'Report относится к другому commit' };
+          case 'WRONG_DRAFT': return { ...state, report: makeReport({ attemptDraftId: 'another-draft' }), decision: initial().decision, lastChange: 'Report относится к другому attempt draft' };
           case 'FORBIDDEN_STATUS': return { ...state, report: makeReport({ platformStatus: 'verified' }), decision: initial().decision, lastChange: 'Evaluator попытался назначить Verified' };
           case 'SNAPSHOT': return { ...state, snapshot: { commitSha: expectedSha }, decision: initial().decision, lastChange: 'GitHub adapter дал source snapshot' };
           case 'SUBMIT': return { ...state, decision: decide(state.report, state.snapshot), lastChange: 'Platform ingress выполнил validation' };
@@ -109,6 +112,7 @@
       MALFORMED_REPORT: 'Без schema',
       INCOMPATIBLE_REPORT: 'Version v2',
       STALE_REPORT: 'Другой SHA',
+      WRONG_DRAFT: 'Другой attempt draft',
       FORBIDDEN_STATUS: 'Присвоить Verified',
       SNAPSHOT: 'Получить snapshot',
       SUBMIT: 'Отправить в ingress',
@@ -118,6 +122,7 @@
       { title: 'Happy path', description: 'Report и independently supplied snapshot совпадают по CaseSpec и SHA.', steps: ['VALID_REPORT', 'SNAPSHOT', 'SUBMIT'] },
       { title: 'Malformed', description: 'Ingress не принимает report без поддерживаемой schema.', steps: ['MALFORMED_REPORT', 'SNAPSHOT', 'SUBMIT'] },
       { title: 'Stale commit', description: 'Local report нельзя перенести на другой source snapshot.', steps: ['STALE_REPORT', 'SNAPSHOT', 'SUBMIT'] },
+      { title: 'Wrong draft', description: 'Report нельзя повторно использовать для другого attempt draft.', steps: ['WRONG_DRAFT', 'SNAPSHOT', 'SUBMIT'] },
       { title: 'Authority violation', description: 'Evaluator не вправе выставлять learner-facing Platform status.', steps: ['FORBIDDEN_STATUS', 'SNAPSHOT', 'SUBMIT'] },
     ];
 
@@ -142,6 +147,7 @@
         field('Report schema', report?.schemaVersion ?? '—'),
         field('Case version', report?.caseVersion ?? '—'),
         field('Report commit', report?.commitSha ?? '—'),
+        field('Attempt draft', report?.attemptDraftId ?? '—'),
         field('Source snapshot commit', state.snapshot?.commitSha ?? '—'),
         field('Evaluator requests status', report?.platformStatus ?? 'none'),
         field('Ingress decision', `${state.decision.status}: ${state.decision.reason}`, decisionClass),

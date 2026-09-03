@@ -26,8 +26,10 @@ type CaseSpec = {
 type Assignment = {
   schemaVersion: string
   id: string
+  attemptDraftId: string
   repositoryId: string
   remoteUrl: string
+  sourceRef: string
   caseId: string
   caseVersion: string
   variantId: string
@@ -53,6 +55,14 @@ function isSha(value: string): boolean {
   return /^[0-9a-f]{40}$/.test(value)
 }
 
+function remoteRefSha(cwd: string, remoteUrl: string, sourceRef: string): string {
+  const fields = commandText(cwd, 'git', ['ls-remote', remoteUrl, sourceRef]).split(/\s+/)
+  if (fields.length !== 2 || fields[1] !== sourceRef || !isSha(fields[0])) {
+    fail(`remote ref ${sourceRef} is missing or invalid`)
+  }
+  return fields[0]
+}
+
 function validateInputs(spec: CaseSpec, assignment: Assignment): void {
   if (spec.schemaVersion !== CASE_SCHEMA) fail(`incompatible CaseSpec schema ${spec.schemaVersion}`)
   if (assignment.schemaVersion !== ASSIGNMENT_SCHEMA) {
@@ -63,6 +73,9 @@ function validateInputs(spec: CaseSpec, assignment: Assignment): void {
   }
   if (assignment.caseId !== spec.case.id || assignment.caseVersion !== spec.case.version) {
     fail('assignment does not match the CaseSpec identity/version')
+  }
+  if (!assignment.attemptDraftId || !assignment.sourceRef) {
+    fail('assignment is missing attempt draft or source ref')
   }
   if (!spec.variants.some((variant) => variant.id === assignment.variantId)) {
     fail(`assignment variant ${assignment.variantId} is not supported by the CaseSpec`)
@@ -156,12 +169,17 @@ function run(args: string[]): void {
   if (remoteUrl !== assignment.remoteUrl) {
     fail(`preflight repository mismatch: expected ${assignment.remoteUrl}, got ${remoteUrl}`)
   }
+  const pushedSha = remoteRefSha(repositoryRoot, assignment.remoteUrl, assignment.sourceRef)
+  if (pushedSha !== commitSha) {
+    fail(`preflight unpushed HEAD: local ${commitSha} differs from ${pushedSha} at ${assignment.sourceRef}`)
+  }
 
   const scenario = runScenario(root, mode)
   const report = {
     schemaVersion: REPORT_SCHEMA,
     case: { id: spec.case.id, version: spec.case.version },
     variantId: assignment.variantId,
+    attemptDraftId: assignment.attemptDraftId,
     evaluator: {
       id: 'inside-local-evaluator',
       version: EVALUATOR_VERSION,

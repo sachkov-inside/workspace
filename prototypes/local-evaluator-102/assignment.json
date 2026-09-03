@@ -1,8 +1,10 @@
 {
   "schemaVersion": "inside.assignment.v1",
   "id": "assignment-prototype-102",
+  "attemptDraftId": "attempt-draft-prototype-102",
   "repositoryId": "fixture:workspace-as-assignment",
   "remoteUrl": "git@github.com:sachkov-inside/workspace.git",
+  "sourceRef": "refs/heads/prototype/102-local-evaluator",
   "caseId": "partner-webhooks",
   "caseVersion": "1.0.0-prototype.1",
   "variantId": "python-3.14-fastapi"

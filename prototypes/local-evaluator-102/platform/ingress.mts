@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 type JsonObject = Record<string, unknown>
 type IngressResult =
-  | { accepted: true; assignmentId: string; commitSha: string; verdict: string }
+  | { accepted: true; assignmentId: string; attemptDraftId: string; commitSha: string; verdict: string }
   | { accepted: false; rejection: { code: string; message: string } }
 
 class Rejection extends Error {
@@ -46,10 +46,10 @@ function dateTime(value: unknown, path: string): string {
   return parsed
 }
 
-function validateScenario(value: unknown, index: number): 'passed' | 'failed' {
+function validateScenario(value: unknown, index: number): { id: string; status: 'passed' | 'failed' } {
   const scenario = object(value, `scenarios[${index}]`)
   exactKeys(scenario, ['id', 'status', 'durationMs', 'diagnostic'], `scenarios[${index}]`)
-  string(scenario.id, `scenarios[${index}].id`)
+  const id = string(scenario.id, `scenarios[${index}].id`)
   if (scenario.status !== 'passed' && scenario.status !== 'failed') {
     reject('malformed_report', `scenarios[${index}].status is invalid`)
   }
@@ -62,7 +62,7 @@ function validateScenario(value: unknown, index: number): 'passed' | 'failed' {
     string(diagnostic.code, `scenarios[${index}].diagnostic.code`)
     string(diagnostic.message, `scenarios[${index}].diagnostic.message`)
   }
-  return scenario.status
+  return { id, status: scenario.status }
 }
 
 export function validateIngress(
@@ -78,7 +78,7 @@ export function validateIngress(
     }
     exactKeys(
       report,
-      ['schemaVersion', 'case', 'variantId', 'evaluator', 'assignment', 'source', 'execution', 'scenarios', 'verdict'],
+      ['schemaVersion', 'case', 'variantId', 'attemptDraftId', 'evaluator', 'assignment', 'source', 'execution', 'scenarios', 'verdict'],
       'report',
     )
     if (report.schemaVersion !== 'inside.evaluation-report.v1') {
@@ -117,11 +117,11 @@ export function validateIngress(
     if (!Array.isArray(report.scenarios) || report.scenarios.length === 0) {
       reject('malformed_report', 'report.scenarios must not be empty')
     }
-    const statuses = report.scenarios.map(validateScenario)
+    const scenarios = report.scenarios.map(validateScenario)
     if (report.verdict !== 'passed' && report.verdict !== 'failed') {
       reject('malformed_report', 'report.verdict is invalid')
     }
-    const derivedVerdict = statuses.every((status) => status === 'passed') ? 'passed' : 'failed'
+    const derivedVerdict = scenarios.every((scenario) => scenario.status === 'passed') ? 'passed' : 'failed'
     if (report.verdict !== derivedVerdict) reject('malformed_report', 'report verdict contradicts scenarios')
 
     const caseSpec = object(caseSpecInput, 'caseSpec')
@@ -131,6 +131,11 @@ export function validateIngress(
     const expectedCase = object(caseSpec.case, 'caseSpec.case')
     if (reportCase.id !== expectedCase.id || reportCase.version !== expectedCase.version) {
       reject('incompatible_case_contract', 'report references a different CaseSpec identity/version')
+    }
+    const publicScenario = object(caseSpec.publicScenario, 'caseSpec.publicScenario')
+    const requiredScenarioId = string(publicScenario.id, 'caseSpec.publicScenario.id')
+    if (scenarios.length !== 1 || scenarios[0].id !== requiredScenarioId) {
+      reject('missing_required_scenario', `report must contain required public scenario ${requiredScenarioId}`)
     }
 
     const assignment = object(assignmentInput, 'assignment')
@@ -145,6 +150,10 @@ export function validateIngress(
       reportCase.version !== assignment.caseVersion
     ) {
       reject('assignment_mismatch', 'report does not belong to this assignment')
+    }
+    const attemptDraftId = string(report.attemptDraftId, 'report.attemptDraftId')
+    if (attemptDraftId !== assignment.attemptDraftId) {
+      reject('attempt_draft_mismatch', 'report does not belong to the current attempt draft')
     }
 
     const snapshot = object(snapshotInput, 'sourceSnapshot')
@@ -172,6 +181,7 @@ export function validateIngress(
     return {
       accepted: true,
       assignmentId: string(assignment.id, 'assignment.id'),
+      attemptDraftId,
       commitSha: reportSha,
       verdict: report.verdict,
     }

@@ -65,6 +65,25 @@ const checks: Array<[string, string, () => [unknown, unknown]]> = [
       return [changed, snapshot]
     },
   ],
+  [
+    'missing required public scenario',
+    'missing_required_scenario',
+    () => {
+      const changed = clone(report) as Record<string, unknown>
+      const scenarios = changed.scenarios as Array<Record<string, unknown>>
+      scenarios[0].id = 'fabricated-passing-scenario'
+      return [changed, snapshot]
+    },
+  ],
+  [
+    'wrong attempt draft',
+    'attempt_draft_mismatch',
+    () => {
+      const changed = clone(report) as Record<string, unknown>
+      changed.attemptDraftId = 'another-attempt-draft'
+      return [changed, snapshot]
+    },
+  ],
 ]
 
 for (const [name, expectedCode, mutate] of checks) {

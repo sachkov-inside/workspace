@@ -8,6 +8,7 @@
     "schemaVersion",
     "case",
     "variantId",
+    "attemptDraftId",
     "evaluator",
     "assignment",
     "source",
@@ -27,6 +28,7 @@
       }
     },
     "variantId": { "type": "string", "minLength": 1 },
+    "attemptDraftId": { "type": "string", "minLength": 1 },
     "evaluator": {
       "type": "object",
       "additionalProperties": false,

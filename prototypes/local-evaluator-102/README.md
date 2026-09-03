@@ -16,8 +16,8 @@ Webhooks, выпустить versioned report для exact local commit и пе�
 **Local-first путь технически осуществим. Для evaluator/CLI рекомендуется Go.** Один и тот же
 Docker scenario прошёл через реализации на Go и TypeScript, а один ingress contract принял оба
 report. Go при этом даёт нативный dependency-free artifact около 2.3 MB и median cold startup
-2.669 ms. TypeScript archive занимает лишь 2,974 bytes, но требует установленный Node; использованный
-Node executable занимает 112,928,848 bytes, а median startup равен 54.409 ms.
+2.954 ms. TypeScript archive занимает лишь 3,210 bytes, но требует установленный Node; использованный
+Node executable занимает 112,928,848 bytes, а median startup равен 54.703 ms.
 
 Язык не создаёт новый service или repository. Начальный owner — Platform; Go evaluator может жить
 как отдельно собираемый Platform-owned Module. Выделение repository возвращается на owner decision
@@ -29,7 +29,8 @@ ELF, но не был исполнен — arm64 Docker host не имеет x86
 
 ## Запуск
 
-Prerequisites: Git checkout с `origin`, Go 1.24+, Node 22.18+ и работающие Docker + Compose.
+Prerequisites: Git checkout с запушенным Assignment ref, Go 1.24+, Node 22.18+ и работающие
+Docker + Compose.
 
 Полный рекомендуемый flow выполняется одной командой:
 
@@ -61,7 +62,7 @@ external repository/GitHub App не создаётся.
 
 ```text
 Assignment checkout
-  │ CaseSpec + local git HEAD
+  │ CaseSpec + attempt draft + local/pushed git HEAD
   ▼
 LocalEvaluator Module ── Docker public scenario ──► EvaluationReport
                                                         │
@@ -78,10 +79,10 @@ Platform SourceSnapshotProvider ── SourceSnapshot ──────┤
   mapping скрыты в его implementation.
 - Wire seam между local machine и Platform — strict `inside.evaluation-report.v1`. Он не содержит
   Platform status, access decision или GitHub credential.
-- GitHub seam живёт на стороне Platform как `SourceSnapshotProvider`. В prototype есть только
-  `FixtureSourceSnapshotProvider`; production GitHub App adapter должен выдать тот же
-  `inside.source-snapshot.v1` после скачивания exact SHA. Один fixture adapter делает seam пока
-  provisional, но уже не позволяет протащить GitHub dependency в evaluator runtime.
+- GitHub seam живёт на стороне Platform как `SourceSnapshotProvider`. Prototype
+  `GitRemoteSourceSnapshotStub` независимо читает exact pushed ref; production GitHub App adapter
+  должен выдать тот же `inside.source-snapshot.v1` после скачивания exact SHA. Evaluator использует
+  только Git transport для pushed-HEAD preflight и не содержит GitHub API/App integration.
 - `Ingress` имеет узкий Interface: report + independently obtained snapshot + expected CaseSpec +
   Assignment. Его implementation локализует schema, version, assignment и SHA checks.
 
@@ -138,6 +139,8 @@ Framework parity этим prototype не доказана: fixture написа�
 - report для другого SHA отклонён как `stale_source_revision`;
 - local field `platformStatus=verified` отклонён как `forbidden_report_field`;
 - другая CaseSpec version отклонена как `incompatible_case_contract`.
+- подставной passing scenario отклонён как `missing_required_scenario`;
+- report другого attempt draft отклонён как `attempt_draft_mismatch`.
 
 Successful reports на одном warmed Docker cache:
 
@@ -157,9 +160,9 @@ Startup — 50 отдельных invocations команды `version` посл�
 | Criterion | Go | TypeScript |
 |---|---|---|
 | Distribution | Native binary, no runtime | Small source archive + Node runtime |
-| macOS arm64 artifact | 2,300,162 bytes, executed | 2,974-byte archive, executed through 112,928,848-byte Node binary |
-| Linux amd64 artifact | 2,429,090-byte static ELF, cross-built; execution unconfirmed | Architecture-neutral source; Node/amd64 execution unconfirmed |
-| Cold startup p50 / p95 | 2.669 / 4.860 ms | 54.409 / 58.850 ms |
+| macOS arm64 artifact | 2,300,258 bytes, executed | 3,210-byte archive, executed through 112,928,848-byte Node binary |
+| Linux amd64 artifact | 2,437,282-byte static ELF, cross-built; execution unconfirmed | Architecture-neutral source; Node/amd64 execution unconfirmed |
+| Cold startup p50 / p95 | 2.954 / 4.225 ms | 54.703 / 62.815 ms |
 | Docker/Git fit | Standard library process control is sufficient | Node standard library is sufficient |
 | Protocol testability | Same shared fixtures and ingress checks | Same shared fixtures and ingress checks |
 | Platform ecosystem fit | Separate build toolchain inside Platform ownership | Same language as Platform, simpler contributor context |
@@ -186,12 +189,14 @@ toolchain. Current evidence does not justify that trade.
 
 - Local report is learner-controlled evidence. HMAC in the scenario authenticates the learner's
   webhook payload to the partner fixture; it does **not** authenticate the evaluator report.
-- Local Git remote and `HEAD` checks prevent common mistakes, not fraud. Only Platform's GitHub App
-  adapter can establish repository ownership and fetch the exact source snapshot.
+- Evaluator требует, чтобы local HEAD совпадал с Assignment ref на remote. Это предотвращает
+  случайную отправку unpushed commit, но не доказывает честность local report. Только Platform's
+  GitHub App adapter может установить repository ownership и скачать exact source snapshot.
 - The fixture snapshot digest is synthetic and proves contract wiring only. Production must hash
   the fetched archive and retain its provenance.
-- Evaluator receives no Platform/GitHub secret and never invokes GitHub. Participant code runs only
-  in the participant's local Docker topology.
+- Evaluator не получает Platform/GitHub secret и не вызывает GitHub API; read-only `git ls-remote`
+  использует обычный Assignment transport. Participant code работает только в локальной Docker
+  topology участника.
 - Raw Compose logs are not inserted into the report. Structured diagnostic fields are bounded;
   production still needs explicit size limits and secret redaction before accepting diagnostics.
 - Ingress accepts a structurally valid failed local report as Attempt evidence, but `Verified`
@@ -200,8 +205,9 @@ toolchain. Current evidence does not justify that trade.
 ## Known limits and deletion test
 
 - Linux amd64 and Windows runtime execution are not confirmed.
-- GitHub App permissions, archive download, device authentication and one-time attempt draft are
-  represented only by contracts/fixtures.
+- GitHub App permissions, archive download и device authentication представлены только
+  contracts/fixtures. Attempt draft identity связан с report, но one-time consumption/replay
+  semantics требуют Platform persistence и этим prototype не доказаны.
 - No C# or FastAPI starter solution is implemented; cross-variant conformance remains future
   authoring work.
 - No cryptographic honesty claim, remote hidden scenario, persistence, production service or

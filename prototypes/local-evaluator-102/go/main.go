@@ -51,13 +51,15 @@ type caseVariant struct {
 }
 
 type assignment struct {
-	SchemaVersion string `json:"schemaVersion"`
-	ID            string `json:"id"`
-	RepositoryID  string `json:"repositoryId"`
-	RemoteURL     string `json:"remoteUrl"`
-	CaseID        string `json:"caseId"`
-	CaseVersion   string `json:"caseVersion"`
-	VariantID     string `json:"variantId"`
+	SchemaVersion  string `json:"schemaVersion"`
+	ID             string `json:"id"`
+	AttemptDraftID string `json:"attemptDraftId"`
+	RepositoryID   string `json:"repositoryId"`
+	RemoteURL      string `json:"remoteUrl"`
+	SourceRef      string `json:"sourceRef"`
+	CaseID         string `json:"caseId"`
+	CaseVersion    string `json:"caseVersion"`
+	VariantID      string `json:"variantId"`
 }
 
 type diagnostic struct {
@@ -78,8 +80,9 @@ type report struct {
 		ID      string `json:"id"`
 		Version string `json:"version"`
 	} `json:"case"`
-	VariantID string `json:"variantId"`
-	Evaluator struct {
+	VariantID      string `json:"variantId"`
+	AttemptDraftID string `json:"attemptDraftId"`
+	Evaluator      struct {
 		ID       string `json:"id"`
 		Version  string `json:"version"`
 		Language string `json:"language"`
@@ -178,11 +181,19 @@ func run(args []string) error {
 	if remoteURL != assigned.RemoteURL {
 		return fmt.Errorf("preflight repository mismatch: expected %q, got %q", assigned.RemoteURL, remoteURL)
 	}
+	remoteSHA, err := remoteRefSHA(*repositoryRoot, assigned.RemoteURL, assigned.SourceRef)
+	if err != nil {
+		return fmt.Errorf("preflight pushed HEAD: %w", err)
+	}
+	if remoteSHA != commitSHA {
+		return fmt.Errorf("preflight unpushed HEAD: local %s differs from %s at %s", commitSHA, remoteSHA, assigned.SourceRef)
+	}
 
 	scenario, composeErr := runScenario(*root, *mode)
 	result := report{SchemaVersion: reportSchema, VariantID: assigned.VariantID, Scenarios: []scenarioResult{scenario}}
 	result.Case.ID = spec.Case.ID
 	result.Case.Version = spec.Case.Version
+	result.AttemptDraftID = assigned.AttemptDraftID
 	result.Evaluator.ID = "inside-local-evaluator"
 	result.Evaluator.Version = evaluatorVersion
 	result.Evaluator.Language = "go"
@@ -223,6 +234,9 @@ func validateInputs(spec caseSpec, assigned assignment) error {
 	}
 	if assigned.CaseID != spec.Case.ID || assigned.CaseVersion != spec.Case.Version {
 		return errors.New("assignment does not match the CaseSpec identity/version")
+	}
+	if assigned.AttemptDraftID == "" || assigned.SourceRef == "" {
+		return errors.New("assignment is missing attempt draft or source ref")
 	}
 	for _, variant := range spec.Variants {
 		if variant.ID == assigned.VariantID {
@@ -307,6 +321,18 @@ func commandText(directory, name string, args ...string) (string, error) {
 		return "", fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+func remoteRefSHA(directory, remoteURL, sourceRef string) (string, error) {
+	output, err := commandText(directory, "git", "ls-remote", remoteURL, sourceRef)
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Fields(output)
+	if len(fields) != 2 || fields[1] != sourceRef || !isSHA(fields[0]) {
+		return "", fmt.Errorf("remote ref %q is missing or invalid", sourceRef)
+	}
+	return fields[0], nil
 }
 
 func isSHA(value string) bool {
