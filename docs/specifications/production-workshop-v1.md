@@ -157,9 +157,10 @@ Editorial bias — brownfield-first: участник чаще получает 
   приёмки ecosystem-specific поведения;
 - варианты сохраняют общий learning outcome и observable contract, но starter code, build adapter,
   diagnostics и idiomatic solution могут различаться;
-- первый vertical slice имеет два supported stack variants;
-- точные первые два стека выбираются вместе с representative case, а не заранее для всего
-  каталога;
+- первый vertical slice использует Production Case `Partner Webhooks` и два variants: C#/.NET и
+  Python, принятые в [decision #101](https://github.com/sachkov-inside/workspace/issues/101);
+- этот выбор проверяет coverage contract первого slice, но не задаёт обязательные stacks для всего
+  будущего каталога;
 - отсутствие варианта не блокирует публикацию кейса на уже проверенном стеке.
 
 ## 5. Versioned CaseSpec
@@ -545,7 +546,7 @@ Confirmed direction by component:
 
 | Component | Direction | Decision status |
 |---|---|---|
-| Platform web/control plane | Existing TypeScript/Next/Nest modular Platform | Confirmed by Platform contract |
+| Platform web/control plane, evaluator ingress и GitHub adapter | Existing TypeScript/Next/Nest modular Platform | Confirmed by Platform contract и prototype #102 |
 | Workshop application logic | Start inside Platform modules; no network service seam without evidence | Confirmed direction |
 | AI feedback orchestration | Не входит в V1 и не резервирует application/service seam | Deferred until measured human-beta trigger |
 | Cross-platform local evaluator/CLI | Go как отдельно собираемый Platform-owned Module | Accepted in prototype #102; actual OS smokes required before ADR/beta |
