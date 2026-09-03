@@ -72,8 +72,8 @@ engineering capability. It is not a Git branch and need not map one-to-one to a 
 _Avoid_: Git branch, Topic, grade track
 
 **Production Case**:
-A versioned, multi-stage engineering situation with existing context, constraints, evidence and a
-mastery rubric. One Production Case may have several stack-specific Case Variants.
+A versioned engineering situation with existing context, constraints, executable checks and
+learning guidance. One Production Case may have several stack-specific Case Variants.
 _Avoid_: Coding exercise, homework, quiz
 
 **Case Variant**:
@@ -92,15 +92,19 @@ source revision and the versions of the case and evaluator that interpret it.
 _Avoid_: Commit, push, local test run
 
 **Attempt Evidence**:
-The versioned facts collected for one Attempt, including its source revision, evaluation report,
-decision explanation and defense. Evidence records how a result was reached without becoming a
-certificate.
+The versioned facts collected for one Attempt, including its source revision and accepted local
+evaluation report. Evidence records how a result was reached without becoming a certificate.
 _Avoid_: Local report, certificate, log bundle
 
-**Mastery Result**:
-Workshop's assessment of one Attempt across the case rubric, including whether the case is complete.
-It is not a grade, leaderboard score or external professional certification.
-_Avoid_: Certificate, grade, XP
+**Attempt Result**:
+Workshop's outcome for one Attempt derived from its required executable checks and source binding.
+`Passed` means the Workshop checks passed; it is not an external professional certification.
+_Avoid_: Mastery Result, Verified, certificate, grade, XP
+
+**Solution Reveal**:
+The recorded unlocking of an exact author solution for an Account and Production Case version,
+either after an Attempt or through the Account's explicit choice to study the solution earlier.
+_Avoid_: Material publication, case completion, pass
 
 **Workshop Entitlement**:
 Platform's grant that an Account may access a Workshop scope and the Materials explicitly included

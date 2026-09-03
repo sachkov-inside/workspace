@@ -1,10 +1,11 @@
 # Спецификация фундамента Inside Production Workshop v1
 
-Статус: proposed shared specification из
-[Workspace issue #98](https://github.com/sachkov-inside/workspace/issues/98) для human outcome
-[#97](https://github.com/sachkov-inside/workspace/issues/97).
+Статус: accepted shared specification из
+[Workspace issue #98](https://github.com/sachkov-inside/workspace/issues/98), уточнённая owner
+decisions из [Wayfinder #100](https://github.com/sachkov-inside/workspace/issues/100), для human
+outcome [#97](https://github.com/sachkov-inside/workspace/issues/97).
 
-Дата: 2026-09-02.
+Дата: 2026-09-03.
 
 ## 1. Результат и authority
 
@@ -20,7 +21,7 @@ implementation specification:
 
 - Workspace владеет этим shared product contract, общим языком и delivery routing;
 - `sachkov-inside/platform` владеет learner-facing product brief, application model, UI, GitHub
-  integration, Workshop access, попытками, AI feedback и собственными ADR;
+  integration, Workshop access, попытками, результатами и собственными ADR;
 - текущий Platform v1 остаётся каноническим foundation для Account, Materials, ContentAccess и
   authoring, но Workshop не входит в его accepted delivery scope;
 - конкретный local evaluator, будущий remote Evaluation Runtime и новый repository получают
@@ -36,8 +37,9 @@ specification должны быть синхронизированы до реа
 ### 2.1 Проблема
 
 Обычные тренажёры хорошо проверяют SQL, синтаксис, алгоритм или изолированную функцию, но слабо
-воспроизводят работу в существующей системе. Coding agent ещё сильнее обесценивает задачу, где
-достаточно перевести полное условие в код и пройти известные тесты.
+воспроизводят работу в существующей системе. Coding agent поднимает требования к качеству case:
+executable checks должны проверять observable production contract и failure behaviour, а не только
+перевод полного условия в код и happy path.
 
 Production-мышление проявляется иначе: разработчик восстанавливает контекст, замечает скрытые
 ограничения, выбирает компромисс, безопасно меняет систему, собирает operational evidence и может
@@ -104,7 +106,7 @@ Branches. Верхний уровень taxonomy намеренно гибрид
 - Learning Branch не равна Platform Topic, Material Series или Git branch.
 
 Polished interactive skill tree не входит в первый slice. До реальных веток Platform показывает
-простой ordered flow и сохранённый mastery result.
+простой ordered flow и сохранённый Attempt Result.
 
 Workshop имеет ровно один ordered core и 0..N Learning Branches. Core и branches ссылаются на
 Production Cases через placements, а не копируют CaseSpec. Placement задаёт ordinal и explicit
@@ -115,16 +117,21 @@ Progression вычисляется для Account:
 - core открывает первый Case сразу, а следующий — после completed prerequisite placements;
 - branch может быть видна до выполнения prerequisites, но locked Case явно объясняет условие;
 - Production Case считается completed, когда любой его supported Case Variant имеет evaluated
-  Attempt с `MasteryResult.status=verified`, если placement отдельно не требует variant-specific
+  Attempt с `AttemptResult.status=passed`, если placement отдельно не требует variant-specific
   outcome;
 - один Case может входить в несколько branches без повторного прохождения;
 - первый slice содержит один сразу доступный core Case и не требует generic graph engine.
 
 ### 4.2 Production Cases
 
-Базовая единица Workshop — самостоятельный многоэтапный Production Case. Вся Мастерская не живёт
-в одном учебном приложении; отдельная Learning Branch может переиспользовать один fictional product
-и накопительный контекст, когда это усиливает навык.
+Базовая единица Workshop — самостоятельный Production Case. По умолчанию участник получает цельный
+problem context и сам определяет decomposition: искусственные этапы не должны подсказывать
+архитектуру решения. Low-difficulty Case может давать guided steps и checkpoints; medium/high Case
+оставляет их скрытыми либо использует только естественные стадии реального сценария. Difficulty
+управляет scaffolding, а не создаёт разные продукты или обязательную state machine этапов.
+
+Вся Мастерская не живёт в одном учебном приложении; отдельная Learning Branch может переиспользовать
+один fictional product и накопительный контекст, когда это усиливает навык.
 
 Editorial bias — brownfield-first: участник чаще получает существующий сервис, историю решений,
 дефект, инцидент или новое ограничение. Greenfield допустим, когда сам learning outcome требует
@@ -137,9 +144,9 @@ Editorial bias — brownfield-first: участник чаще получает 
 3. предложить решение и alternatives;
 4. изменить код/configuration/infrastructure;
 5. собрать functional и operational evidence;
-6. отправить Attempt и пройти adaptive AI defense;
-7. получить mastery feedback;
-8. открыть авторский разбор и сравнить alternatives.
+6. отправить Attempt и получить test-based Attempt Result;
+7. при необходимости открыть hints или точное авторское решение;
+8. повторить Attempt и сравнить своё решение с alternatives.
 
 ### 4.3 Multiple stacks
 
@@ -150,9 +157,10 @@ Editorial bias — brownfield-first: участник чаще получает 
   приёмки ecosystem-specific поведения;
 - варианты сохраняют общий learning outcome и observable contract, но starter code, build adapter,
   diagnostics и idiomatic solution могут различаться;
-- первый vertical slice имеет два supported stack variants;
-- точные первые два стека выбираются вместе с representative case, а не заранее для всего
-  каталога;
+- первый vertical slice использует Production Case `Partner Webhooks` и два variants: C#/.NET и
+  Python, принятые в [decision #101](https://github.com/sachkov-inside/workspace/issues/101);
+- этот выбор проверяет coverage contract первого slice, но не задаёт обязательные stacks для всего
+  будущего каталога;
 - отсутствие варианта не блокирует публикацию кейса на уже проверенном стеке.
 
 ## 5. Versioned CaseSpec
@@ -167,11 +175,11 @@ CaseSpec логически содержит:
 |---|---|
 | Identity | stable case ID, version, lifecycle state и compatibility policy |
 | Learning | outcome, prerequisites, difficulty signals, skills и technologies |
-| Scenario | context, stages, constraints, supplied artifacts и allowed assumptions |
-| Materials | prerequisites, optional references, hints и post-attempt author solution |
+| Scenario | цельный context, constraints, supplied artifacts, allowed assumptions и optional guidance для low difficulty |
+| Materials | prerequisites, optional references, раскрываемые hints, author solution, alternatives и failure-mode explanation |
 | Variants | supported stacks, starter baseline, toolchain/evaluator adapter versions |
-| Evaluation | public scenario contract, required evidence и mastery rubric |
-| Reveal | qualifying-attempt rule и exact solution resources |
+| Evaluation | public executable scenario contract, required evidence и pass policy |
+| Reveal | post-attempt и explicit early-reveal rules, warning и exact solution resources |
 | Operations | expected runtime/resources, logs, timeouts и support diagnostics |
 
 CaseSpec не содержит secrets, platform credentials или hidden remote scenario payloads. Будущий
@@ -197,11 +205,9 @@ logical entities имеют следующие роли:
 | `Assignment` | принадлежит одному Account и одному Case Variant; хранит starter baseline и managed repository identity |
 | `LocalEvaluationRun` | mutable learner-side run; сам по себе не является Attempt или trusted evidence |
 | `Attempt` | immutable evaluation identity и inputs: Assignment, exact source revision и case/variant/evaluator versions |
-| `AttemptEvidence` | append-only typed evidence set одного Attempt: source snapshot, local report, Decision Record и AI defense transcript |
-| `DecisionRecord` | принадлежит Attempt и объясняет constraints, alternatives, choice и expected consequences |
-| `AIDefense` | принадлежит Attempt; содержит versioned questions/answers и advisory rubric evidence |
-| `MasteryResult` | принадлежит Attempt; хранит dimensions, feedback и completion state |
-| `SolutionReveal` | фиксирует, когда exact author solution стал доступен для Account/Case version |
+| `AttemptEvidence` | append-only typed evidence set одного Attempt: source snapshot и accepted local report |
+| `AttemptResult` | принадлежит одному evaluated Attempt; хранит `needs_work` или `passed`, required scenario outcomes и diagnostics |
+| `SolutionReveal` | фиксирует, когда и почему exact author solution стал доступен для Account/Case version: после Attempt или по explicit early request |
 | `WorkshopProgress` | derived Account projection по placements и completed Production Cases; не является authority для Attempt result |
 
 Ключевые invariants:
@@ -224,14 +230,14 @@ logical entities имеют следующие роли:
 | `CaseVariant` | `draft → available → retired`; available Variant принадлежит published CaseVersion и проходит declared conformance |
 | `Assignment` | `provisioning → ready → archived`; provisioning failure даёт `unavailable`, из которого explicit retry создаёт/восстанавливает ready Assignment без фиктивного Attempt |
 | `LocalEvaluationRun` | `running → passed`, `failed` или `aborted`; состояние learner-controlled и никогда само не завершает Case |
-| `Attempt` | `submitted → defense_pending → evaluated`; immutable inputs не меняются, AI outage оставляет resumable `defense_pending` |
-| `AIDefense` | `pending → in_progress → completed`; retry продолжает ту же versioned defense, а не создаёт новый technical Attempt |
-| `MasteryResult` | terminal `needs_work` или `verified` для одного evaluated Attempt; новый результат требует нового Attempt |
+| `Attempt` | `submitted → evaluated`; immutable inputs не меняются, ingestion/evaluation retry не создаёт новый Attempt |
+| `AttemptResult` | terminal `needs_work` или `passed` для одного evaluated Attempt; новый результат требует нового Attempt |
 | `SolutionReveal` | derived `locked → revealed`; обратный переход запрещён для той же Account/Case version |
 | `WorkshopProgress` | derived `locked`, `available`, `in_progress` или `completed` per placement; source authority — prerequisites и Attempt results |
 
 `AttemptEvidence` добавляется только известными typed records и не переписывает уже принятый record.
-MasteryResult может ссылаться только на evidence versions того же Attempt.
+AttemptResult может ссылаться только на evidence versions того же Attempt. SolutionReveal не меняет
+AttemptResult и не утверждает, что последующая работа выполнена без изучения решения.
 
 ## 7. Assignment и GitHub UX
 
@@ -284,6 +290,11 @@ No-op commit, branch naming или ручной ввод SHA не являютс
 Docker-compatible runtime обязателен для воспроизводимой topology с Kafka, PostgreSQL, Redis и
 другими dependencies.
 
+Закрытая beta поддерживает три host OS: macOS arm64, Linux amd64 и Windows amd64. До beta каждая
+комбинация должна пройти representative end-to-end runtime smoke на настоящей OS/architecture;
+cross-build без запуска не считается подтверждением. Иные architectures показываются как
+unsupported, пока не появится отдельное evidence.
+
 Local evaluator:
 
 - выбирает adapter по exact Case Variant и evaluator version;
@@ -305,10 +316,10 @@ infrastructure files только когда это входит в learning out
 Поэтому nonce, client signature или structured schema могут предотвратить случайный replay, но не
 доказывают честность выполнения.
 
-Owner decision для v1: Platform доверяет принятому local report. Единственный learner-facing
-display label `Verified` отображает только `MasteryResult.status=verified`. Он означает прохождение
-contract Мастерской, а не независимую adversarial certification или employer-facing proof. Public
-portfolio/certificate не входит в первый slice.
+Owner decision для v1: Platform доверяет принятому local report. Learner-facing label `Passed`
+отображает только `AttemptResult.status=passed`: required Workshop checks прошли для exact source
+revision. Он не означает независимую adversarial verification, оценку авторства или employer-facing
+proof. Термин `Verified`, public portfolio и certificate не входят в первый slice.
 
 Внутри Platform всё равно сохраняются:
 
@@ -316,72 +327,53 @@ portfolio/certificate не входит в первый slice.
 - case, variant, evaluator и report schema versions;
 - execution method `local`;
 - scenario results и bounded diagnostic evidence;
-- timestamps, Account и Assignment identity;
-- decision record, AI defense и mastery rubric versions.
+- timestamps, Account и Assignment identity.
 
-Добавление remote execution позднее усиливает mechanism для новых attempts, но не создаёт второй
-learner-facing completion badge и не отменяет исторические completed cases.
+Добавление remote execution позднее усиливает mechanism для новых attempts, но не переименовывает
+исторические `Passed` results и не превращает их задним числом в certification evidence.
 
 ### 8.3 Attempts и cost control
 
 Количество attempts не ограничено как learning policy. Platform применяет readiness gates,
-cooldown, concurrency и abuse limits к дорогостоящим operations и AI feedback. Every attempt
-immutable; повторная работа происходит через новый commit и новый Attempt.
+cooldown, concurrency и abuse limits к source snapshot, report ingestion и другим дорогостоящим
+operations. Every attempt immutable; повторная работа происходит через новый commit и новый
+Attempt.
 
-## 9. Multilayer evaluation и result
+## 9. Executable evaluation и result
 
-Attempt получает `MasteryResult.status=verified`, а Case становится completed и показывает label
-`Verified`, когда выполнены все условия:
+Attempt получает `AttemptResult.status=passed`, а Case становится completed и показывает label
+`Passed`, когда выполнены оба условия:
 
 1. accepted structured local report сообщает pass по required public scenarios;
-2. Platform получила immutable source snapshot exact pushed commit;
-3. участник отправил Decision Record;
-4. adaptive AI defense завершена;
-5. Mastery Result сохранён для всех required dimensions.
+2. Platform получила immutable source snapshot exact pushed commit.
 
-Базовые rubric dimensions:
+Failing required scenario создаёт `AttemptResult.status=needs_work` с конкретными scenario outcomes
+и bounded diagnostics. V1 не выводит qualitative mastery dimensions и не притворяется, что public
+local checks доказывают decision quality. Constraints, alternatives, trade-offs и failure modes
+объясняются через Materials, hints и авторский разбор.
 
-| Dimension | Проверяет |
-|---|---|
-| `correctness` | observable contract и отсутствие известных functional violations |
-| `reliability` | failure handling, retries, consistency и bounded recovery |
-| `operability` | diagnostics, logs/metrics/traces и понятное runtime behaviour |
-| `decision_quality` | constraints, alternatives, trade-offs и последствия выбора |
+Platform валидирует report schema/version, Assignment, exact SHA и required scenario coverage, но
+не исполняет participant source и не переписывает learner-controlled local verdict. UI показывает
+scenario feedback и следующий доступный шаг, а не global score, grade или leaderboard.
 
-AI не является единственным authority для technical pass. Local scenarios определяют declared
-technical result; AI объясняет evidence, задаёт questions/counterfactuals и предлагает rubric
-assessment. Спорный AI вывод не превращает технически passing Attempt в скрытый fail без отдельного
-owner-approved policy и appeal path.
+## 10. AI-assisted work и отложенный AI feedback
 
-Mastery UI показывает dimensions и feedback, а не global leaderboard или один псевдоточный score.
+Использование coding agents разрешено и не снижает Attempt Result. Workshop не пытается определить,
+кто написал код, и не требует ручного набора. При этом первая версия не использует AI provider,
+adaptive defense, AI rubric, Decision Record или qualitative model feedback ни для `Passed`, ни для
+solution reveal.
 
-## 10. AI-assisted work и adaptive defense
+AI feedback возвращается в отдельный owner decision только после human beta, если появится хотя бы
+один измеримый trigger:
 
-Использование coding agents разрешено. Workshop оценивает инженерную ответственность за результат,
-а не ручной набор кода. AI-first skill не является обязательным learning outcome каждого кейса.
+- executable tests систематически пропускают решения с критическим непониманием;
+- Materials и author solution не дают достаточно конкретного feedback для следующей Attempt;
+- manual author review становится operational bottleneck;
+- появляется learning outcome, который нельзя надёжно проверить executable scenario.
 
-Для feedback Platform AI получает минимально необходимый Workshop context:
-
-- exact CaseSpec/version и rubric;
-- полный source snapshot только assignment repository на submitted SHA;
-- cumulative diff от starter revision;
-- local report и bounded diagnostics;
-- Decision Record и ответы текущей defense.
-
-AI не получает другие repositories участника, GitHub profile data сверх нужной identity, platform
-secrets или unrelated Account content.
-
-Adaptive defense задаёт короткие вопросы, зависящие от реального решения:
-
-- почему выбран этот consistency/retry/observability contract;
-- какое ограничение было главным;
-- что сломается при конкретном изменении traffic, dependency или failure mode;
-- как участник отличит symptom от root cause;
-- какую alternative он отверг и при каких условиях вернулся бы к ней.
-
-Prompts, model, sampling, rubric calibration, retention и redaction принадлежат Platform
-application specification. AI output хранит model/prompt/rubric version и ссылки на evidence,
-чтобы feedback можно было диагностировать.
+Прошлый prototype #103 остаётся discovery evidence, а не готовым production contract. Будущее
+решение заново определяет provider, prompts, context/privacy boundary, retention, cost и влияние на
+result; эти seams не резервируются в V1 Platform implementation.
 
 ## 11. Materials, hints и solution reveal
 
@@ -394,20 +386,27 @@ CaseSpec. Case version связывается с Materials ролями:
 - exact author walkthrough/solution;
 - post-case alternatives и deeper dive.
 
-General Materials и hints доступны участнику сразу. Exact solution конкретного кейса открывается
-после qualifying attempt, чтобы застрявший участник мог доучиться, не сводя первую попытку к
-копированию.
+Prerequisite и optional reference Materials доступны сразу. Hints раскрываются участником по одному
+и не навязывают decomposition medium/high Case; low-difficulty Case может использовать guided
+steps. Минимальный authoring pack содержит problem context/invariants, setup, optional references,
+hints, exact author solution/walkthrough и объяснение alternatives, trade-offs, failure modes и
+того, какие observable guarantees проверяет evaluator.
+
+Exact solution конкретного кейса автоматически открывается после qualifying attempt, чтобы
+застрявший участник мог доучиться и создать следующую Attempt. Участник, который хочет изучить
+разбор без практики, может открыть solution раньше явным действием после предупреждения. Early
+reveal не является fail, не блокирует последующий `Passed` и не создаёт утверждения о самостоятельном
+решении.
 
 Qualifying attempt требует:
 
 - ready Assignment и source changes относительно starter revision;
 - pushed source revision, доступный Platform;
-- заполненный Decision Record;
 - выполненный public local evaluation flow, даже если required scenarios ещё не прошли.
 
-Platform фиксирует `solutionRevealedAt`; `MasteryResult.status=verified` не должен уничтожать эту
-историю. Exact solution нельзя получить через direct Material URL без Workshop access/reveal
-decision.
+Platform фиксирует `solutionRevealedAt` и reason `after_attempt` или `learner_requested`;
+`AttemptResult.status=passed` не уничтожает эту историю. Exact solution нельзя получить через
+direct Material URL без Workshop access/reveal decision.
 
 ## 12. Seasons и author boundary
 
@@ -415,7 +414,7 @@ Workshop имеет evergreen content access и периодические seaso
 
 - человек решает кейсы в своём темпе без hard individual deadlines;
 - season создаёт общую cadence, темы, live events и авторские разборы;
-- AI feedback доступен на каждую accepted attempt в рамках operational limits;
+- automated scenario feedback доступен для каждой accepted Attempt;
 - базовая цена не обещает personal author review каждому;
 - Кирилл разбирает характерные решения и отдельные participant examples выборочно;
 - policy согласия на публикацию participant code/identity определяется перед первым записываемым
@@ -427,19 +426,19 @@ Workshop имеет evergreen content access и периодические seaso
 
 - beta Workshop Entitlement для Accounts с current MembershipEntitlement через controlled grant;
 - простая Workshop/case page без polished skill tree;
-- один representative multi-stage Production Case;
+- один representative Production Case с цельным problem context и difficulty-aware guidance;
 - два supported Case Variants и coverage metadata;
+- beta runtime support на macOS arm64, Linux amd64 и Windows amd64;
 - versioned CaseSpec in Git и linked Materials;
 - managed private GitHub Assignment repository;
 - clone/preflight/readiness UX без branch/tag conventions;
 - Docker-compatible local evaluator и public scenarios;
 - explicit submission exact pushed HEAD и immutable source snapshot;
 - unlimited versioned Attempts с operational limits;
-- Decision Record;
-- adaptive AI defense и advisory feedback;
-- mastery rubric и один learner-facing display label `Verified` для
-  `MasteryResult.status=verified`;
-- exact solution reveal после qualifying attempt;
+- executable Attempt Result и один learner-facing display label `Passed` для
+  `AttemptResult.status=passed`;
+- optional progressive hints;
+- exact solution reveal после qualifying attempt либо по explicit early request с warning;
 - Telegram handoff для season/community.
 
 ### 13.2 Не входит
@@ -453,7 +452,7 @@ Workshop имеет evergreen content access и периодические seaso
 - GitHub Actions как grader runtime;
 - arbitrary participant Dockerfiles как общий build contract;
 - universal visual CaseSpec admin builder;
-- создание отдельного microservice/repository только ради Go, AI или future scale;
+- создание отдельного microservice/repository только ради языка или future scale;
 - production release/deploy/SLA/backup contract.
 
 ### 13.3 Slice acceptance journey
@@ -467,13 +466,13 @@ Slice принят, когда один beta Account без ручного ис�
 5. проходит preflight и запускает local scenarios;
 6. пушит решение и видит совпадающий HEAD в Platform;
 7. отправляет structured attempt;
-8. заполняет Decision Record и проходит adaptive AI defense;
-9. получает mastery feedback и label `Verified` после всех required layers;
-10. открывает author solution и может создать следующую attempt.
+8. получает scenario feedback и `Passed` либо `Needs work`;
+9. открывает author solution после Attempt или раньше явным действием с warning;
+10. изучает alternatives и может создать следующую Attempt.
 
 Negative acceptance покрывает mismatched repository/SHA, unsupported Docker, stale evaluator,
-failed report, empty changes, unavailable GitHub, duplicate submission, AI timeout, direct solution
-access before reveal и Account без Workshop Entitlement.
+failed report, empty changes, unavailable GitHub, duplicate submission, direct solution access без
+Reveal decision и Account без Workshop Entitlement.
 
 ## 14. System ownership и seams
 
@@ -483,7 +482,6 @@ flowchart LR
     Web --> Workshop[Workshop application module]
     Workshop --> PDB[(Platform PostgreSQL)]
     Workshop --> GH[GitHub App]
-    Workshop --> AI[AI provider adapter]
     Workshop --> CA[ContentAccess]
     CA --> Materials[Materials and exact solution]
 
@@ -502,7 +500,7 @@ Platform owns the control plane:
 - Workshop catalog/progression projection;
 - Assignment and GitHub integration;
 - source snapshot and immutable Attempt;
-- Decision Record, AI defense, mastery result and reveal policy;
+- Attempt Result, hints and reveal policy;
 - Material relationships and ContentAccess calls;
 - job orchestration required by its own application lifecycle.
 
@@ -523,8 +521,8 @@ design:
 |---|---|---|
 | Workshop access не выводится из Membership | Platform Workshop access module + ContentAccess | access-matrix test принимает explicit WorkshopEntitlement и negative fixture отклоняет один MembershipEntitlement там, где Workshop grant обязателен |
 | Attempt source authority — managed repository и exact SHA | Platform GitHub/Assignment module | integration contract принимает matching repository/SHA и negative fixtures отклоняют foreign repo, unpushed/stale SHA и report без source snapshot |
-| CaseSpec, evaluator report и AI rubric имеют совместимые versions | Platform + owning local evaluator module/repository | shared schema/conformance corpus с representative valid case и invalid version/field fixtures в full checks обоих owners |
-| AI не выдаёт access и не является единственным technical pass authority | Platform Workshop evaluation module | controlled-provider test сохраняет technical evidence при AI outage; negative fixture доказывает, что AI-only result не создаёт `MasteryResult.status=verified` |
+| CaseSpec и evaluator report имеют совместимые versions | Platform + owning local evaluator module/repository | shared schema/conformance corpus с representative valid case и invalid version/field fixtures в full checks обоих owners |
+| `Passed` создаётся только из required executable checks и exact source binding | Platform Workshop evaluation module | representative report создаёт `passed`; negative fixtures с failed/missing scenario или mismatched SHA обязаны остаться `needs_work`/rejected |
 | Local evaluator не владеет completion policy | Platform Workshop module + local evaluator adapter | valid fixture принимает report без Platform status; failing negative fixture добавляет запрещённое поле `platformStatus` и обязана быть отклонена schema validation |
 | Future remote worker не читает Platform DB и не получает broad GitHub credentials | owning Evaluation Runtime | controlled adapter test проходит через one-use snapshot/evidence contract; negative fixture пытается использовать forbidden credential/network route и обязана завершиться deny |
 | Новый deployable не делит runtime package или database с Platform | owning application repository | dependency/import guardrail и integration contract появляются в том же change, который создаёт process boundary |
@@ -548,33 +546,32 @@ Confirmed direction by component:
 
 | Component | Direction | Decision status |
 |---|---|---|
-| Platform web/control plane | Existing TypeScript/Next/Nest modular Platform | Confirmed by Platform contract |
+| Platform web/control plane, evaluator ingress и GitHub adapter | Existing TypeScript/Next/Nest modular Platform | Confirmed by Platform contract и prototype #102 |
 | Workshop application logic | Start inside Platform modules; no network service seam without evidence | Confirmed direction |
-| AI feedback orchestration | Start near Attempt/rubric/access logic in Platform TypeScript worker/module | Candidate baseline |
-| Cross-platform local evaluator/CLI | Go is the leading candidate; TypeScript remains fallback | Requires representative prototype |
+| AI feedback orchestration | Не входит в V1 и не резервирует application/service seam | Deferred until measured human-beta trigger |
+| Cross-platform local evaluator/CLI | Go как отдельно собираемый Platform-owned Module | Accepted in prototype #102; actual OS smokes required before ADR/beta |
 | Future remote evaluation worker | Go is a strong candidate for process/container orchestration and low-footprint worker | Deferred until remote scope |
 | Case Variant toolchains | Match learner stack; isolated adapters/containers do not dictate control-plane language | Confirmed principle |
 | Isolation substrate | Container/runtime technology, not application language, owns code-execution security | Confirmed principle |
 
-Go must prove the local evaluator requirements before acceptance:
+Go must prove the local evaluator requirements before production ADR и закрытой beta:
 
-- distribution/update on supported macOS, Windows and Linux environments;
+- distribution/update и actual runtime smoke на macOS arm64, Linux amd64 и Windows amd64;
 - Docker/Compose orchestration and cancellation;
 - Git/repository/HEAD discovery;
 - device/session authentication without long-lived secrets;
 - stable structured report schema and bounded log streaming;
 - testability of platform/CLI protocol and compatibility policy.
 
-TypeScript is preferred for AI orchestration only while it remains part of Platform's domain and
-operational lifecycle. A separate AI microservice requires measured model concurrency, security,
-deployment or ownership evidence; «работа с AI» сама по себе не является причиной.
+Будущее возвращение AI feedback не создаёт microservice автоматически. Новый process требует
+измеренного trust, lifecycle, scale или ownership boundary и отдельного owner decision.
 
 Cross-process contracts use versioned wire schemas and conformance fixtures. Repositories do not
 share runtime source packages, databases or migration history.
 
 Hard-to-reverse language/runtime choices receive owning application ADR only after prototype
-evidence and owner approval. Эта shared specification намеренно не создаёт ADR для ещё не выбранного
-компонента.
+evidence, actual supported-OS smokes и owner approval. Эта shared specification не подменяет
+Platform ADR.
 
 ## 16. Future remote evaluation
 
@@ -603,16 +600,15 @@ First slice обязан:
 
 - использовать least-privilege GitHub App permissions и short-lived tokens;
 - хранить repository IDs и exact revisions, а не доверять URL/branch name;
-- не передавать Platform/GitHub/AI secrets в assignment repository или local topology;
+- не передавать Platform/GitHub secrets в assignment repository или local topology;
 - ограничивать uploaded logs/report/source size и redaction известных secret formats;
 - не исполнять participant source внутри Platform API/worker process;
 - предупреждать, что assignment repository предназначен только для case solution и не должен
   содержать рабочие или персональные secrets;
-- версионировать evaluator/report/rubric/prompt contracts;
+- версионировать CaseSpec, evaluator и report contracts;
 - иметь idempotent attempt creation и понятные retry states;
-- отделять AI feedback от authorization и technical pass;
-- определить retention/deletion source snapshots, AI conversations и assignment repositories до
-  real paid launch.
+- не принимать early solution reveal за Attempt или result;
+- определить retention/deletion source snapshots и assignment repositories до real paid launch.
 
 Записанные author group reviews требуют отдельной consent policy до использования participant code
 или identity. Эта policy не блокирует first technical slice, если разбор использует только
@@ -624,10 +620,10 @@ author-owned examples.
 |---|---|
 | Membership истекла во время beta | Workshop access следует explicit beta grant, а не случайно исчезает вместе с Membership, если grant уже выдан с собственной validity |
 | Один Case поддерживает только один stack | Case публикуется с честной coverage matrix; отсутствующий variant не симулируется |
-| Участник посмотрел exact solution после attempt | reveal сохраняется в history; последующие attempts не переписывают прошлое |
-| Local report подделан | v1 trust model может принять его; внешний certification claim запрещён, а source/AI layers остаются доступны для диагностики |
+| Участник открыл exact solution до Attempt | Platform показывает warning, сохраняет reason `learner_requested` и разрешает последующие Attempts/`Passed` без claims о самостоятельности |
+| Участник посмотрел exact solution после Attempt | reveal сохраняется в history; последующие Attempts не переписывают прошлое |
+| Local report подделан | v1 trust model может принять его; внешний certification claim запрещён, source snapshot сохраняется для диагностики |
 | GitHub недоступен после local pass | report не создаёт Attempt без immutable source snapshot; participant может retry позднее |
-| AI provider недоступен | Attempt остаётся resumable в состоянии ожидания defense; technical evidence не теряется |
 | CaseSpec обновлён во время работы | Assignment/Attempt продолжают ссылаться на начатую case version; migration требует explicit policy |
 | Starter repo удалён | существующий Assignment сохраняет baseline identity; новый start закрывается с operational error |
 | Case требует CI/CD или external provider | contract получает bounded simulator/provider seam; unrestricted production credentials участнику не выдаются |
@@ -640,10 +636,12 @@ Beta оценивает не коммерческую масштабируемо
 - Account проходит journey без ручного исправления Git/GitHub state автором;
 - local preflight отделяет environment errors от case failures;
 - scenario reports воспроизводимы на двух supported variants;
-- участники создают содержательные Decision Records и отвечают на solution-specific AI questions;
-- author review находит в mastery feedback полезные, а не generic observations;
-- exact solution reveal помогает застрявшим, не открываясь до qualifying attempt;
-- support load, AI cost, completion time и repeated-attempt patterns измерены;
+- public checks ловят representative correctness, reliability и operability failures, а diagnostics
+  позволяют исправить Attempt без ручного вмешательства автора;
+- участники используют optional hints и author solution; отдельно измерены reveal после Attempt и
+  explicit early reveal;
+- author solution помогает сравнить alternatives и создать следующую Attempt;
+- support load, authoring cost, completion time и repeated-attempt patterns измерены;
 - один CaseSpec можно изменить/version без ручного переписывания historical attempts.
 
 Go/no-go расширения каталога принимается по фактическим прохождениям и authoring/support cost, а не
@@ -653,34 +651,33 @@ Go/no-go расширения каталога принимается по фа�
 
 Эта последовательность не создаёт implementation tickets до owner acceptance specification:
 
-1. **Workspace — shared specification.** Принять этот документ и glossary через #98.
+1. **Workspace — shared specification.** Принять документ и glossary через #98, затем синхронизировать
+   tests-only V1 owner decisions через #100.
 2. **Workspace — bounded Wayfinder map.** Выбрать representative first case, два stack variants,
-   local evaluator prototype и AI defense proof; decision children закрывают только неизвестные.
+   local evaluator; AI defense исследован и явно отложен за пределы V1.
 3. **Platform — product/application specification.** Зафиксировать Workshop module, access grants,
-   CaseSpec ingestion, GitHub App, Attempt state machine, AI contract, UX и first slice delivery
-   graph в `sachkov-inside/platform`.
+   CaseSpec ingestion, GitHub App, Attempt state machine, result/reveal contract, UX и first slice
+   delivery graph в `sachkov-inside/platform`.
 4. **Platform — vertical tickets.** Поставлять user-visible slices, а enabling GitHub/CLI work
    связывать с ближайшим convergence ticket.
-5. **Platform — CLI/evaluator ADR.** До accepted separation evaluator принадлежит Platform.
-   Prototype решает, остаётся ли он там или получает отдельный repository, и выбирает Go либо
-   fallback; при separation authority переносится один раз вместе с contract.
+5. **Platform — CLI/evaluator ADR.** Go evaluator остаётся отдельно собираемым Platform-owned Module.
+   ADR принимается после actual runtime smoke на всей beta OS matrix; новый repository/process
+   требует нового lifecycle/ownership evidence.
 6. **Workspace — remote evaluation specification.** Создаётся после local beta и threat/cost data;
    cross-repository parent нужен только если появляется отдельный runtime owner.
 7. **Workspace — commercial release specification.** Price, Edition, checkout, support, retention,
    production infrastructure и public claims получают отдельный cross-product owner-approved gate;
    implementation tickets маршрутизируются в owning application repositories.
 
-## 21. Open decisions и triggers
+## 21. Deferred decisions и triggers
 
 | Decision | Не решается сейчас | Trigger возврата |
 |---|---|---|
-| First Production Case | Kafka, observability, CI/CD, auth и другие темы не ранжируются без representative-case criteria | Начало Wayfinder после принятия specification |
-| Первые два stacks | Coverage matrix подтверждена, конкретные languages нет | Выбран first case и authoring/conformance cost |
-| CLI stack | Go — candidate, не accepted implementation | Cross-platform spike и protocol prototype |
 | Workshop price/access | Нет final Edition, lifetime или annual promise | Несколько cases, beta evidence и measured support cost |
 | Public portfolio | Не входит в v1 | Надёжный remote evidence и employer-facing product decision |
 | Remote sandbox | Не нужен local slice | Need for hidden/fault-injection or external verification |
 | Separate runtime service/repo | Microservice не создаётся заранее | Proven trust, lifecycle, scale or ownership boundary |
+| AI feedback | Не входит в V1 и не резервирует provider/application seam | Tests пропускают критическое непонимание, Materials недостаточны, manual review стал bottleneck или outcome не проверяется executable scenario |
 | Participant review consent | Не блокирует author-owned beta reviews | Первый разбор с participant code/identity |
 | Production operations | Нет release/SLA/backup/deploy contract | Owner GO на paid or persistent beta environment |
 
