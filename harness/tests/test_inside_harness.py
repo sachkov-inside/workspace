@@ -69,6 +69,13 @@ class HarnessCliTest(unittest.TestCase):
             (WORKSPACE / "harness/packages/inside-engineering/WORKFLOW.md").read_text(),
         )
         self.assertEqual(
+            (self.repo / ".github/pull_request_template.md").read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/github/pull_request_template.md"
+            ).read_text(),
+        )
+        self.assertEqual(
             (self.repo / "docs/agents/triage-labels.md").read_text(),
             (
                 WORKSPACE
@@ -87,6 +94,7 @@ class HarnessCliTest(unittest.TestCase):
         state = json.loads((self.repo / ".inside-harness/product-harness.json").read_text())
         self.assertEqual(state["profile"], MANIFEST["defaultProfile"])
         self.assertEqual(state["schemaVersion"], 3)
+        self.assertIn(".github/pull_request_template.md", state["managedFiles"])
 
     def test_lifecycle_authority_is_discoverable_from_owning_skills(self) -> None:
         package = WORKSPACE / "harness/packages/inside-engineering"
@@ -97,6 +105,7 @@ class HarnessCliTest(unittest.TestCase):
         for section in (
             "Review closure",
             "Pull request CI closure",
+            "Implementation report",
             "Architecture fitness",
             "Pruning",
         ):
@@ -105,6 +114,23 @@ class HarnessCliTest(unittest.TestCase):
         self.assertIn("repository-root `WORKFLOW.md`", implementation)
         self.assertIn("`Pruning`", adr_format)
         self.assertIn("repository-root `WORKFLOW.md`", adr_format)
+
+        template = (package / "github/pull_request_template.md").read_text()
+        for section in (
+            "Result",
+            "Related issue",
+            "Changed surfaces",
+            "Implementation outline",
+            "Business and domain changes",
+            "Architecture and future extensibility",
+            "Key files and review order",
+            "Verification",
+            "Review closure",
+            "Documentation impact",
+            "Not tested / out of scope",
+            "Owner decisions",
+        ):
+            self.assertIn(f"### {section}", template)
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
