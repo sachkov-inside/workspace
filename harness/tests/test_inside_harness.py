@@ -263,6 +263,48 @@ class HarnessCliTest(unittest.TestCase):
         self.run_cli("update", str(self.repo))
         self.run_cli("health", str(self.repo))
 
+    def test_update_requires_adoption_for_a_conflicting_new_managed_file(self) -> None:
+        self.install()
+        state_path = self.repo / ".inside-harness/product-harness.json"
+        state = json.loads(state_path.read_text())
+        state["managedFiles"].remove(".github/pull_request_template.md")
+        state_path.write_text(json.dumps(state, indent=2) + "\n")
+        template = self.repo / ".github/pull_request_template.md"
+        template.write_text("# Repository-specific pull request template\n")
+        subprocess.run(["git", "-C", str(self.repo), "add", "."], check=True)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.repo),
+                "-c",
+                "user.name=Harness Test",
+                "-c",
+                "user.email=harness@example.invalid",
+                "commit",
+                "-qm",
+                "record repository template",
+            ],
+            check=True,
+        )
+
+        result = self.run_cli("update", str(self.repo), expected=2)
+        self.assertIn(".github/pull_request_template.md", result.stderr)
+        self.assertIn("update with --adopt-existing", result.stderr)
+        self.assertEqual(
+            template.read_text(), "# Repository-specific pull request template\n"
+        )
+
+        self.run_cli("update", str(self.repo), "--adopt-existing")
+        self.assertEqual(
+            template.read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/github/pull_request_template.md"
+            ).read_text(),
+        )
+        self.run_cli("health", str(self.repo))
+
     def test_update_refuses_to_restore_a_deleted_managed_skill_in_a_dirty_install(self) -> None:
         self.install()
         shutil.rmtree(self.repo / ".inside-harness/skills/implement")

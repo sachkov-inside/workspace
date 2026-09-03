@@ -20,13 +20,5 @@ current-head CI ownership, learning promotion, and completion.
 
 Invoke `/code-review` from the original fixed point. When review changes code or durable documents,
 re-run the relevant verification and invoke `/code-review` from that same fixed point again. Commit
-only after the `WORKFLOW.md` readiness gate is satisfied.
-
-## Owner handoff
-
-After final review closure and current-head pull request CI closure, update the pull request body
-using the repository template's Implementation Report. Derive it from the final diff, issue or
-specification, verification evidence, and review outcomes. If code or durable documents change
-afterward, repeat the relevant verification and review closure, then refresh the report for the new
-head. Finish only when every changed surface is accounted for and the report records the current
-remote head.
+only after the `WORKFLOW.md` readiness gate is satisfied. Before finishing, execute its authoritative
+`Implementation report` section.

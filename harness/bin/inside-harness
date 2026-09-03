@@ -365,6 +365,16 @@ def exact_file_copy(source: Path, target: Path) -> None:
         staged.replace(target)
 
 
+def conflicts_with_managed_file(source: Path, target: Path) -> bool:
+    if not target.exists() and not target.is_symlink():
+        return False
+    return (
+        target.is_symlink()
+        or not target.is_file()
+        or not filecmp.cmp(source, target, shallow=False)
+    )
+
+
 def git_changes(repo: Path, paths: list[Path]) -> list[str]:
     args = ["git", "-C", str(repo), "status", "--porcelain", "--"]
     args.extend(str(path) for path in paths)
@@ -541,19 +551,25 @@ def install_or_update(
         for source_rel, target_rel in managed_files(manifest):
             source = package / source_rel
             target = repo / target_rel
-            if target.exists() or target.is_symlink():
-                identical = target.is_file() and not target.is_symlink() and filecmp.cmp(
-                    source, target, shallow=False
-                )
-                if not identical:
-                    conflicts.append(str(target_rel))
-        if conflicts and not adopt_existing:
-            rendered = "\n  - ".join(conflicts)
-            raise HarnessError(
-                "Existing skills conflict with the managed package:\n  - "
-                + rendered
-                + "\nRe-run install with --adopt-existing only after reviewing these directories."
-            )
+            if conflicts_with_managed_file(source, target):
+                conflicts.append(str(target_rel))
+    else:
+        previous_files = set(old_state.get("managedFiles", []))
+        for source_rel, target_rel in managed_files(manifest):
+            if str(target_rel) in previous_files:
+                continue
+            source = package / source_rel
+            target = repo / target_rel
+            if conflicts_with_managed_file(source, target):
+                conflicts.append(str(target_rel))
+    if conflicts and not adopt_existing:
+        rendered = "\n  - ".join(conflicts)
+        command = "install" if initial_only else "update"
+        raise HarnessError(
+            "Existing repository paths conflict with the managed package:\n  - "
+            + rendered
+            + f"\nRe-run {command} with --adopt-existing only after reviewing these paths."
+        )
 
     migrated = False
     if old_state and old_state.get("schemaVersion") == 1:
@@ -928,6 +944,8 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("repository")
         if name in {"update", "diff"}:
             command.add_argument("--profile")
+        if name == "update":
+            command.add_argument("--adopt-existing", action="store_true")
     rollback = subcommands.add_parser("rollback", help="Install a package from an older Workspace ref")
     rollback.add_argument("repository")
     rollback.add_argument("--to", required=True, dest="git_ref")
@@ -953,6 +971,7 @@ def main() -> int:
                 repo,
                 DEFAULT_PACKAGE,
                 DEFAULT_ADAPTERS,
+                adopt_existing=args.adopt_existing,
                 requested_profile=args.profile,
             )
         elif args.command == "diff":
