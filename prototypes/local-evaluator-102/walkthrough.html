@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local evaluator trust boundary — prototype #102</title>
+  <style>
+    :root { color-scheme: light; --ink: #17211b; --muted: #66736b; --line: #dce4df; --paper: #f7faf8; --accent: #176b45; --bad: #9c2f24; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+    main { width: min(960px, calc(100% - 32px)); margin: 48px auto 72px; }
+    h1 { font-size: clamp(28px, 5vw, 46px); line-height: 1.08; margin: 0 0 16px; }
+    h2 { margin-top: 40px; }
+    .intro { max-width: 780px; color: var(--muted); font-size: 18px; }
+    .warning { border-left: 4px solid var(--accent); padding: 12px 16px; background: white; }
+    .state { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .field { background: white; border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-height: 92px; }
+    .field span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 7px; }
+    .field strong { overflow-wrap: anywhere; }
+    .accepted { color: var(--accent); }
+    .rejected { color: var(--bad); }
+    .controls, .tabs, .steps { display: flex; flex-wrap: wrap; gap: 9px; }
+    button { border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); padding: 9px 14px; font: inherit; cursor: pointer; }
+    button:hover, button.active { border-color: var(--accent); color: var(--accent); }
+    button.done { background: #e3f2e9; }
+    .walkthrough { margin-top: 16px; padding: 20px; background: white; border: 1px solid var(--line); border-radius: 12px; }
+    .walkthrough p { color: var(--muted); }
+    .change { margin: 14px 0 0; color: var(--muted); min-height: 24px; }
+    code { font: 14px ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Кто вправе принять local report?</h1>
+    <p class="intro">Этот throwaway prototype проверяет state model из issue #102: local evaluator
+      может сообщить результат сценария и exact commit, но только Platform ingress сопоставляет его
+      с source snapshot от GitHub adapter. Попробуйте happy path и отказные ветки.</p>
+    <p class="warning"><strong>Важно:</strong> local report полностью контролируется участником.
+      Accepted означает «evidence принято в Attempt», а не <code>Verified</code> и не доказательство
+      честного локального исполнения.</p>
+
+    <h2>Текущее состояние</h2>
+    <section class="state" id="state"></section>
+    <p class="change" id="change"></p>
+
+    <h2>Свободная проверка</h2>
+    <div class="controls" id="free-play"></div>
+
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <section class="walkthrough">
+      <strong id="walkthrough-title"></strong>
+      <p id="walkthrough-description"></p>
+      <div class="steps" id="steps"></div>
+    </section>
+  </main>
+
+  <script>
+    // Pure state module: no DOM access. The HTML below is only a throwaway shell.
+    const TrustModel = (() => {
+      const expectedSha = '7a24fbeb70ef081299400972953c4d95d8b74d5c';
+      const expectedVersion = '1.0.0-prototype.1';
+
+      const initial = () => ({
+        report: null,
+        snapshot: null,
+        decision: { status: 'waiting', reason: 'Нужны report и source snapshot' },
+        lastChange: 'State сброшен',
+      });
+
+      const makeReport = (overrides = {}) => ({
+        schemaVersion: 'inside.evaluation-report.v1',
+        caseVersion: expectedVersion,
+        commitSha: expectedSha,
+        verdict: 'passed',
+        platformStatus: null,
+        ...overrides,
+      });
+
+      function decide(report, snapshot) {
+        if (!report || !snapshot) return { status: 'waiting', reason: 'Нужны report и source snapshot' };
+        if (report.platformStatus) return { status: 'rejected', reason: 'forbidden_report_field' };
+        if (report.schemaVersion !== 'inside.evaluation-report.v1') return { status: 'rejected', reason: 'incompatible_report_version' };
+        if (report.caseVersion !== expectedVersion) return { status: 'rejected', reason: 'incompatible_case_contract' };
+        if (report.commitSha !== snapshot.commitSha) return { status: 'rejected', reason: 'stale_source_revision' };
+        return { status: 'accepted', reason: 'Evidence связано с exact source snapshot' };
+      }
+
+      function reduce(state, action) {
+        switch (action.type) {
+          case 'RESET': return initial();
+          case 'VALID_REPORT': return { ...state, report: makeReport(), decision: initial().decision, lastChange: 'Получен valid local report' };
+          case 'MALFORMED_REPORT': return { ...state, report: makeReport({ schemaVersion: null }), decision: initial().decision, lastChange: 'Report лишён schema version' };
+          case 'INCOMPATIBLE_REPORT': return { ...state, report: makeReport({ schemaVersion: 'inside.evaluation-report.v2' }), decision: initial().decision, lastChange: 'Report использует неизвестную schema' };
+          case 'STALE_REPORT': return { ...state, report: makeReport({ commitSha: 'b'.repeat(40) }), decision: initial().decision, lastChange: 'Report относится к другому commit' };
+          case 'FORBIDDEN_STATUS': return { ...state, report: makeReport({ platformStatus: 'verified' }), decision: initial().decision, lastChange: 'Evaluator попытался назначить Verified' };
+          case 'SNAPSHOT': return { ...state, snapshot: { commitSha: expectedSha }, decision: initial().decision, lastChange: 'GitHub adapter дал source snapshot' };
+          case 'SUBMIT': return { ...state, decision: decide(state.report, state.snapshot), lastChange: 'Platform ingress выполнил validation' };
+          default: return state;
+        }
+      }
+
+      return { initial, reduce };
+    })();
+
+    const actions = {
+      RESET: 'Сбросить',
+      VALID_REPORT: 'Valid report',
+      MALFORMED_REPORT: 'Без schema',
+      INCOMPATIBLE_REPORT: 'Version v2',
+      STALE_REPORT: 'Другой SHA',
+      FORBIDDEN_STATUS: 'Присвоить Verified',
+      SNAPSHOT: 'Получить snapshot',
+      SUBMIT: 'Отправить в ingress',
+    };
+
+    const walkthroughs = [
+      { title: 'Happy path', description: 'Report и independently supplied snapshot совпадают по CaseSpec и SHA.', steps: ['VALID_REPORT', 'SNAPSHOT', 'SUBMIT'] },
+      { title: 'Malformed', description: 'Ingress не принимает report без поддерживаемой schema.', steps: ['MALFORMED_REPORT', 'SNAPSHOT', 'SUBMIT'] },
+      { title: 'Stale commit', description: 'Local report нельзя перенести на другой source snapshot.', steps: ['STALE_REPORT', 'SNAPSHOT', 'SUBMIT'] },
+      { title: 'Authority violation', description: 'Evaluator не вправе выставлять learner-facing Platform status.', steps: ['FORBIDDEN_STATUS', 'SNAPSHOT', 'SUBMIT'] },
+    ];
+
+    let state = TrustModel.initial();
+    let selectedWalkthrough = 0;
+    let completedSteps = 0;
+
+    function dispatch(type, guided = false) {
+      state = TrustModel.reduce(state, { type });
+      if (guided) completedSteps += 1;
+      render();
+    }
+
+    function field(label, value, className = '') {
+      return `<div class="field"><span>${label}</span><strong class="${className}">${value}</strong></div>`;
+    }
+
+    function render() {
+      const report = state.report;
+      const decisionClass = state.decision.status === 'accepted' ? 'accepted' : state.decision.status === 'rejected' ? 'rejected' : '';
+      document.querySelector('#state').innerHTML = [
+        field('Report schema', report?.schemaVersion ?? '—'),
+        field('Case version', report?.caseVersion ?? '—'),
+        field('Report commit', report?.commitSha ?? '—'),
+        field('Source snapshot commit', state.snapshot?.commitSha ?? '—'),
+        field('Evaluator requests status', report?.platformStatus ?? 'none'),
+        field('Ingress decision', `${state.decision.status}: ${state.decision.reason}`, decisionClass),
+      ].join('');
+      document.querySelector('#change').textContent = state.lastChange;
+
+      document.querySelector('#free-play').innerHTML = Object.entries(actions)
+        .map(([type, label]) => `<button data-action="${type}">${label}</button>`).join('');
+      document.querySelectorAll('#free-play button').forEach((button) => {
+        button.addEventListener('click', () => dispatch(button.dataset.action));
+      });
+
+      document.querySelector('#tabs').innerHTML = walkthroughs.map((item, index) =>
+        `<button class="${index === selectedWalkthrough ? 'active' : ''}" data-tab="${index}">${item.title}</button>`).join('');
+      document.querySelectorAll('#tabs button').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedWalkthrough = Number(button.dataset.tab);
+          completedSteps = 0;
+          state = TrustModel.initial();
+          render();
+        });
+      });
+
+      const walkthrough = walkthroughs[selectedWalkthrough];
+      document.querySelector('#walkthrough-title').textContent = walkthrough.title;
+      document.querySelector('#walkthrough-description').textContent = walkthrough.description;
+      document.querySelector('#steps').innerHTML = walkthrough.steps.map((type, index) =>
+        `<button class="${index < completedSteps ? 'done' : ''}" data-step="${index}" ${index !== completedSteps ? 'disabled' : ''}>${index + 1}. ${actions[type]}</button>`).join('');
+      const next = document.querySelector('#steps button:not([disabled])');
+      if (next) next.addEventListener('click', () => dispatch(walkthrough.steps[completedSteps], true));
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inside.sachkov.dev/contracts/source-snapshot.v1.schema.json",
+  "title": "Inside source snapshot v1 prototype",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "assignmentId", "repositoryId", "commitSha", "archiveSha256", "fetchedAt"],
+  "properties": {
+    "schemaVersion": { "const": "inside.source-snapshot.v1" },
+    "assignmentId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "commitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "archiveSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fetchedAt": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+prototype_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(git -C "${prototype_root}" rev-parse --show-toplevel)"
+
+run_language() {
+  local language="$1"
+  local fixture_mode="${2:-pass}"
+  local output_directory="${3:-${prototype_root}/.prototype-out/${language}}"
+  mkdir -p "${output_directory}"
+  output_directory="$(cd "${output_directory}" && pwd)"
+  local report_path="${output_directory}/report.json"
+  local snapshot_path="${output_directory}/source-snapshot.json"
+
+  if [[ "${language}" == "go" ]]; then
+    (
+      cd "${prototype_root}/go"
+      go run . run \
+        --prototype-root "${prototype_root}" \
+        --repository-root "${repository_root}" \
+        --case "${prototype_root}/case-spec.json" \
+        --assignment "${prototype_root}/assignment.json" \
+        --fixture-mode "${fixture_mode}" \
+        --output "${report_path}"
+    )
+  elif [[ "${language}" == "typescript" ]]; then
+    node "${prototype_root}/ts/evaluator.mts" run \
+      --prototype-root "${prototype_root}" \
+      --repository-root "${repository_root}" \
+      --case "${prototype_root}/case-spec.json" \
+      --assignment "${prototype_root}/assignment.json" \
+      --fixture-mode "${fixture_mode}" \
+      --output "${report_path}"
+  else
+    echo "unsupported language: ${language}" >&2
+    return 2
+  fi
+
+  node "${prototype_root}/platform/source-snapshot-stub.mts" \
+    --assignment "${prototype_root}/assignment.json" \
+    --sha "$(git -C "${repository_root}" rev-parse HEAD)" \
+    --output "${snapshot_path}"
+  node "${prototype_root}/platform/ingress.mts" \
+    "${report_path}" \
+    "${snapshot_path}" \
+    "${prototype_root}/case-spec.json" \
+    "${prototype_root}/assignment.json"
+}
+
+command="${1:-go}"
+case "${command}" in
+  go|typescript)
+    run_language "${command}" "${2:-pass}" "${3:-${prototype_root}/.prototype-out/${command}}"
+    ;;
+  verify)
+    "${prototype_root}/scripts/verify.sh"
+    ;;
+  package)
+    "${prototype_root}/scripts/package.sh" "${2:-${prototype_root}/.prototype-out/packages}"
+    ;;
+  measure)
+    "${prototype_root}/scripts/measure.sh" "${2:-${prototype_root}/.prototype-out/measurements}"
+    ;;
+  *)
+    echo "usage: ./prototype [go|typescript] [pass|bad-signature] [output-dir]" >&2
+    echo "       ./prototype [verify|package|measure]" >&2
+    exit 2
+    ;;
+esac

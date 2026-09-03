@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "inside.assignment.v1",
+  "id": "assignment-prototype-102",
+  "repositoryId": "fixture:workspace-as-assignment",
+  "remoteUrl": "git@github.com:sachkov-inside/workspace.git",
+  "caseId": "partner-webhooks",
+  "caseVersion": "1.0.0-prototype.1",
+  "variantId": "python-3.14-fastapi"
+}

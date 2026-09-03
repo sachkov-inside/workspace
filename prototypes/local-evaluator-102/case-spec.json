@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "inside.case-spec.v1",
+  "case": {
+    "id": "partner-webhooks",
+    "version": "1.0.0-prototype.1",
+    "title": "Partner Webhooks: reliable order-status delivery"
+  },
+  "variants": [
+    {
+      "id": "dotnet-10-aspnet",
+      "runtime": ".NET 10 LTS",
+      "framework": "ASP.NET Core 10",
+      "database": "PostgreSQL"
+    },
+    {
+      "id": "python-3.14-fastapi",
+      "runtime": "Python 3.14",
+      "framework": "FastAPI 0.141",
+      "database": "PostgreSQL"
+    }
+  ],
+  "publicScenario": {
+    "id": "temporary-partner-failure",
+    "orderAcceptanceMaxMs": 250,
+    "partnerResponses": [503, 204],
+    "deliveryDeadlineMs": 5000
+  },
+  "integration": {
+    "eventContentType": "application/json",
+    "timestampHeader": "X-Inside-Webhook-Timestamp",
+    "signatureHeader": "X-Inside-Webhook-Signature",
+    "signatureFormat": "v1=<lowercase hex HMAC-SHA256>",
+    "signatureInput": "<unix timestamp>.<raw request body bytes>"
+  },
+  "reliabilityEnvelope": {
+    "retryable": [429, 500, 502, 503, 504, "connect-timeout", "read-timeout"],
+    "terminal": [400, 401, 403, 404, 410, 422],
+    "maxDeliveryWindowSeconds": 30,
+    "algorithmPrescribed": false
+  },
+  "loadProfile": {
+    "burstEvents": 100,
+    "burstWindowSeconds": 5,
+    "maxConcurrentPartnerCalls": 8,
+    "backlogDrainMaxSeconds": 5
+  }
+}

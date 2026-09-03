@@ -1,0 +1,48 @@
+name: inside-local-evaluator-prototype
+
+x-fixture: &fixture
+  build:
+    context: ./docker
+
+services:
+  partner:
+    <<: *fixture
+    command: ["python", "partner.py"]
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py", "http://localhost:8080/health"]
+      interval: 200ms
+      timeout: 1s
+      retries: 25
+
+  candidate:
+    <<: *fixture
+    command: ["python", "candidate.py"]
+    environment:
+      PARTNER_URL: http://partner:8080/webhooks
+      PROTOTYPE_FIXTURE_MODE: ${PROTOTYPE_FIXTURE_MODE:-pass}
+      MAX_CONCURRENT_PARTNER_CALLS: "8"
+    depends_on:
+      partner:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py", "http://localhost:8081/health"]
+      interval: 200ms
+      timeout: 1s
+      retries: 25
+
+  scenario:
+    <<: *fixture
+    command: ["python", "scenario.py"]
+    environment:
+      CANDIDATE_URL: http://candidate:8081/orders/status
+      PARTNER_STATE_URL: http://partner:8080/state
+      EVIDENCE_PATH: /evidence/scenario.json
+      BURST_EVENTS: "100"
+      BURST_WINDOW_SECONDS: "5"
+      MAX_CONCURRENT_PARTNER_CALLS: "8"
+      DELIVERY_DEADLINE_SECONDS: "5"
+    depends_on:
+      candidate:
+        condition: service_healthy
+    volumes:
+      - ${EVIDENCE_DIR:?EVIDENCE_DIR is required}:/evidence
