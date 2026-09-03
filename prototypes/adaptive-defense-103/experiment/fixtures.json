@@ -38,6 +38,21 @@
       "archetype": "deliberate-correct-solution",
       "variantId": "dotnet-10-aspnet",
       "sourceFingerprint": "dotnet-deliberate-v1",
+      "sourceSnapshot": {
+        "starterRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "submittedRevision": "1111111111111111111111111111111111111111",
+        "cumulativeDiff": [
+          "diff --git a/src/Orders/OrderService.cs b/src/Orders/OrderService.cs",
+          "+db.WebhookDeliveries.Add(WebhookDelivery.Pending(order.TenantId, eventId, endpoint.Id, payload));",
+          "+await db.SaveChangesAsync(cancellationToken); // order status and delivery intent share this transaction",
+          "diff --git a/src/Webhooks/DeliveryWorker.cs b/src/Webhooks/DeliveryWorker.cs",
+          "+var due = await claims.LeaseDueAsync(batchSize: 8, lease: TimeSpan.FromSeconds(30));",
+          "+foreach (var delivery in due) await sender.SendOutsideClaimTransactionAsync(delivery);",
+          "+return response.StatusCode switch { 429 or >= 500 => Retry(), 410 => Disable(), _ => Terminal() };",
+          "diff --git a/src/Webhooks/SubscriptionStore.cs b/src/Webhooks/SubscriptionStore.cs",
+          "+return db.Subscriptions.SingleAsync(x => x.TenantId == tenantId && x.Id == endpointId);"
+        ]
+      },
       "sourceEvidence": [
         {
           "id": "src:outbox-transaction",
@@ -80,15 +95,33 @@
       "defenseAnswers": [
         {
           "topic": "commit-crash-window",
+          "dimensions": ["reliability", "correctness"],
+          "respondsTo": ["source:fact:1", "case:fact:2", "decision:before-code", "decision:after-code", "technical:scenario:2"],
           "text": "The same transaction closes the lost-notification window between the order commit and queueing. It does not provide exactly-once HTTP: a crash after partner success but before marking delivered can redeliver, so I promise at-least-once and a stable event_id."
         },
         {
           "topic": "lease-tradeoff",
-          "text": "The lease bounds recovery without holding locks across network I/O. If p99 partner latency approaches the lease, the worker must extend it or use fencing; otherwise two workers can send the same event."
+          "dimensions": ["reliability", "decision_quality"],
+          "respondsTo": ["source:fact:2", "case:fact:7", "technical:telemetry:2", "decision:after-code"],
+          "text": "The first draft held row locks across partner HTTP, so a slow endpoint serialized unrelated tenants and consumed database connections. The current worker claims a batch capped at eight and uses the same eight-slot dispatch limit after releasing the transaction. The lease bounds crash recovery; if p99 partner latency approaches 30 seconds, the worker must extend it or use fencing or two workers can send the same event."
         },
         {
           "topic": "operational-diagnosis",
-          "text": "A growing due backlog with concurrency fixed at eight points to partner latency or retry pressure; low worker claims points to database contention. I would compare due_count, attempt outcome and lease expiry before raising concurrency."
+          "dimensions": ["operability", "decision_quality"],
+          "respondsTo": ["source:fact:3", "case:fact:5", "case:fact:6", "technical:telemetry:2", "technical:telemetry:3", "technical:telemetry:4"],
+          "text": "Support sees attempt count, next attempt, last status and terminal reason; 410 disables the subscription while selected 4xx become terminal, and 429/5xx remain due for retry. A growing due backlog with concurrency fixed at eight points to partner latency or retry pressure; low worker claims points to database contention. I would compare due_count, outcome and lease expiry before raising concurrency."
+        },
+        {
+          "topic": "tenant-secret-boundary",
+          "dimensions": ["correctness", "decision_quality", "operability"],
+          "respondsTo": ["source:fact:4", "case:fact:3", "case:fact:4", "technical:scenario:3", "technical:scenario:4", "technical:scenario:5"],
+          "text": "Every endpoint read is scoped by tenant_id as well as endpoint_id. The signing secret is decrypted only for the HMAC operation and never added to structured diagnostics; support works from endpoint_id and terminal reason. Target validation is separate from tenant authorization and is rechecked before outbound HTTP."
+        },
+        {
+          "topic": "broker-trigger",
+          "dimensions": ["decision_quality", "operability"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:7", "technical:telemetry:1", "technical:telemetry:2", "technical:telemetry:3", "decision:before-code"],
+          "text": "PostgreSQL already owns the atomic order/outbox boundary and the measured burst drains within the case limit. I would revisit a broker after measured queue contention, independent scaling or additional consumers justify its operational cost; it would not remove the need for an atomic handoff from the order transaction."
         }
       ],
       "calibrationExpectation": "mastery_supported"
@@ -98,6 +131,23 @@
       "archetype": "surface-correct-public-pass",
       "variantId": "python-3.14-fastapi",
       "sourceFingerprint": "python-background-task-v1",
+      "sourceSnapshot": {
+        "starterRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "submittedRevision": "2222222222222222222222222222222222222222",
+        "cumulativeDiff": [
+          "diff --git a/app/orders.py b/app/orders.py",
+          "+await session.commit()",
+          "+background_tasks.add_task(deliver_webhook, subscription, payload)",
+          "+return Response(status_code=202)",
+          "diff --git a/app/webhooks.py b/app/webhooks.py",
+          "+async def deliver_webhook(subscription, payload):",
+          "+    for attempt in range(3):",
+          "+        response = await client.post(subscription.url, content=payload, headers=sign(payload))",
+          "+        if response.status_code < 300: break",
+          "+        await asyncio.sleep(0.1)",
+          "+    await write_final_delivery_state(response.status_code)"
+        ]
+      },
       "sourceEvidence": [
         {
           "id": "src:background-task",
@@ -139,14 +189,20 @@
       "defenseAnswers": [
         {
           "topic": "commit-crash-window",
+          "dimensions": ["reliability", "correctness"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:2", "technical:scenario:5", "technical:telemetry:4"],
           "text": "FastAPI keeps background tasks after the response, so I expect it to finish after a deploy or process crash. The public test passed, therefore I do not see a loss window."
         },
         {
           "topic": "retry-policy",
+          "dimensions": ["correctness", "reliability", "decision_quality"],
+          "respondsTo": ["source:fact:2", "case:fact:5", "case:fact:6"],
           "text": "Three retries are a common default. I would increase the number if partners report failures; I did not distinguish 429, 410 and 503 yet."
         },
         {
           "topic": "correction",
+          "dimensions": ["operability", "decision_quality"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:2", "technical:scenario:5"],
           "text": "If restart behaviour becomes a requirement, I could add Redis later. I cannot point to a persisted record that would resume the current notification."
         }
       ],
@@ -157,6 +213,21 @@
       "archetype": "critical-misunderstanding",
       "variantId": "dotnet-10-aspnet",
       "sourceFingerprint": "dotnet-sync-retry-v1",
+      "sourceSnapshot": {
+        "starterRevision": "cccccccccccccccccccccccccccccccccccccccc",
+        "submittedRevision": "3333333333333333333333333333333333333333",
+        "cumulativeDiff": [
+          "diff --git a/src/Orders/OrderController.cs b/src/Orders/OrderController.cs",
+          "+var subscription = await subscriptions.GetSubscription(request.SubscriptionId);",
+          "+await Task.WhenAll(subscription.Endpoints.Select(endpoint => SendWithRetry(endpoint, payload)));",
+          "+await db.SaveChangesAsync(cancellationToken);",
+          "+return Ok(order);",
+          "diff --git a/src/Webhooks/Sender.cs b/src/Webhooks/Sender.cs",
+          "+for (var attempt = 0; attempt < 50 && !response.IsSuccessStatusCode; attempt++)",
+          "+    logger.LogWarning(\"Retry {Url} with secret {Secret}\", endpoint.Url, endpoint.Secret);",
+          "+    response = await client.PostAsync(endpoint.Url, content);"
+        ]
+      },
       "sourceEvidence": [
         {
           "id": "src:inline-http",
@@ -197,14 +268,20 @@
       "defenseAnswers": [
         {
           "topic": "request-boundary",
+          "dimensions": ["correctness", "reliability"],
+          "respondsTo": ["source:fact:1", "case:fact:1", "technical:scenario:1", "technical:telemetry:1"],
           "text": "Returning before partners respond would mean the order is not complete. Task.WhenAll is still asynchronous, so it does not block the API."
         },
         {
           "topic": "terminal-failure",
+          "dimensions": ["reliability", "operability"],
+          "respondsTo": ["source:fact:2", "case:fact:5", "case:fact:6", "technical:telemetry:4"],
           "text": "A 410 may become successful later, therefore retrying it 50 times is safer than dropping it."
         },
         {
           "topic": "tenant-security",
+          "dimensions": ["correctness", "decision_quality", "operability"],
+          "respondsTo": ["source:fact:3", "source:fact:4", "case:fact:3", "technical:scenario:2", "technical:scenario:3"],
           "text": "The user already passed authentication, so subscription_id is enough to select the endpoint. Logs are internal and can contain the secret for debugging."
         }
       ],
@@ -215,6 +292,26 @@
       "archetype": "reference-like-ai-assisted-with-understanding",
       "variantId": "python-3.14-fastapi",
       "sourceFingerprint": "python-reference-like-v1",
+      "sourceSnapshot": {
+        "starterRevision": "dddddddddddddddddddddddddddddddddddddddd",
+        "submittedRevision": "4444444444444444444444444444444444444444",
+        "cumulativeDiff": [
+          "diff --git a/app/orders.py b/app/orders.py",
+          "+session.add(WebhookOutbox(tenant_id=order.tenant_id, event_id=event_id, endpoint_id=endpoint.id, payload=payload))",
+          "+await session.commit()",
+          "diff --git a/app/webhooks/worker.py b/app/webhooks/worker.py",
+          "+rows = await lease_due(session, limit=8, skip_locked=True, lease_seconds=30)",
+          "+await session.commit()  # release row locks before partner HTTP",
+          "+for delivery in rows: await send_and_record(delivery)",
+          "+if status == 429: return retry_at(parse_retry_after(response))",
+          "+if status == 410: return disable_subscription()",
+          "+if status >= 500: return bounded_retry()",
+          "+return terminal_failure(status)",
+          "diff --git a/app/webhooks/security.py b/app/webhooks/security.py",
+          "+target = await resolve_and_reject_private_addresses(url, follow_redirects=False)",
+          "+signature = hmac_sha256(secret, timestamp + b\".\" + raw_body)"
+        ]
+      },
       "sourceEvidence": [
         {
           "id": "src:reference-outbox",
@@ -256,16 +353,40 @@
       },
       "defenseAnswers": [
         {
+          "topic": "consistency-boundary",
+          "dimensions": ["correctness", "reliability"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:1", "case:fact:2", "case:fact:7", "technical:telemetry:1", "technical:telemetry:2"],
+          "text": "The order change and outbox intent commit atomically in PostgreSQL, so returning before partner HTTP does not create a lost-notification gap. The leased worker claims at most eight due rows, commits the short claim transaction, and calls the partner afterward; a 503 leaves durable state for bounded retry instead of blocking the order request."
+        },
+        {
           "topic": "duplicate-window",
+          "dimensions": ["reliability", "correctness"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:2", "technical:scenario:2", "technical:telemetry:4"],
           "text": "The database can atomically persist intent but cannot atomically commit a remote HTTP response. A crash after 204 and before our delivered update creates a duplicate; stable event_id plus receiver idempotency makes that explicit."
         },
         {
           "topic": "outbound-policy",
-          "text": "Checking only the input hostname misses redirects and names that resolve to private addresses. I validate scheme, resolve each connection target, reject loopback/link-local/private ranges and revalidate redirects."
+          "dimensions": ["correctness", "decision_quality"],
+          "respondsTo": ["source:fact:4", "case:fact:3", "case:fact:4", "technical:scenario:3", "technical:scenario:5"],
+          "text": "Checking only the input hostname misses names that resolve to private addresses. This variant requires HTTPS, resolves the connection target, rejects loopback/link-local/private ranges and disables redirects; if redirects are ever enabled, every hop must be resolved and validated again. Tenant-scoped lookup chooses whose endpoint and secret may be used, while HMAC over timestamp plus raw body lets that receiver authenticate the payload; these are separate controls."
+        },
+        {
+          "topic": "worker-concurrency",
+          "dimensions": ["correctness", "reliability", "decision_quality"],
+          "respondsTo": ["source:fact:2", "case:fact:1", "case:fact:7", "technical:scenario:6", "technical:telemetry:2", "technical:telemetry:3"],
+          "text": "The worker claims at most eight rows with SKIP LOCKED in a short transaction, commits that claim, then performs partner HTTP under an eight-slot dispatch limit. Releasing row locks prevents slow partners from serializing other tenants or exhausting database connections; the lease makes abandoned claims recoverable without increasing the concurrency cap."
         },
         {
           "topic": "change-trigger",
+          "dimensions": ["operability", "decision_quality"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:7", "technical:telemetry:1", "technical:telemetry:2", "technical:telemetry:3", "decision:before-code"],
           "text": "I would revisit a broker when independent delivery scaling, cross-service consumers or database queue contention becomes measured. I would still need an atomic handoff from the order transaction."
+        },
+        {
+          "topic": "delivery-state",
+          "dimensions": ["operability", "reliability"],
+          "respondsTo": ["source:fact:3", "case:fact:5", "case:fact:6", "technical:scenario:1"],
+          "text": "Support sees pending, retrying, delivered, terminal_failed or disabled together with attempt count, next_attempt_at and a redacted last status. A 429 honors Retry-After, selected 5xx/timeouts stay retryable, 410 disables the endpoint, and other selected 4xx store a terminal reason. The retry window and attempt policy are bounded by the CaseSpec."
         }
       ],
       "calibrationExpectation": "mastery_supported"
@@ -275,6 +396,26 @@
       "archetype": "same-reference-like-source-without-understanding",
       "variantId": "python-3.14-fastapi",
       "sourceFingerprint": "python-reference-like-v1",
+      "sourceSnapshot": {
+        "starterRevision": "dddddddddddddddddddddddddddddddddddddddd",
+        "submittedRevision": "4444444444444444444444444444444444444444",
+        "cumulativeDiff": [
+          "diff --git a/app/orders.py b/app/orders.py",
+          "+session.add(WebhookOutbox(tenant_id=order.tenant_id, event_id=event_id, endpoint_id=endpoint.id, payload=payload))",
+          "+await session.commit()",
+          "diff --git a/app/webhooks/worker.py b/app/webhooks/worker.py",
+          "+rows = await lease_due(session, limit=8, skip_locked=True, lease_seconds=30)",
+          "+await session.commit()  # release row locks before partner HTTP",
+          "+for delivery in rows: await send_and_record(delivery)",
+          "+if status == 429: return retry_at(parse_retry_after(response))",
+          "+if status == 410: return disable_subscription()",
+          "+if status >= 500: return bounded_retry()",
+          "+return terminal_failure(status)",
+          "diff --git a/app/webhooks/security.py b/app/webhooks/security.py",
+          "+target = await resolve_and_reject_private_addresses(url, follow_redirects=False)",
+          "+signature = hmac_sha256(secret, timestamp + b\".\" + raw_body)"
+        ]
+      },
       "sourceEvidence": [
         {
           "id": "src:reference-outbox",
@@ -317,14 +458,20 @@
       "defenseAnswers": [
         {
           "topic": "duplicate-window",
+          "dimensions": ["reliability", "correctness"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:2", "technical:scenario:2", "technical:telemetry:4"],
           "text": "The unique key and SKIP LOCKED guarantee exactly once. The one duplicate in telemetry looks like test noise."
         },
         {
           "topic": "outbound-policy",
+          "dimensions": ["correctness", "decision_quality"],
+          "respondsTo": ["source:fact:4", "case:fact:3", "case:fact:4", "technical:scenario:3", "technical:scenario:5"],
           "text": "The helper blocks bad URLs. I do not know whether it checks DNS or redirects; it came with the solution."
         },
         {
           "topic": "change-trigger",
+          "dimensions": ["operability", "decision_quality"],
+          "respondsTo": ["source:fact:1", "source:fact:2", "case:fact:7", "technical:telemetry:2", "technical:telemetry:3", "decision:before-code"],
           "text": "A broker is more scalable, but PostgreSQL is simpler. I cannot say what measurement should trigger the change."
         }
       ],

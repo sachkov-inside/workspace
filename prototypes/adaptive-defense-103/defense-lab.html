@@ -200,13 +200,13 @@
       </p>
       <div class="notice">
         Это записанный prototype: provider live не вызывается. Встроены representative results из
-        15 прогонов GPT-5.4; удаление файла удаляет весь demo.
+        15 defense runs / 41 provider call GPT-5.4; удаление файла удаляет весь demo.
       </div>
       <div class="metrics" aria-label="Результаты эксперимента">
         <div class="metric"><strong>15 / 15</strong><span>calibration matches</span></div>
         <div class="metric"><strong>100%</strong><span>canonical grounding</span></div>
-        <div class="metric"><strong>31.3 s</strong><span>provider call p50</span></div>
-        <div class="metric"><strong>≈ $0.064</strong><span>derived typical two-call API proxy</span></div>
+        <div class="metric"><strong>73.4 s</strong><span>completed defense p50</span></div>
+        <div class="metric"><strong>≈ $0.057</strong><span>derived two-call API proxy</span></div>
       </div>
     </header>
 
@@ -265,10 +265,11 @@
       "dotnet-deliberate": {
         label: ".NET · осознанный",
         fingerprint: "dotnet-deliberate-v1",
-        technical: "passed",
+        technicalOutcome: "passed",
+        technicalDisplay: "Технические проверки пройдены",
         signal: "mastery_supported",
         confidence: 0.93,
-        note: "Outbox + leased worker; участник объясняет duplicate window и diagnosis.",
+        note: "Outbox + leased worker; 3/3 supported, один run потребовал follow-up.",
         questions: [
           ["reliability", "Что в transaction boundary предотвращает silent loss, а что всё ещё допускает duplicate delivery?", ["src:outbox-transaction", "answer:commit-crash-window"]],
           ["correctness", "Почему lease без row lock во время HTTP лучше ведёт себя с медленным partner и какой риск появляется у границы lease?", ["src:worker-lease", "answer:lease-tradeoff"]],
@@ -278,10 +279,11 @@
       "python-surface-pass": {
         label: "Python · surface pass",
         fingerprint: "python-background-task-v1",
-        technical: "passed (crash not run)",
+        technicalOutcome: "passed",
+        technicalDisplay: "Доступные проверки пройдены; crash не проверен",
         signal: "mastery_not_yet_shown",
         confidence: 0.90,
-        note: "Public checks зелёные, но BackgroundTasks не создаёт durable resume path.",
+        note: "Public checks зелёные, но BackgroundTasks не создаёт durable resume path; 3/3 not yet.",
         questions: [
           ["reliability", "После commit нет pending delivery row, а crash scenario не запускался. Как уведомление продолжится после падения процесса?", ["src:background-task", "technical:scenario:5", "technical:telemetry:4"]],
           ["decision_quality", "Как три быстрых retry покрывают различие retryable 429/503 и terminal 410?", ["src:memory-retry", "answer:retry-policy", "case:fact:5"]],
@@ -291,10 +293,11 @@
       "dotnet-critical-misunderstanding": {
         label: ".NET · critical fail",
         fingerprint: "dotnet-sync-retry-v1",
-        technical: "failed",
+        technicalOutcome: "failed",
+        technicalDisplay: "Технические проверки не пройдены",
         signal: "mastery_not_yet_shown",
         confidence: 0.97,
-        note: "Partner HTTP ожидается в order request; terminal errors retry; tenant/secret checks fail.",
+        note: "Partner HTTP ожидается в order request; terminal errors retry; tenant/secret checks fail; 3/3 not yet.",
         questions: [
           ["correctness", "Как awaiting Task.WhenAll соблюдает 'order API must not wait', если p99 равен 6120 ms?", ["src:inline-http", "technical:telemetry:1", "case:fact:1"]],
           ["reliability", "Какой bounded terminal state остаётся при 50 повторах 410?", ["src:retry-all", "technical:telemetry:4", "case:fact:6"]],
@@ -304,10 +307,11 @@
       "python-reference-strong": {
         label: "Reference-like · понимает",
         fingerprint: "python-reference-like-v1",
-        technical: "passed",
+        technicalOutcome: "passed",
+        technicalDisplay: "Технические проверки пройдены",
         signal: "mastery_supported",
         confidence: 0.92,
-        note: "AI-assisted source; участник объясняет at-least-once, SSRF seam и broker trigger.",
+        note: "AI-assisted source; 3/3 supported, один run потребовал follow-up.",
         questions: [
           ["reliability", "Почему worker kill дал duplicate и как stable event_id превращает его в явный at-least-once contract?", ["decision:after-code", "technical:telemetry:4", "src:reference-worker"]],
           ["correctness", "Почему hostname check недостаточен без redirect/DNS revalidation?", ["answer:outbound-policy", "src:reference-security"]],
@@ -317,10 +321,11 @@
       "python-reference-weak": {
         label: "Reference-like · не понимает",
         fingerprint: "python-reference-like-v1",
-        technical: "passed",
+        technicalOutcome: "passed",
+        technicalDisplay: "Технические проверки пройдены",
         signal: "mastery_not_yet_shown",
         confidence: 0.90,
-        note: "Тот же source/report, но participant настаивает на exactly-once и не объясняет controls.",
+        note: "Тот же source/report, но participant не объясняет guarantees/controls; 3/3 not yet.",
         questions: [
           ["reliability", "Telemetry показывает duplicate после worker kill. Какая гарантия на самом деле реализована?", ["answer:duplicate-window", "technical:telemetry:4", "src:reference-worker"]],
           ["correctness", "Какие exact controls стоят за helper, который 'blocks bad URLs'?", ["answer:outbound-policy", "src:reference-security"]],
@@ -333,9 +338,16 @@
     const DefenseSession = (() => {
       const maximumProviderCalls = 3;
 
-      function initial(fixtureId, comparisons = []) {
+      function initial(fixtureId, fixture, comparisons = []) {
         return {
           fixtureId,
+          fixtureResult: {
+            technicalOutcome: fixture.technicalOutcome,
+            technicalDisplay: fixture.technicalDisplay,
+            signal: fixture.signal,
+            confidence: fixture.confidence,
+            fingerprint: fixture.fingerprint
+          },
           attemptState: "defense_pending",
           defenseState: "pending",
           providerCalls: 0,
@@ -345,7 +357,7 @@
           questionBudget: "3 + ≤2 follow-ups",
           defenseSignal: "—",
           confidence: "—",
-          technicalResult: fixtures[fixtureId].technical,
+          technicalResult: fixture.technicalDisplay,
           verifiedCandidate: false,
           finalAuthority: "Platform policy (not AI)",
           resolutionPath: "start defense",
@@ -356,10 +368,10 @@
 
       function reduce(state, action) {
         if (action.type === "LOAD_FIXTURE") {
-          return initial(action.fixtureId, state.comparisons);
+          return initial(action.fixtureId, action.fixture, state.comparisons);
         }
         if (action.type === "RESET") {
-          return initial(state.fixtureId, state.comparisons);
+          return initial(state.fixtureId, state.fixtureResult, state.comparisons);
         }
         if (action.type === "START") {
           if (state.defenseState !== "pending") return illegal(state, "Defense можно начать только из pending.");
@@ -383,8 +395,8 @@
         }
         if (action.type === "APPLY_RESULT") {
           if (state.defenseState !== "in_progress") return illegal(state, "Recorded result применяется только к in_progress defense.");
-          const fixture = fixtures[state.fixtureId];
-          const verifiedCandidate = fixture.technical.startsWith("passed") && fixture.signal === "mastery_supported";
+          const fixture = state.fixtureResult;
+          const verifiedCandidate = fixture.technicalOutcome === "passed" && fixture.signal === "mastery_supported";
           const comparison = {
             fixtureId: state.fixtureId,
             fingerprint: fixture.fingerprint,
@@ -476,10 +488,11 @@
 
     const walkthroughs = {
       "understood": {
+        initialFixtureId: "dotnet-deliberate",
         title: "Happy path: понимание подтверждено",
         description: "Technical pass и grounded explanation согласованы; итог остаётся candidate для Platform policy.",
         steps: [
-          ["Загрузить deliberate fixture", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Загрузить deliberate fixture", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate", fixture: fixtures["dotnet-deliberate"] }],
           ["Начать defense", { type: "START" }],
           ["Ответить на consistency question", { type: "ANSWER" }],
           ["Ответить на operability question", { type: "ANSWER" }],
@@ -487,20 +500,22 @@
         ]
       },
       "surface": {
+        initialFixtureId: "python-surface-pass",
         title: "Technical pass, но mastery не показано",
         description: "Public scenario зелёный; defense находит конкретное crash window без durable record.",
         steps: [
-          ["Загрузить surface-pass fixture", { type: "LOAD_FIXTURE", fixtureId: "python-surface-pass" }],
+          ["Загрузить surface-pass fixture", { type: "LOAD_FIXTURE", fixtureId: "python-surface-pass", fixture: fixtures["python-surface-pass"] }],
           ["Начать defense", { type: "START" }],
           ["Записать поверхностный ответ", { type: "ANSWER" }],
           ["Принять structured result", { type: "APPLY_RESULT" }]
         ]
       },
       "outage": {
+        initialFixtureId: "dotnet-deliberate",
         title: "Provider unavailable",
         description: "Три calls исчерпывают initial + 2 retry budget; Attempt и technical evidence не теряются.",
         steps: [
-          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate", fixture: fixtures["dotnet-deliberate"] }],
           ["Call 1", { type: "START" }],
           ["Ошибка 1", { type: "PROVIDER_ERROR" }],
           ["Retry после 30 s", { type: "RETRY" }],
@@ -510,38 +525,51 @@
         ]
       },
       "confidence": {
+        initialFixtureId: "dotnet-deliberate",
         title: "Low confidence",
         description: "Результат становится inconclusive, а не скрытым fail или бесконечным AI loop.",
         steps: [
-          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate", fixture: fixtures["dotnet-deliberate"] }],
           ["Начать defense", { type: "START" }],
           ["Получить confidence < 0.75", { type: "LOW_CONFIDENCE" }]
         ]
       },
       "conflict": {
+        initialFixtureId: "dotnet-critical-misunderstanding",
         title: "AI конфликтует с technical evidence",
         description: "AI не может превратить failed report в pass; конфликт заканчивается manual calibration.",
         steps: [
-          ["Загрузить failed attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-critical-misunderstanding" }],
+          ["Загрузить failed attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-critical-misunderstanding", fixture: fixtures["dotnet-critical-misunderstanding"] }],
           ["Начать defense", { type: "START" }],
           ["Сымитировать конфликт", { type: "EVIDENCE_CONFLICT" }]
         ]
       },
       "same-source": {
+        initialFixtureId: "python-reference-strong",
         title: "Один source, разное понимание",
         description: "Fingerprint и technical report одинаковы; signal зависит от explanation, не от угадывания provenance.",
         steps: [
-          ["Загрузить strong explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-strong" }],
+          ["Загрузить strong explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-strong", fixture: fixtures["python-reference-strong"] }],
           ["Начать strong defense", { type: "START" }],
           ["Зафиксировать strong result", { type: "APPLY_RESULT" }],
-          ["Загрузить weak explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-weak" }],
+          ["Загрузить weak explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-weak", fixture: fixtures["python-reference-weak"] }],
           ["Начать weak defense", { type: "START" }],
           ["Зафиксировать weak result", { type: "APPLY_RESULT" }]
+        ]
+      },
+      "illegal": {
+        initialFixtureId: "dotnet-deliberate",
+        title: "Запрещённый порядок действий",
+        description: "Ответ и retry до начала defense не меняют состояние; demo явно показывает ignored transition.",
+        steps: [
+          ["Ответить до начала", { type: "ANSWER" }],
+          ["Retry без provider error", { type: "RETRY" }],
+          ["Начать корректно", { type: "START" }]
         ]
       }
     };
 
-    let state = DefenseSession.initial("dotnet-deliberate");
+    let state = DefenseSession.initial("dotnet-deliberate", fixtures["dotnet-deliberate"]);
     let activeWalkthrough = "understood";
     let walkthroughStep = 0;
 
@@ -560,7 +588,7 @@
       const button = document.createElement("button");
       button.textContent = fixture.label;
       button.addEventListener("click", () => {
-        state = DefenseSession.reduce(state, { type: "LOAD_FIXTURE", fixtureId });
+        state = DefenseSession.reduce(state, { type: "LOAD_FIXTURE", fixtureId, fixture });
         walkthroughStep = 0;
         render();
       });
@@ -583,7 +611,8 @@
       button.addEventListener("click", () => {
         activeWalkthrough = walkthroughId;
         walkthroughStep = 0;
-        state = DefenseSession.initial(state.fixtureId, state.comparisons);
+        const initialFixtureId = walkthroughs[walkthroughId].initialFixtureId;
+        state = DefenseSession.initial(initialFixtureId, fixtures[initialFixtureId]);
         render();
       });
       tabs.append(button);
@@ -601,18 +630,18 @@
       fixtureNote.textContent = `${fixture.note} Source fingerprint: ${fixture.fingerprint}.`;
       lastEvent.textContent = state.lastEvent;
       stateGrid.replaceChildren(...Object.entries({
-        "Attempt": state.attemptState,
-        "AI defense": state.defenseState,
+        "Попытка": displayValue(state.attemptState),
+        "AI-защита": displayValue(state.defenseState),
         "Technical result": state.technicalResult,
         "Provider calls": `${state.providerCalls} / 3`,
         "Provider errors": state.providerErrors,
         "Retry after": state.retryAfter,
         "Answers": `${state.answersRecorded} / ${state.questionBudget}`,
-        "Defense signal": state.defenseSignal,
+        "Сигнал понимания": displayValue(state.defenseSignal),
         "Confidence": state.confidence,
-        "Verified candidate": state.verifiedCandidate ? "yes; Platform decides" : "no",
-        "Final authority": state.finalAuthority,
-        "Next": state.resolutionPath
+        "Можно рассматривать Verified": state.verifiedCandidate ? "Да; решает Platform" : "Нет",
+        "Кто принимает итог": "Platform, не AI",
+        "Следующее действие": displayValue(state.resolutionPath)
       }).map(([label, value]) => stateField(label, value)));
 
       questions.replaceChildren(...fixture.questions.map(([dimension, prompt, refs], index) => {
@@ -639,7 +668,7 @@
         list.className = "comparison";
         for (const item of state.comparisons) {
           const row = document.createElement("li");
-          row.textContent = `${item.fixtureId} · ${item.fingerprint} → ${item.signal}`;
+          row.textContent = `${item.fixtureId} · ${item.fingerprint} → ${displayValue(item.signal)}`;
           list.append(row);
         }
         comparison.replaceChildren(heading, list);
@@ -657,6 +686,28 @@
       content.textContent = String(value);
       field.append(caption, content);
       return field;
+    }
+
+    function displayValue(value) {
+      const labels = {
+        "defense_pending": "Ждёт защиты",
+        "evaluated": "Оценена",
+        "pending": "Ожидает запуска",
+        "in_progress": "Идёт сейчас",
+        "completed": "Завершена",
+        "mastery_supported": "Понимание подтверждается",
+        "mastery_not_yet_shown": "Понимание пока не показано",
+        "inconclusive": "Недостаточно данных",
+        "start defense": "Начать защиту",
+        "answer grounded questions": "Ответить на вопросы по решению",
+        "Platform may compose MasteryResult": "Platform может собрать итог",
+        "feedback → new Attempt or manual path": "Feedback → новая попытка или ручной разбор",
+        "retry same defense version": "Повторить ту же версию защиты",
+        "resume same defense version": "Продолжить ту же версию защиты",
+        "manual/support; no negative signal": "Ручной путь без отрицательного сигнала",
+        "manual calibration or new Attempt": "Ручная калибровка или новая попытка"
+      };
+      return labels[value] ?? value;
     }
 
     function renderWalkthrough() {

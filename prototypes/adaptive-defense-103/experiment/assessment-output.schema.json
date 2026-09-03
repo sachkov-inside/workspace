@@ -2,25 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "attemptId",
-    "questions",
-    "followUps",
-    "assessment"
-  ],
+  "required": ["schemaVersion", "attemptId", "followUps", "assessment"],
   "properties": {
     "schemaVersion": {
       "type": "string",
-      "const": "inside.adaptive-defense-result.v1"
+      "const": "inside.adaptive-defense-assessment.v1"
     },
     "attemptId": { "type": "string", "minLength": 1 },
-    "questions": {
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 3,
-      "items": { "$ref": "#/$defs/question" }
-    },
     "followUps": {
       "type": "array",
       "maxItems": 2,

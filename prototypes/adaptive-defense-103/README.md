@@ -17,12 +17,16 @@ source evidence, technical report/telemetry, Decision Record и ответы у�
 **Conditional GO: включить adaptive defense в первую Platform Specification как advisory mastery
 layer, а не как detector или самостоятельный authority.**
 
-На 5 намеренно различающихся fixture attempts модель дала ожидаемый calibration signal во всех 15
-независимых прогонах. Вопросы и rubric assessments во всех прогонах ссылались только на canonical
-evidence IDs. Два fixture с одним и тем же source snapshot и passing technical report получили
-разные сигналы исключительно из-за Decision Record и ответов: `mastery_supported` против
-`mastery_not_yet_shown`. Ни один output не сделал provenance claim и не попытался переписать
-technical result.
+На 5 намеренно различающихся fixture attempts полный adaptive loop дал ожидаемый calibration signal
+во всех 15 независимых прогонах. Question generation была blind: model input содержал только opaque
+attempt ID и разрешённый context, без fixture name/archetype, ожидаемого результата или ответов.
+Первый call генерировал вопросы, второй оценивал ответы, а bounded третий call запускался только при
+follow-up. Вопросы, follow-ups и rubric assessments ссылались только на canonical evidence IDs.
+
+Два fixture с одним и тем же exact synthetic diff, source snapshot identity и passing technical
+report получили разные сигналы исключительно из-за Decision Record и ответов:
+`mastery_supported` против `mastery_not_yet_shown`. Ни один output не сделал provenance claim и не
+попытался переписать technical result.
 
 Это proof полезности механизма, а не production calibration. Fixtures синтетические, ответы
 заранее покрывают известные риски, а настоящий C#/.NET или Python starter repository ещё не
@@ -41,9 +45,16 @@ node experiment/run.mjs 3
 ```
 
 Runner выполняет три независимых прогона каждого fixture с concurrency 3, моделью `gpt-5.4` и
-`reasoning_effort=low`. Он передаёт fixture через stdin в ephemeral read-only Codex session со
-strict structured output. Результаты перезаписываются в [`evidence/model-runs.json`](evidence/model-runs.json)
-и [`evidence/summary.json`](evidence/summary.json).
+`reasoning_effort=low`. Он передаёт phase input через stdin в ephemeral read-only Codex session со
+strict structured output и пустым shell environment. Результаты перезаписываются в
+[`evidence/model-runs.json`](evidence/model-runs.json) и
+[`evidence/summary.json`](evidence/summary.json). Failure paths отдельно воспроизводятся командой:
+
+```bash
+node experiment/run-failures.mjs
+```
+
+Её записанный результат — [`evidence/failure-runs.json`](evidence/failure-runs.json).
 
 Codex с ChatGPT account не разрешил immutable model ID `gpt-5.4-2026-03-05`, поэтому prototype
 зафиксировал alias, CLI version и дату прогона. Production обязан хранить immutable provider/model
@@ -59,33 +70,38 @@ snapshot либо явно versioned alias policy вместе с prompt и rubr
 | `python-reference-strong` | passed | reference-like/AI-assisted source с пониманием guarantees | `mastery_supported` |
 | `python-reference-weak` | тот же source/report | exactly-once и security claims не объяснены | `mastery_not_yet_shown` |
 
-Fixtures и owner calibration записаны до повторных runs в
-[`experiment/fixtures.json`](experiment/fixtures.json). `calibrationExpectation` runner не передаёт
-модели.
+Archetypes и owner calibration были записаны до model runs в
+[`experiment/fixtures.json`](experiment/fixtures.json). Blinded pilot обнаружил неполное покрытие
+сгенерированных вопросов prepared answers; response coverage и exact diff fixtures были уточнены до
+финальной серии. `calibrationExpectation`, fixture metadata и answer-selection metadata runner
+модели не передаёт.
 
 ## Measurements
 
 Environment: macOS arm64, Node v22.23.1, `codex-cli 0.153.0`, GPT-5.4 alias, low reasoning. Каждый
-attempt прогнан трижды; одновременно выполнялось не больше трёх calls.
+attempt прогнан трижды; одновременно выполнялось не больше трёх calls. Финальная серия сделала 41
+provider call: 2 на обычный defense и третий только при follow-up.
 
 | Measure | Result |
 |---|---:|
 | Expected signal | 15 / 15 |
 | Unanimous fixtures | 5 / 5 |
 | Question canonical grounding | 100% |
+| Follow-up canonical grounding | 100% |
 | Rubric canonical grounding | 100% |
 | Provenance claims | 0 |
 | Technical override attempts | 0 |
-| Latency per call p50 / p95 | 31.3 s / 41.0 s |
-| Provider-reported input / cached input | 216,414 / 157,440 tokens |
-| Provider-reported output | 19,349 tokens |
-| Average explicit fixture prompt | 7,423 UTF-8 bytes |
+| Provider-call latency p50 / p95 | 23.5 s / 34.6 s |
+| Completed-defense latency p50 / p95 | 73.4 s / 82.4 s |
+| Provider-reported input / cached input | 613,521 / 383,232 tokens |
+| Provider-reported output | 33,787 tokens |
+| Average explicit prompts per defense | 28,260 UTF-8 bytes across phases |
 
 Codex CLI не сообщает invoice cost. Для сравнимого proxy к recorded usage применены официальные
 GPT-5.4 API rates на 2026-09-03: $2.50 / 1M uncached input, $0.25 / 1M cached input и $15 / 1M
 output ([OpenAI model page](https://developers.openai.com/api/docs/models/gpt-5.4)). Derived estimate:
-$0.4770 за 15 calls, $0.0318 за call, около $0.0636 за типичный двух-call defense и не больше
-$0.0954 за три calls при таком же usage/caching. Это **не фактический счёт**: usage включает большой
+$1.1783 за 41 call, $0.0287 за call, около $0.0575 за двух-call defense и не больше $0.0862 за три
+calls при таком же usage/caching. Это **не фактический счёт**: usage включает большой
 Codex agent runtime context, а prototype использовал ChatGPT-authenticated CLI, не Responses API.
 
 В beta нужно писать фактические provider usage/cost и latency на один completed defense, отдельно
@@ -122,8 +138,11 @@ Initial beta budgets для последующей калибровки:
 
 ### Output: `inside.adaptive-defense-result.v1`
 
-Strict schema находится в [`experiment/defense-output.schema.json`](experiment/defense-output.schema.json).
-Output содержит:
+Question artifact, assessment artifact и собранный result имеют отдельные strict schemas:
+[`question-output.schema.json`](experiment/question-output.schema.json),
+[`assessment-output.schema.json`](experiment/assessment-output.schema.json) и
+[`defense-output.schema.json`](experiment/defense-output.schema.json). Assessment не может
+переписать immutable initial questions. Итоговый output содержит:
 
 - 2–3 grounded initial questions и 0–2 grounded follow-ups;
 - advisory `defenseSignal`: `mastery_supported`, `mastery_not_yet_shown` или `inconclusive`;
@@ -149,7 +168,8 @@ report в pass. `mastery_not_yet_shown` не маскируется passing chec
   checks, defense становится `inconclusive`, а конфликт хранится для author review.
 
 Эти переходы можно прожать в `defense-lab.html`; после каждого action demo показывает полный
-relevant state.
+relevant state. Четыре executable runs подтверждают provider-unavailable, low-confidence,
+technical-conflict и illegal-transition paths.
 
 ## Staged learner flow
 
@@ -169,6 +189,9 @@ chronology или авторство текста.
 ## Known false positives / false negatives
 
 - Fixtures намеренно контрастны; 15/15 может завышать качество на пограничных human attempts.
+- Промежуточный assessment без ответов на follow-up дал 12/15 и три false negatives на strong
+  fixtures. Только bounded final assessment после follow-up восстановил 15/15. Поэтому Platform не
+  должна финализировать отрицательный signal, пока сама модель запросила уточнение.
 - Убедительный, но неверный ответ способен получить false positive, если relevant counter-evidence
   не попало в bounded context.
 - Краткий ответ, неродной язык или слабое письменное выражение могут дать false negative при
@@ -177,8 +200,9 @@ chronology или авторство текста.
 - Grounded question может подсказать missing solution. Это допустимо как learning feedback, но
   снижает ценность повторного identical question; следующая Attempt должна получать новый
   counterfactual из тех же выданных facts.
-- Prototype использует evidence summaries, а не полный starter repository. Prompt injection,
-  context selection recall и C#↔Python parity требуют отдельного conformance corpus в Platform.
+- Prototype использует exact synthetic cumulative diffs и evidence summaries, а не полный реальный
+  starter repository. Prompt injection, context selection recall и C#↔Python parity требуют
+  отдельного conformance corpus в Platform.
 - Model variance проверена только на одном alias, одном prompt и low reasoning. До beta нужны
   immutable model/prompt comparison и periodic author recalibration.
 
@@ -193,6 +217,20 @@ Recommendation — **GO с указанной узкой ролью**. Влад�
 После принятия эти пункты становятся input ровно для одной Platform Specification. Production AI
 integration, provider selection, retention policy, paid limits и starter repositories этим
 prototype не создаются.
+
+## Verification
+
+- Final blinded adaptive experiment: 15/15 expected signals, 100% question/follow-up/rubric
+  grounding, 0 provenance claims, 0 technical overrides.
+- Failure-mode runner: 4/4 provider-unavailable, low-confidence, evidence-conflict и illegal-action
+  scenarios.
+- Privacy/context audit: question call не содержит fixture calibration metadata или prepared
+  answers; модель получает только synthetic Assignment context; credential-shaped values и
+  external references в HTML отсутствуют.
+- Inline script parse и reducer walkthroughs: pass.
+- Workspace verification: 38 unit tests pass, harness `health` healthy, harness `diff` clean.
+- **Not tested:** visual desktop/mobile render и manual browser clicking — in-app browser backend в
+  сессии был недоступен. HTML остаётся self-contained и прошёл static/logic checks.
 
 ## Deletion test
 

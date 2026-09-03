@@ -1,26 +1,35 @@
 {
-  "schemaVersion": "inside.adaptive-defense-summary.v1",
+  "schemaVersion": "inside.adaptive-defense-summary.v2",
   "runCount": 15,
+  "providerCallCount": 41,
   "fixtureCount": 5,
+  "blindQuestionGeneration": true,
   "expectedSignalMatches": 15,
   "expectedSignalRate": 1,
   "unanimousFixtures": 5,
   "questionGroundingRate": 1,
   "rubricGroundingRate": 1,
+  "followUpGroundingRate": 1,
   "provenanceViolations": 0,
   "technicalOverrideAttempts": 0,
-  "latencyMs": {
-    "min": 24681,
-    "p50": 31277,
-    "p95": 41016,
-    "max": 41016
+  "providerLatencyMs": {
+    "min": 15633,
+    "p50": 23506,
+    "p95": 34565,
+    "max": 39831
+  },
+  "defenseLatencyMs": {
+    "min": 39826,
+    "p50": 73407,
+    "p95": 82362,
+    "max": 82362
   },
   "usageTotals": {
-    "input_tokens": 216414,
-    "cached_input_tokens": 157440,
+    "input_tokens": 613521,
+    "cached_input_tokens": 383232,
     "cache_write_input_tokens": 0,
-    "output_tokens": 19349,
-    "reasoning_output_tokens": 1436
+    "output_tokens": 33787,
+    "reasoning_output_tokens": 3160
   },
   "apiCostEstimate": {
     "kind": "derived-not-billed",
@@ -31,12 +40,12 @@
       "cachedInput": 0.25,
       "output": 15
     },
-    "uncachedInputTokens": 58974,
-    "totalUsd": 0.47703,
-    "perCallUsd": 0.031802,
-    "typicalTwoCallDefenseUsd": 0.063604,
-    "maximumThreeCallDefenseUsd": 0.095406,
-    "caveat": "The experiment used a ChatGPT-authenticated Codex CLI, not API billing. The estimate applies public API rates to provider-reported usage, which includes Codex runtime context."
+    "uncachedInputTokens": 230289,
+    "totalUsd": 1.178335,
+    "perCallUsd": 0.02874,
+    "typicalTwoCallDefenseUsd": 0.05748,
+    "maximumThreeCallDefenseUsd": 0.08622,
+    "caveat": "The experiment used a ChatGPT-authenticated Codex CLI, not API billing. Usage includes Codex runtime context."
   },
   "fixtures": [
     {
@@ -51,11 +60,17 @@
       "expectedMatches": 3,
       "questionGroundingRate": 1,
       "rubricGroundingRate": 1,
+      "followUpGroundingRate": 1,
       "questionDimensions": [
         "correctness",
         "decision_quality",
         "operability",
         "reliability"
+      ],
+      "followUpCounts": [
+        0,
+        1,
+        0
       ]
     },
     {
@@ -70,11 +85,16 @@
       "expectedMatches": 3,
       "questionGroundingRate": 1,
       "rubricGroundingRate": 1,
+      "followUpGroundingRate": 1,
       "questionDimensions": [
-        "correctness",
         "decision_quality",
         "operability",
         "reliability"
+      ],
+      "followUpCounts": [
+        2,
+        2,
+        2
       ]
     },
     {
@@ -89,11 +109,17 @@
       "expectedMatches": 3,
       "questionGroundingRate": 1,
       "rubricGroundingRate": 1,
+      "followUpGroundingRate": 1,
       "questionDimensions": [
         "correctness",
         "decision_quality",
         "operability",
         "reliability"
+      ],
+      "followUpCounts": [
+        2,
+        2,
+        2
       ]
     },
     {
@@ -108,11 +134,17 @@
       "expectedMatches": 3,
       "questionGroundingRate": 1,
       "rubricGroundingRate": 1,
+      "followUpGroundingRate": 1,
       "questionDimensions": [
         "correctness",
         "decision_quality",
         "operability",
         "reliability"
+      ],
+      "followUpCounts": [
+        1,
+        0,
+        0
       ]
     },
     {
@@ -127,10 +159,17 @@
       "expectedMatches": 3,
       "questionGroundingRate": 1,
       "rubricGroundingRate": 1,
+      "followUpGroundingRate": 1,
       "questionDimensions": [
         "correctness",
         "decision_quality",
+        "operability",
         "reliability"
+      ],
+      "followUpCounts": [
+        2,
+        2,
+        2
       ]
     }
   ],
