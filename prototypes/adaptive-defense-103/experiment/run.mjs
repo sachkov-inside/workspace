@@ -14,6 +14,8 @@ const rawEvidencePath = resolve(evidenceDirectory, "model-runs.json");
 const summaryPath = resolve(evidenceDirectory, "summary.json");
 const questionSchemaPath = resolve(experimentDirectory, "question-output.schema.json");
 const assessmentSchemaPath = resolve(experimentDirectory, "assessment-output.schema.json");
+const modelVersion = "gpt-5.4";
+const expectedDimensions = ["correctness", "reliability", "operability", "decision_quality"];
 
 const requestedRuns = Number.parseInt(process.argv[2] ?? "3", 10);
 if (!Number.isInteger(requestedRuns) || requestedRuns < 1 || requestedRuns > 5) {
@@ -68,7 +70,7 @@ const evidence = {
   schemaVersion: "inside.adaptive-defense-experiment.v2",
   environment: {
     providerHarness: codexVersion.trim(),
-    model: "gpt-5.4",
+    model: modelVersion,
     reasoningEffort: "low",
     platform: process.platform,
     architecture: process.arch,
@@ -106,29 +108,39 @@ process.stdout.write(`Evidence: ${rawEvidencePath}\nSummary: ${summaryPath}\n`);
 async function runFixture(job) {
   const temporaryDirectory = await mkdtemp(resolve(tmpdir(), "inside-defense-103-"));
   try {
+    const artifactContext = makeArtifactContext(job.attempt);
     const questionInput = {
       attemptId: job.opaqueAttemptId,
+      artifactContext,
       caseSpec: normalizeCaseSpec(fixtures.caseSpec),
       attempt: job.modelInput
     };
     assertBlindQuestionInput(questionInput, job.attempt);
-    const questionPhase = await runModelPhase({
+    const baseReferences = collectIds(questionInput);
+    const questionPhase = await runValidatedModelPhase({
       phaseName: "questions",
       schemaPath: questionSchemaPath,
       prompt: makePrompt(commonPrompt, questionPrompt, questionInput),
-      temporaryDirectory
+      temporaryDirectory,
+      validate: (output) => assertQuestionArtifact(output, job.opaqueAttemptId, artifactContext, baseReferences)
     });
-    assertAttemptId(questionPhase.output, job.opaqueAttemptId);
 
     const initialExchanges = pairAnswers(questionPhase.output.questions, job.attempt.defenseAnswers);
     const assessmentInput = { ...questionInput, exchanges: initialExchanges };
-    const assessmentPhase = await runModelPhase({
+    const assessmentReferences = collectIds(assessmentInput);
+    const assessmentPhase = await runValidatedModelPhase({
       phaseName: "assessment",
       schemaPath: assessmentSchemaPath,
       prompt: makePrompt(commonPrompt, assessmentPrompt, assessmentInput),
-      temporaryDirectory
+      temporaryDirectory,
+      validate: (output) => assertAssessmentArtifact(
+        output,
+        job.opaqueAttemptId,
+        artifactContext,
+        assessmentReferences,
+        true
+      )
     });
-    assertAttemptId(assessmentPhase.output, job.opaqueAttemptId);
     const recordedFollowUps = assessmentPhase.output.followUps;
     let allExchanges = initialExchanges;
     let finalAssessment = assessmentPhase.output.assessment;
@@ -146,19 +158,23 @@ async function runFixture(job) {
         initialExchanges.length + 1
       );
       allExchanges = [...initialExchanges, ...followUpExchanges];
-      const finalPhase = await runModelPhase({
+      const finalInput = {
+        ...questionInput,
+        exchanges: allExchanges
+      };
+      const finalPhase = await runValidatedModelPhase({
         phaseName: "final-assessment",
         schemaPath: assessmentSchemaPath,
-        prompt: makePrompt(commonPrompt, finalAssessmentPrompt, {
-          ...questionInput,
-          exchanges: allExchanges
-        }),
-        temporaryDirectory
+        prompt: makePrompt(commonPrompt, finalAssessmentPrompt, finalInput),
+        temporaryDirectory,
+        validate: (output) => assertAssessmentArtifact(
+          output,
+          job.opaqueAttemptId,
+          artifactContext,
+          collectIds(finalInput),
+          false
+        )
       });
-      assertAttemptId(finalPhase.output, job.opaqueAttemptId);
-      if (finalPhase.output.followUps.length > 0) {
-        throw new Error("final assessment exceeded the follow-up budget");
-      }
       finalAssessment = finalPhase.output.assessment;
       phases.finalAssessment = withoutOutput(finalPhase);
     }
@@ -167,6 +183,12 @@ async function runFixture(job) {
     const output = {
       schemaVersion: "inside.adaptive-defense-result.v1",
       attemptId: job.opaqueAttemptId,
+      artifactContext,
+      evidenceRefs: collectOutputEvidenceRefs(
+        questionPhase.output.questions,
+        recordedFollowUps,
+        finalAssessment
+      ),
       questions: questionPhase.output.questions,
       followUps: recordedFollowUps,
       assessment: finalAssessment
@@ -178,7 +200,7 @@ async function runFixture(job) {
       repetition: job.repetition,
       sourceFingerprint: job.attempt.sourceFingerprint,
       expectedCalibration: job.attempt.calibrationExpectation,
-      providerCallCount: phaseMeasurements.length,
+      providerCallCount: phaseMeasurements.reduce((total, phase) => total + phase.providerCallCount, 0),
       latencyMs: phaseMeasurements.reduce((total, phase) => total + phase.latencyMs, 0),
       promptUtf8Bytes: phaseMeasurements.reduce((total, phase) => total + phase.promptUtf8Bytes, 0),
       usage: addUsage(...phaseMeasurements.map((phase) => phase.usage)),
@@ -200,7 +222,7 @@ async function runModelPhase({ phaseName, schemaPath, prompt, temporaryDirectory
     "--ephemeral",
     "--skip-git-repo-check",
     "-s", "read-only",
-    "-m", "gpt-5.4",
+    "-m", modelVersion,
     "-c", "model_reasoning_effort=\"low\"",
     "-c", "shell_environment_policy.inherit=\"none\"",
     "--output-schema", schemaPath,
@@ -223,6 +245,30 @@ async function runModelPhase({ phaseName, schemaPath, prompt, temporaryDirectory
     usage: parseUsage(execution.stdout),
     output: await readJson(outputPath)
   };
+}
+
+async function runValidatedModelPhase(options) {
+  const attempts = [];
+  let lastValidationError;
+  for (let attemptNumber = 1; attemptNumber <= 2; attemptNumber += 1) {
+    const phase = await runModelPhase(options);
+    try {
+      options.validate(phase.output);
+      attempts.push({ ...withoutOutput(phase), validationError: null });
+      return {
+        output: phase.output,
+        providerCallCount: attempts.length,
+        latencyMs: attempts.reduce((total, attempt) => total + attempt.latencyMs, 0),
+        promptUtf8Bytes: attempts.reduce((total, attempt) => total + attempt.promptUtf8Bytes, 0),
+        usage: addUsage(...attempts.map((attempt) => attempt.usage)),
+        attempts
+      };
+    } catch (error) {
+      lastValidationError = error;
+      attempts.push({ ...withoutOutput(phase), validationError: error.message });
+    }
+  }
+  throw new Error(`invalid ${options.phaseName} artifact after one retry: ${lastValidationError.message}`);
 }
 
 function makePrompt(common, phase, input) {
@@ -267,6 +313,17 @@ function tagFacts(prefix, facts) {
   return facts.map((fact, index) => ({ id: `${prefix}:${index + 1}`, fact }));
 }
 
+function makeArtifactContext(attempt) {
+  return {
+    caseVersion: fixtures.caseSpec.version,
+    sourceRevision: attempt.sourceSnapshot.submittedRevision,
+    evaluationReportVersion: "partner-webhooks-synthetic-evaluation.v1",
+    promptVersion: "adaptive-defense-prompts.v2",
+    rubricVersion: "partner-webhooks-rubric.v1",
+    modelVersion
+  };
+}
+
 function pairAnswers(questions, answerFixtures, usedAnswers = new Set(), firstExchangeNumber = 1) {
   const unused = answerFixtures.filter((answer) => !usedAnswers.has(answer.text));
   return questions.map((question, index) => {
@@ -297,10 +354,65 @@ function assertBlindQuestionInput(input, attempt) {
   }
 }
 
-function assertAttemptId(output, expectedAttemptId) {
+function assertOutputEnvelope(output, expectedAttemptId, expectedContext) {
   if (output.attemptId !== expectedAttemptId) {
     throw new Error(`model returned attemptId ${output.attemptId}; expected ${expectedAttemptId}`);
   }
+  const returnedContext = output.artifactContext ?? {};
+  const contextMatches = Object.keys(returnedContext).length === Object.keys(expectedContext).length &&
+    Object.entries(expectedContext).every(([key, value]) => returnedContext[key] === value);
+  if (!contextMatches) {
+    throw new Error("model returned artifactContext that differs from immutable input versions");
+  }
+}
+
+function assertQuestionArtifact(output, expectedAttemptId, expectedContext, allowedReferences) {
+  assertOutputEnvelope(output, expectedAttemptId, expectedContext);
+  assertGroundedQuestions(output.questions, allowedReferences, "initial question");
+}
+
+function assertAssessmentArtifact(
+  output,
+  expectedAttemptId,
+  expectedContext,
+  allowedReferences,
+  followUpsAllowed
+) {
+  assertOutputEnvelope(output, expectedAttemptId, expectedContext);
+  if (!followUpsAllowed && output.followUps.length > 0) {
+    throw new Error("final assessment exceeded the follow-up budget");
+  }
+  assertGroundedQuestions(output.followUps, allowedReferences, "follow-up");
+  const dimensions = output.assessment.dimensionSignals.map((signal) => signal.dimension).sort();
+  if (JSON.stringify(dimensions) !== JSON.stringify([...expectedDimensions].sort())) {
+    throw new Error(`dimensionSignals must contain each rubric dimension once; got ${dimensions.join(", ")}`);
+  }
+  for (const signal of output.assessment.dimensionSignals) {
+    assertReferences(signal.evidenceRefs, allowedReferences, `dimension ${signal.dimension}`);
+  }
+  for (const contradiction of output.assessment.contradictions) {
+    assertReferences([contradiction.evidenceRef], allowedReferences, "contradiction");
+  }
+}
+
+function assertGroundedQuestions(questions, allowedReferences, label) {
+  for (const question of questions) {
+    assertReferences(question.groundedIn, allowedReferences, `${label} ${question.id}`);
+  }
+}
+
+function assertReferences(references, allowedReferences, label) {
+  const invalid = references.filter((reference) => !allowedReferences.has(reference));
+  if (invalid.length > 0) throw new Error(`${label} has invalid evidence refs: ${invalid.join(", ")}`);
+}
+
+function collectOutputEvidenceRefs(questions, followUps, assessment) {
+  return [...new Set([
+    ...questions.flatMap((question) => question.groundedIn),
+    ...followUps.flatMap((question) => question.groundedIn),
+    ...assessment.dimensionSignals.flatMap((signal) => signal.evidenceRefs),
+    ...assessment.contradictions.map((contradiction) => contradiction.evidenceRef)
+  ])].sort();
 }
 
 function withoutOutput(phase) {
@@ -360,7 +472,9 @@ function summarize(attempts, evidence) {
   });
 
   const providerLatencies = evidence.results
-    .flatMap((result) => Object.values(result.phases).map((phase) => phase.latencyMs))
+    .flatMap((result) => Object.values(result.phases).flatMap((phase) =>
+      phase.attempts.map((attempt) => attempt.latencyMs)
+    ))
     .sort((left, right) => left - right);
   const defenseLatencies = evidence.results.map((result) => result.latencyMs).sort((left, right) => left - right);
   const usageTotals = evidence.results.reduce((totals, result) => addUsage(totals, result.usage), {});

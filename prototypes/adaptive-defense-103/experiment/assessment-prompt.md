@@ -3,6 +3,8 @@ retains those questions as an immutable artifact; do not reproduce or rewrite th
 rubric dimensions and add at most two grounded follow-ups only when an answer is vague, wrong or
 contradicted by evidence.
 
+Echo `artifactContext` exactly as supplied. Return each of the four rubric dimensions exactly once.
+
 Return an advisory defense signal and learner feedback using the strict result schema. Cite exact
 input fact or exchange IDs. A follow-up indicates what a live session would ask next; the current
 signal describes only the evidence already present and never assigns `Verified`.

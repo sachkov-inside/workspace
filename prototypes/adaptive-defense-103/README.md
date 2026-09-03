@@ -12,10 +12,17 @@ source evidence, technical report/telemetry, Decision Record и ответы у�
 эксперимент проверяет, можно ли отделить такой signal от недоказуемого вывода о происхождении кода
 и от окончательного решения Platform о `Verified`.
 
-## Verdict
+## Owner decision
 
-**Conditional GO: включить adaptive defense в первую Platform Specification как advisory mastery
-layer, а не как detector или самостоятельный authority.**
+**DEFER / NO-GO для первой версии.** 2026-09-03 владелец решил, что V1 проверяет решение через
+executable local tests, связанные с exact source revision, а обучение поддерживают Materials и
+авторский разбор/точное решение. Adaptive AI defense, AI feedback и AI provider integration не
+являются gate для `Verified` и не входят в первую Platform Specification.
+
+Сам prototype показал, что bounded adaptive defense технически может быть полезным advisory mastery
+layer позднее. Это не доказывает, что он нужен для первого slice. Вернуться к решению стоит только
+после human beta, если тесты и материалы оставят измеримый feedback gap, либо ручной разбор станет
+плохо масштабироваться.
 
 На 5 намеренно различающихся fixture attempts полный adaptive loop дал ожидаемый calibration signal
 во всех 15 независимых прогонах. Question generation была blind: model input содержал только opaque
@@ -51,14 +58,22 @@ strict structured output и пустым shell environment. Результаты
 [`evidence/summary.json`](evidence/summary.json). Failure paths отдельно воспроизводятся командой:
 
 ```bash
-node experiment/run-failures.mjs
+node experiment/record-failure-scenarios.mjs
 ```
 
-Её записанный результат — [`evidence/failure-runs.json`](evidence/failure-runs.json).
+Её записанный результат —
+[`evidence/failure-scenarios.json`](evidence/failure-scenarios.json). Recorder сохраняет
+наблюдения из logic demo, но намеренно не содержит test assertions: по правилам throwaway logic
+prototype тесты здесь не добавляются.
 
 Codex с ChatGPT account не разрешил immutable model ID `gpt-5.4-2026-03-05`, поэтому prototype
 зафиксировал alias, CLI version и дату прогона. Production обязан хранить immutable provider/model
 snapshot либо явно versioned alias policy вместе с prompt и rubric versions.
+
+После review contract был дополнительно усилен version fields, dynamic evidence validation и
+запретом результата без полного набора ответов. Финальная provider-серия для этих hardening changes
+не запускалась: владелец исключил AI defense из V1 и остановил дальнейшие затраты. Ниже сохранены
+результаты последней завершённой blinded серии до этого решения.
 
 ## Fixture set
 
@@ -138,12 +153,16 @@ Initial beta budgets для последующей калибровки:
 
 ### Output: `inside.adaptive-defense-result.v1`
 
-Question artifact, assessment artifact и собранный result имеют отдельные strict schemas:
+Question artifact, assessment artifact и собранный result имеют отдельные standalone strict schemas:
 [`question-output.schema.json`](experiment/question-output.schema.json),
 [`assessment-output.schema.json`](experiment/assessment-output.schema.json) и
-[`defense-output.schema.json`](experiment/defense-output.schema.json). Assessment не может
-переписать immutable initial questions. Итоговый output содержит:
+[`defense-output.schema.json`](experiment/defense-output.schema.json). Standalone definitions
+намеренно повторяются: Codex CLI принимает один self-contained `--output-schema`, а generator/build
+step для throwaway prototype не добавляется. Assessment не может переписать immutable initial
+questions. Итоговый output содержит:
 
+- immutable `artifactContext` с case/source/report/prompt/rubric/model versions и объединённые
+  canonical `evidenceRefs`;
 - 2–3 grounded initial questions и 0–2 grounded follow-ups;
 - advisory `defenseSignal`: `mastery_supported`, `mastery_not_yet_shown` или `inconclusive`;
 - confidence и четыре dimension signals с evidence refs/rationale;
@@ -162,20 +181,22 @@ report в pass. `mastery_not_yet_shown` не маскируется passing chec
 - Confidence ниже initial calibration threshold `0.75`: сохранить `inconclusive`, не выдавать
   `Verified` и предложить manual calibration или новую Attempt. Threshold является beta knob, не
   скрытым passing score.
-- Invalid evidence ref, schema violation или попытка изменить technical result: output
-  отклоняется; один retry с тем же versioned input, затем manual path.
+- Invalid evidence ref, повторяющаяся/пропущенная rubric dimension, несовпадающий
+  `artifactContext`, schema violation или попытка изменить technical result: output отклоняется;
+  один retry с тем же versioned input, затем manual path. Experiment runner выполняет эти dynamic
+  checks до сохранения результата; JSON Schema покрывает статическую shape.
 - Семантический конфликт AI с report/source: technical evidence остаётся authority для observable
   checks, defense становится `inconclusive`, а конфликт хранится для author review.
 
 Эти переходы можно прожать в `defense-lab.html`; после каждого action demo показывает полный
-relevant state. Четыре executable runs подтверждают provider-unavailable, low-confidence,
-technical-conflict и illegal-transition paths.
+relevant state. Recorder воспроизводит и сохраняет четыре наблюдения: provider-unavailable,
+low-confidence, technical-conflict и illegal-transition paths.
 
-## Staged learner flow
+## Experimental staged flow (superseded for V1)
 
 Decision Record действительно добавил сигнал: он помог отличить осознанное изменение guarantee от
 поверхностного «best practices». Однако prototype не доказывает, что текст был написан до кода.
-Поэтому recommendation для первой beta:
+Если после human beta сработает trigger возврата к AI, проверенная здесь гипотеза flow выглядит так:
 
 1. сохранить короткий initial plan до запуска финальной evaluation;
 2. при submit требовать after-code addendum с расхождениями, обнаруженными failure scenarios;
@@ -206,24 +227,28 @@ chronology или авторство текста.
 - Model variance проверена только на одном alias, одном prompt и low reasoning. До beta нужны
   immutable model/prompt comparison и periodic author recalibration.
 
-## Go/no-go gate
+## Trigger для возврата
 
-Recommendation — **GO с указанной узкой ролью**. Владелец должен отдельно принять:
+Не переносить этот contract в V1. Открыть новое решение после human beta только при одном из
+наблюдаемых сигналов:
 
-1. advisory defense contract и отсутствие provenance claims;
-2. staged flow с initial plan + after-code addendum без anti-cheating chronology claim;
-3. beta budgets/fallback как стартовые limits, которые меняются по фактическим human attempts.
+1. public tests систематически дают `Verified` решениям с критическим непониманием;
+2. Materials и author solution не дают участнику достаточно конкретного feedback для следующей
+   попытки;
+3. ручной author review становится измеримым bottleneck;
+4. появляется отдельный learning outcome, где объяснение trade-offs нельзя проверить executable
+   scenario.
 
-После принятия эти пункты становятся input ровно для одной Platform Specification. Production AI
-integration, provider selection, retention policy, paid limits и starter repositories этим
-prototype не создаются.
+Тогда этот branch служит input для нового bounded decision, но не готовой production
+specification. Provider selection, retention, cost limits и AI integration должны решаться заново
+на актуальных human attempts.
 
 ## Verification
 
 - Final blinded adaptive experiment: 15/15 expected signals, 100% question/follow-up/rubric
   grounding, 0 provenance claims, 0 technical overrides.
-- Failure-mode runner: 4/4 provider-unavailable, low-confidence, evidence-conflict и illegal-action
-  scenarios.
+- Failure-mode recorder: сохранены наблюдения provider-unavailable, low-confidence,
+  evidence-conflict и illegal-action scenarios; это не automated test suite.
 - Privacy/context audit: question call не содержит fixture calibration metadata или prepared
   answers; модель получает только synthetic Assignment context; credential-shaped values и
   external references в HTML отсутствуют.

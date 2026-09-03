@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "inside.adaptive-defense-failure-scenarios.v1",
+  "source": "defense-lab.html#DefenseSession",
+  "kind": "recorded-observations-not-tests",
+  "scenarios": [
+    {
+      "id": "provider-unavailable",
+      "fixtureId": "dotnet-deliberate",
+      "actions": [
+        "START",
+        "PROVIDER_ERROR",
+        "RETRY",
+        "PROVIDER_ERROR",
+        "RETRY",
+        "PROVIDER_ERROR"
+      ],
+      "observed": {
+        "attemptState": "defense_pending",
+        "defenseState": "pending",
+        "providerCalls": 3,
+        "answersRecorded": 0,
+        "technicalResult": "Технические проверки пройдены",
+        "defenseSignal": "—",
+        "verifiedCandidate": false,
+        "retryAfter": "manual/support",
+        "resolutionPath": "manual/support; no negative signal",
+        "lastEvent": "Retry budget exhausted. Technical evidence is intact; no mastery penalty emitted."
+      },
+      "interpretation": "Retry budget returns the defense to pending and emits no mastery signal."
+    },
+    {
+      "id": "low-confidence",
+      "fixtureId": "dotnet-deliberate",
+      "actions": [
+        "START",
+        "ANSWER",
+        "ANSWER",
+        "ANSWER",
+        "LOW_CONFIDENCE"
+      ],
+      "observed": {
+        "attemptState": "evaluated",
+        "defenseState": "completed",
+        "providerCalls": 2,
+        "answersRecorded": 3,
+        "technicalResult": "Технические проверки пройдены",
+        "defenseSignal": "inconclusive",
+        "verifiedCandidate": false,
+        "retryAfter": "—",
+        "resolutionPath": "manual calibration or new Attempt",
+        "lastEvent": "Confidence below 0.75. No hidden fail; send to manual calibration or a new Attempt."
+      },
+      "interpretation": "A completed bounded answer set with confidence below 0.75 routes to inconclusive/manual calibration."
+    },
+    {
+      "id": "technical-evidence-conflict",
+      "fixtureId": "dotnet-critical-misunderstanding",
+      "actions": [
+        "START",
+        "ANSWER",
+        "ANSWER",
+        "ANSWER",
+        "ANSWER",
+        "ANSWER",
+        "EVIDENCE_CONFLICT"
+      ],
+      "observed": {
+        "attemptState": "evaluated",
+        "defenseState": "completed",
+        "providerCalls": 3,
+        "answersRecorded": 5,
+        "technicalResult": "Технические проверки не пройдены",
+        "defenseSignal": "inconclusive",
+        "verifiedCandidate": false,
+        "retryAfter": "—",
+        "resolutionPath": "manual calibration or new Attempt",
+        "lastEvent": "Semantic conflict recorded. Technical report remains authoritative; manual review required."
+      },
+      "interpretation": "Technical failure remains visible while the AI signal becomes inconclusive."
+    },
+    {
+      "id": "illegal-answer-before-start",
+      "fixtureId": "dotnet-deliberate",
+      "actions": [
+        "ANSWER"
+      ],
+      "observed": {
+        "attemptState": "defense_pending",
+        "defenseState": "pending",
+        "providerCalls": 0,
+        "answersRecorded": 0,
+        "technicalResult": "Технические проверки пройдены",
+        "defenseSignal": "—",
+        "verifiedCandidate": false,
+        "retryAfter": "—",
+        "resolutionPath": "start defense",
+        "lastEvent": "Ignored illegal transition: Ответ относится только к in_progress defense."
+      },
+      "interpretation": "The reducer records the illegal transition without changing the pending defense or answer count."
+    }
+  ]
+}

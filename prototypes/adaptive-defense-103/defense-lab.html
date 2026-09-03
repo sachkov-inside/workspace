@@ -244,6 +244,7 @@
 
         <section class="panel">
           <h2>Recorded adaptive questions</h2>
+          <p class="small">Точный snapshot repetition 1: initial questions и запрошенные follow-ups из финальной blinded серии.</p>
           <div id="questions"></div>
         </section>
 
@@ -271,9 +272,9 @@
         confidence: 0.93,
         note: "Outbox + leased worker; 3/3 supported, один run потребовал follow-up.",
         questions: [
-          ["reliability", "Что в transaction boundary предотвращает silent loss, а что всё ещё допускает duplicate delivery?", ["src:outbox-transaction", "answer:commit-crash-window"]],
-          ["correctness", "Почему lease без row lock во время HTTP лучше ведёт себя с медленным partner и какой риск появляется у границы lease?", ["src:worker-lease", "answer:lease-tradeoff"]],
-          ["operability", "Как отличить retry pressure от database contention до изменения concurrency?", ["src:status-policy", "technical:telemetry:2", "technical:telemetry:3"]]
+          ["initial", "reliability", "В Decision Record сказано, что после успешного HTTP-вызова и до фиксации результата возможен crash с дубликатной доставкой. Объясните по этой попытке, какой именно наблюдаемый эффект это создаст у партнёра и какие поля/контракт позволяют отличить допустимый повтор от потери уведомления.", ["source:fact:1", "source:fact:2", "decision:after-code", "case:fact:2"]],
+          ["initial", "correctness", "Покажите, как в этой реализации соблюдается требование не блокировать order API ожиданием партнёра и одновременно ограничивать burst до восьми параллельных вызовов. Свяжите ответ с конкретными точками в diff и telemetry, а также объясните, почему HTTP-вызов вынесен за пределы claim-транзакции.", ["case:fact:1", "case:fact:7", "source:snapshot", "source:fact:2", "technical:telemetry:1", "technical:telemetry:2", "technical:scenario:6", "decision:after-code"]],
+          ["initial", "operability", "В switch по статусам 429 и 5xx считаются retryable, 410 отключает подписку, а часть 4xx становится terminal. Объясните, какую bounded delivery state и reason увидит support для terminal failure, и почему 410 здесь обрабатывается иначе, чем остальные terminal 4xx.", ["case:fact:5", "case:fact:6", "source:snapshot", "source:fact:3"]]
         ]
       },
       "python-surface-pass": {
@@ -285,9 +286,11 @@
         confidence: 0.90,
         note: "Public checks зелёные, но BackgroundTasks не создаёт durable resume path; 3/3 not yet.",
         questions: [
-          ["reliability", "После commit нет pending delivery row, а crash scenario не запускался. Как уведомление продолжится после падения процесса?", ["src:background-task", "technical:scenario:5", "technical:telemetry:4"]],
-          ["decision_quality", "Как три быстрых retry покрывают различие retryable 429/503 и terminal 410?", ["src:memory-retry", "answer:retry-policy", "case:fact:5"]],
-          ["operability", "Где Support увидит bounded state до success или третьего failure?", ["src:memory-retry", "case:fact:6"]]
+          ["initial", "reliability", "После `await session.commit()` и возврата `202` где в этой попытке сохраняется запись о доставке до запуска `deliver_webhook`, и как система восстановит уведомление при падении процесса между commit и выполнением background task?", ["case:fact:2", "source:fact:1", "technical:scenario:5", "technical:telemetry:4", "decision:after-code"]],
+          ["initial", "operability", "Как по текущей реализации отличить временную проблему партнера от терминальной, если код делает только три быстрых retry в одном процессе и пишет финальное состояние лишь в конце?", ["case:fact:5", "case:fact:6", "source:fact:2", "decision:after-code"]],
+          ["initial", "decision_quality", "Почему `BackgroundTasks` было выбрано как достаточное решение именно для этого кейса, несмотря на требование не терять уведомление после commit и отсутствие отдельного pending-состояния сразу после commit?", ["case:fact:1", "case:fact:2", "decision:before-code", "source:fact:1", "technical:telemetry:4"]],
+          ["follow-up", "reliability", "Какая минимальная persisted-модель или транзакционный механизм нужен сразу при commit, чтобы исключить окно потери уведомления при падении процесса между `commit` и фактической отправкой?", ["case:fact:2", "source:fact:1", "technical:scenario:5", "technical:telemetry:4", "exchange:1"]],
+          ["follow-up", "operability", "Как в этой реализации вы бы разделили retryable и terminal статусы и где сохранили бы bounded delivery state с причиной terminal failure для support?", ["case:fact:5", "case:fact:6", "source:fact:2", "exchange:2"]]
         ]
       },
       "dotnet-critical-misunderstanding": {
@@ -299,9 +302,11 @@
         confidence: 0.97,
         note: "Partner HTTP ожидается в order request; terminal errors retry; tenant/secret checks fail; 3/3 not yet.",
         questions: [
-          ["correctness", "Как awaiting Task.WhenAll соблюдает 'order API must not wait', если p99 равен 6120 ms?", ["src:inline-http", "technical:telemetry:1", "case:fact:1"]],
-          ["reliability", "Какой bounded terminal state остаётся при 50 повторах 410?", ["src:retry-all", "technical:telemetry:4", "case:fact:6"]],
-          ["decision_quality", "Как lookup без tenant_id и secret в logs обеспечивают tenant isolation?", ["src:cross-tenant", "src:secret-log", "technical:scenario:2"]]
+          ["initial", "reliability", "In `UpdateOrderStatus`, how would you change the flow so the order commits and returns without waiting on partner POSTs, while still ensuring a temporary partner failure cannot silently lose the notification? Explain the concrete write/send boundary you would use here.", ["case:fact:1", "case:fact:2", "source:fact:1", "technical:scenario:1", "technical:telemetry:1"]],
+          ["initial", "correctness", "`GetSubscription` is keyed only by `subscription_id`, but endpoints, payload data, and secrets must be tenant-isolated. What exact lookup or data-model constraint would you add to prevent a cross-tenant endpoint from being called in this attempt?", ["case:fact:3", "source:fact:3", "technical:scenario:2"]],
+          ["initial", "operability", "The sender retries every non-2xx up to 50 times, logs the secret, and reached 47 concurrent partner calls during a burst. Which responses should become terminal vs retryable, and what bounded execution controls would you introduce so support can see terminal reason without exceeding eight concurrent calls?", ["case:fact:5", "case:fact:6", "case:fact:7", "source:fact:2", "source:fact:4", "technical:scenario:3", "technical:scenario:4", "technical:telemetry:2", "technical:telemetry:4"]],
+          ["follow-up", "reliability", "Describe the exact persistence boundary you would use so an order-status change commits before webhook delivery, while ensuring retries can continue after a temporary partner failure without losing the notification.", ["exchange:1", "case:fact:1", "case:fact:2", "source:fact:1", "technical:scenario:1"]],
+          ["follow-up", "correctness", "Name the concrete tenant-scoped lookup or database constraint you would add so `subscription_id` alone cannot resolve another tenant's endpoint or secret, and state which response classes are terminal versus retryable for this sender.", ["exchange:2", "exchange:3", "case:fact:3", "case:fact:5", "source:fact:3", "source:fact:2", "technical:scenario:2"]]
         ]
       },
       "python-reference-strong": {
@@ -313,9 +318,10 @@
         confidence: 0.92,
         note: "AI-assisted source; 3/3 supported, один run потребовал follow-up.",
         questions: [
-          ["reliability", "Почему worker kill дал duplicate и как stable event_id превращает его в явный at-least-once contract?", ["decision:after-code", "technical:telemetry:4", "src:reference-worker"]],
-          ["correctness", "Почему hostname check недостаточен без redirect/DNS revalidation?", ["answer:outbound-policy", "src:reference-security"]],
-          ["decision_quality", "Какой измеримый сигнал оправдает broker и какую consistency problem он не уберёт?", ["answer:change-trigger", "src:reference-outbox"]]
+          ["initial", "reliability", "In your implementation, what exact sequence makes an order-status change durable without making the order API wait for the partner, and which stored record lets the worker recover if it crashes right after the order commit?", ["case:fact:1", "case:fact:2", "source:fact:1", "source:fact:2", "technical:scenario:2"]],
+          ["initial", "correctness", "The run showed `duplicate_send_after_worker-kill=1 with stable event_id`. Explain why that duplicate can happen in this design, what delivery guarantee is actually being provided, and how the stable `event_id` is meant to be used at the receiver boundary.", ["technical:telemetry:4", "decision:after-code", "source:fact:2", "case:fact:2"]],
+          ["initial", "decision_quality", "Why does the worker commit before making partner HTTP calls, and how do the `limit=8` claim plus retry/terminal rules together satisfy both the burst constraint and bounded support-visible delivery state?", ["source:fact:2", "source:fact:3", "case:fact:5", "case:fact:6", "case:fact:7", "technical:telemetry:2", "technical:scenario:6"]],
+          ["follow-up", "operability", "When a delivery stops retrying, what exact stored state and terminal reason does support see, and which HTTP outcomes map to that terminal path versus retryable path in this implementation?", ["case:fact:5", "case:fact:6", "source:fact:3", "exchange:3"]]
         ]
       },
       "python-reference-weak": {
@@ -327,9 +333,11 @@
         confidence: 0.90,
         note: "Тот же source/report, но participant не объясняет guarantees/controls; 3/3 not yet.",
         questions: [
-          ["reliability", "Telemetry показывает duplicate после worker kill. Какая гарантия на самом деле реализована?", ["answer:duplicate-window", "technical:telemetry:4", "src:reference-worker"]],
-          ["correctness", "Какие exact controls стоят за helper, который 'blocks bad URLs'?", ["answer:outbound-policy", "src:reference-security"]],
-          ["decision_quality", "Какой конкретный threshold означает, что PostgreSQL queue больше не подходит?", ["answer:change-trigger", "technical:telemetry:3"]]
+          ["initial", "correctness", "В Decision Record заявлено exactly-once delivery, но telemetry фиксирует `duplicate_send_after_worker-kill=1 with stable event_id`. Как это согласуется с реализацией outbox+lease, и какой фактический контракт доставки здесь подтверждается вместо exactly-once?", ["decision:after-code", "technical:telemetry:4", "source:fact:1", "source:fact:2", "case:fact:2"]],
+          ["initial", "reliability", "После `await session.commit()` worker освобождает row locks до partner HTTP и затем обрабатывает доставки по одной. Объясните, как в этой схеме одновременно выполняются неблокирующий order API, восстановление после падения и предел в восемь concurrent partner calls при burst 100 events/5s.", ["case:fact:1", "case:fact:7", "source:fact:2", "technical:telemetry:1", "technical:telemetry:2", "technical:scenario:2", "technical:scenario:6"]],
+          ["initial", "operability", "Какие именно исходы доставки становятся terminal, как это должно отражаться в bounded delivery state и reason, и чем operationally отличаются `410 disable_subscription`, retryable `429/5xx/timeouts` и terminal selected `4xx`?", ["case:fact:5", "case:fact:6", "source:fact:3"]],
+          ["follow-up", "correctness", "Telemetry already shows one duplicate send after worker kill. Explain, using the leased outbox flow, why that can happen after the partner side-effect but before local success is recorded, and state the delivery contract that is actually supported.", ["exchange:1", "technical:telemetry:4", "source:fact:1", "source:fact:2", "case:fact:2"]],
+          ["follow-up", "operability", "Map each delivery outcome to support-visible state and reason: retryable 429/5xx/timeouts, disable on 410, and terminal selected 4xx. Include what operators should expect to happen next for each state.", ["exchange:3", "case:fact:5", "case:fact:6", "source:fact:3"]]
         ]
       }
     };
@@ -339,6 +347,8 @@
       const maximumProviderCalls = 3;
 
       function initial(fixtureId, fixture, comparisons = []) {
+        const requiredAnswers = fixture.questions?.length ?? fixture.requiredAnswers;
+        const requiredProviderCalls = requiredAnswers > 3 ? 3 : 2;
         return {
           fixtureId,
           fixtureResult: {
@@ -346,7 +356,9 @@
             technicalDisplay: fixture.technicalDisplay,
             signal: fixture.signal,
             confidence: fixture.confidence,
-            fingerprint: fixture.fingerprint
+            fingerprint: fixture.fingerprint,
+            requiredAnswers,
+            requiredProviderCalls
           },
           attemptState: "defense_pending",
           defenseState: "pending",
@@ -354,7 +366,8 @@
           providerErrors: 0,
           retryAfter: "—",
           answersRecorded: 0,
-          questionBudget: "3 + ≤2 follow-ups",
+          answersRequired: requiredAnswers,
+          questionBudget: `${requiredAnswers} recorded questions`,
           defenseSignal: "—",
           confidence: "—",
           technicalResult: fixture.technicalDisplay,
@@ -386,7 +399,9 @@
         }
         if (action.type === "ANSWER") {
           if (state.defenseState !== "in_progress") return illegal(state, "Ответ относится только к in_progress defense.");
-          if (state.answersRecorded >= 5) return illegal(state, "Question budget исчерпан: 3 initial + 2 follow-ups.");
+          if (state.answersRecorded >= state.answersRequired) {
+            return illegal(state, "Все recorded initial questions и follow-ups уже отвечены.");
+          }
           return {
             ...state,
             answersRecorded: state.answersRecorded + 1,
@@ -395,6 +410,9 @@
         }
         if (action.type === "APPLY_RESULT") {
           if (state.defenseState !== "in_progress") return illegal(state, "Recorded result применяется только к in_progress defense.");
+          if (state.answersRecorded < state.answersRequired) {
+            return illegal(state, "Нельзя оценить mastery до ответов на все recorded questions и follow-ups.");
+          }
           const fixture = state.fixtureResult;
           const verifiedCandidate = fixture.technicalOutcome === "passed" && fixture.signal === "mastery_supported";
           const comparison = {
@@ -406,6 +424,7 @@
             ...state,
             attemptState: "evaluated",
             defenseState: "completed",
+            providerCalls: Math.max(state.providerCalls, fixture.requiredProviderCalls),
             defenseSignal: fixture.signal,
             confidence: fixture.confidence,
             verifiedCandidate,
@@ -457,10 +476,16 @@
         }
         if (action.type === "LOW_CONFIDENCE") {
           if (state.defenseState !== "in_progress") return illegal(state, "Low-confidence result относится только к active defense.");
+          if (state.answersRecorded < state.answersRequired) {
+            return illegal(state, "Low-confidence assessment требует ответов на recorded questions и follow-ups.");
+          }
           return inconclusive(state, "Confidence below 0.75. No hidden fail; send to manual calibration or a new Attempt.");
         }
         if (action.type === "EVIDENCE_CONFLICT") {
           if (state.defenseState !== "in_progress") return illegal(state, "Conflict относится только к active defense.");
+          if (state.answersRecorded < state.answersRequired) {
+            return illegal(state, "Semantic conflict фиксируется только после bounded answer set.");
+          }
           return inconclusive(state, "Semantic conflict recorded. Technical report remains authoritative; manual review required.");
         }
         return illegal(state, `Unknown action: ${action.type}`);
@@ -471,6 +496,7 @@
           ...state,
           attemptState: "evaluated",
           defenseState: "completed",
+          providerCalls: Math.max(state.providerCalls, state.fixtureResult.requiredProviderCalls),
           defenseSignal: "inconclusive",
           confidence: "< 0.75 or conflict",
           verifiedCandidate: false,
@@ -496,6 +522,7 @@
           ["Начать defense", { type: "START" }],
           ["Ответить на consistency question", { type: "ANSWER" }],
           ["Ответить на operability question", { type: "ANSWER" }],
+          ["Ответить на correctness question", { type: "ANSWER" }],
           ["Принять structured result", { type: "APPLY_RESULT" }]
         ]
       },
@@ -506,7 +533,11 @@
         steps: [
           ["Загрузить surface-pass fixture", { type: "LOAD_FIXTURE", fixtureId: "python-surface-pass", fixture: fixtures["python-surface-pass"] }],
           ["Начать defense", { type: "START" }],
-          ["Записать поверхностный ответ", { type: "ANSWER" }],
+          ["Ответить поверхностно 1/5", { type: "ANSWER" }],
+          ["Ответить поверхностно 2/5", { type: "ANSWER" }],
+          ["Ответить поверхностно 3/5", { type: "ANSWER" }],
+          ["Ответить на follow-up 4/5", { type: "ANSWER" }],
+          ["Ответить на follow-up 5/5", { type: "ANSWER" }],
           ["Принять structured result", { type: "APPLY_RESULT" }]
         ]
       },
@@ -531,6 +562,9 @@
         steps: [
           ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate", fixture: fixtures["dotnet-deliberate"] }],
           ["Начать defense", { type: "START" }],
+          ["Ответить 1/3", { type: "ANSWER" }],
+          ["Ответить 2/3", { type: "ANSWER" }],
+          ["Ответить 3/3", { type: "ANSWER" }],
           ["Получить confidence < 0.75", { type: "LOW_CONFIDENCE" }]
         ]
       },
@@ -541,6 +575,11 @@
         steps: [
           ["Загрузить failed attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-critical-misunderstanding", fixture: fixtures["dotnet-critical-misunderstanding"] }],
           ["Начать defense", { type: "START" }],
+          ["Ответить 1/5", { type: "ANSWER" }],
+          ["Ответить 2/5", { type: "ANSWER" }],
+          ["Ответить 3/5", { type: "ANSWER" }],
+          ["Ответить 4/5", { type: "ANSWER" }],
+          ["Ответить 5/5", { type: "ANSWER" }],
           ["Сымитировать конфликт", { type: "EVIDENCE_CONFLICT" }]
         ]
       },
@@ -551,9 +590,18 @@
         steps: [
           ["Загрузить strong explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-strong", fixture: fixtures["python-reference-strong"] }],
           ["Начать strong defense", { type: "START" }],
+          ["Strong answer 1/4", { type: "ANSWER" }],
+          ["Strong answer 2/4", { type: "ANSWER" }],
+          ["Strong answer 3/4", { type: "ANSWER" }],
+          ["Strong follow-up 4/4", { type: "ANSWER" }],
           ["Зафиксировать strong result", { type: "APPLY_RESULT" }],
           ["Загрузить weak explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-weak", fixture: fixtures["python-reference-weak"] }],
           ["Начать weak defense", { type: "START" }],
+          ["Weak answer 1/5", { type: "ANSWER" }],
+          ["Weak answer 2/5", { type: "ANSWER" }],
+          ["Weak answer 3/5", { type: "ANSWER" }],
+          ["Weak follow-up 4/5", { type: "ANSWER" }],
+          ["Weak follow-up 5/5", { type: "ANSWER" }],
           ["Зафиксировать weak result", { type: "APPLY_RESULT" }]
         ]
       },
@@ -644,12 +692,12 @@
         "Следующее действие": displayValue(state.resolutionPath)
       }).map(([label, value]) => stateField(label, value)));
 
-      questions.replaceChildren(...fixture.questions.map(([dimension, prompt, refs], index) => {
+      questions.replaceChildren(...fixture.questions.map(([stage, dimension, prompt, refs], index) => {
         const card = document.createElement("article");
         card.className = "question-card";
         const badge = document.createElement("span");
         badge.className = "badge";
-        badge.textContent = `${index + 1} · ${dimension}`;
+        badge.textContent = `${index + 1} · ${stage} · ${dimension}`;
         const text = document.createElement("p");
         text.textContent = prompt;
         const evidence = document.createElement("div");

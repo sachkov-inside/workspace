@@ -5,6 +5,8 @@
   "required": [
     "schemaVersion",
     "attemptId",
+    "artifactContext",
+    "evidenceRefs",
     "questions",
     "followUps",
     "assessment"
@@ -15,6 +17,13 @@
       "const": "inside.adaptive-defense-result.v1"
     },
     "attemptId": { "type": "string", "minLength": 1 },
+    "artifactContext": { "$ref": "#/$defs/artifactContext" },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
     "questions": {
       "type": "array",
       "minItems": 2,
@@ -65,6 +74,7 @@
               "evidenceRefs": {
                 "type": "array",
                 "minItems": 1,
+                "uniqueItems": true,
                 "items": { "type": "string", "minLength": 1 }
               },
               "rationale": { "type": "string", "minLength": 1 }
@@ -106,6 +116,26 @@
     }
   },
   "$defs": {
+    "artifactContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseVersion",
+        "sourceRevision",
+        "evaluationReportVersion",
+        "promptVersion",
+        "rubricVersion",
+        "modelVersion"
+      ],
+      "properties": {
+        "caseVersion": { "type": "string", "minLength": 1 },
+        "sourceRevision": { "type": "string", "minLength": 1 },
+        "evaluationReportVersion": { "type": "string", "minLength": 1 },
+        "promptVersion": { "type": "string", "minLength": 1 },
+        "rubricVersion": { "type": "string", "minLength": 1 },
+        "modelVersion": { "type": "string", "minLength": 1 }
+      }
+    },
     "question": {
       "type": "object",
       "additionalProperties": false,
@@ -116,6 +146,7 @@
         "groundedIn": {
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
         "dimension": {
