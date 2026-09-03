@@ -1,0 +1,334 @@
+{
+  "schemaVersion": "inside.adaptive-defense-fixtures.v1",
+  "caseSpec": {
+    "id": "partner-webhooks",
+    "version": "1.0.0-prototype.1",
+    "title": "Partner Webhooks: reliable order-status delivery",
+    "businessFacts": [
+      "The order API must not wait for a partner endpoint.",
+      "A committed order-status change must not silently lose its notification after a temporary failure.",
+      "Endpoints, delivery data and secrets are tenant-isolated.",
+      "The receiver verifies an HMAC-SHA256 signature over timestamp and raw body bytes.",
+      "Rate limits, temporary 5xx responses and timeouts are retryable; selected 4xx responses are terminal.",
+      "Support needs a bounded delivery state and a reason for terminal failure.",
+      "A burst of 100 events in five seconds must not exceed eight concurrent partner calls."
+    ],
+    "rubric": [
+      {
+        "dimension": "correctness",
+        "question": "Can the participant connect the observable contract to the exact implementation and evidence?"
+      },
+      {
+        "dimension": "reliability",
+        "question": "Can the participant reason about consistency, redelivery, terminal failure and bounded recovery?"
+      },
+      {
+        "dimension": "operability",
+        "question": "Can the participant diagnose runtime behaviour from delivery state, telemetry and bounded diagnostics?"
+      },
+      {
+        "dimension": "decision_quality",
+        "question": "Can the participant explain constraints, alternatives, trade-offs and when the decision should change?"
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "id": "dotnet-deliberate",
+      "archetype": "deliberate-correct-solution",
+      "variantId": "dotnet-10-aspnet",
+      "sourceFingerprint": "dotnet-deliberate-v1",
+      "sourceEvidence": [
+        {
+          "id": "src:outbox-transaction",
+          "fact": "OrderStatusChanged and WebhookDelivery rows are inserted in the same EF Core transaction; WebhookDelivery has a unique tenant_id/event_id/endpoint_id key."
+        },
+        {
+          "id": "src:worker-lease",
+          "fact": "DeliveryWorker claims due rows with a 30-second lease and SELECT FOR UPDATE SKIP LOCKED, then releases the database transaction before the HTTP call."
+        },
+        {
+          "id": "src:status-policy",
+          "fact": "429 and selected 5xx responses schedule a bounded retry, 410 disables the subscription, and other selected 4xx responses become terminal failures."
+        },
+        {
+          "id": "src:tenant-secret",
+          "fact": "Every subscription lookup includes tenant_id; encrypted secret material is unwrapped only for signing and structured logs contain endpoint_id but not the URL or secret."
+        }
+      ],
+      "technicalEvidence": {
+        "reportVerdict": "passed",
+        "scenarios": [
+          "temporary-partner-failure:passed",
+          "crash-after-order-commit:passed",
+          "tenant-isolation:passed",
+          "bad-signature:passed",
+          "outbound-target-policy:passed",
+          "bounded-burst:passed"
+        ],
+        "telemetry": [
+          "order_acceptance_p99_ms=46",
+          "max_partner_concurrency=8",
+          "backlog_drain_ms=3180",
+          "delivery_attempts=200 for 100 events with first-call 503"
+        ]
+      },
+      "decisionRecord": {
+        "beforeCode": "Keep accepted order changes and pending notifications in one PostgreSQL consistency boundary. Do not hold a database transaction during HTTP. Prefer a leased worker over a broker until load or independent lifecycle proves another component is worth operating.",
+        "afterCode": "The first worker draft held row locks while calling partners. I changed it to a short claim transaction plus lease because slow endpoints otherwise serialized unrelated tenants. Duplicate delivery remains possible after a crash following a successful HTTP call, so event_id is stable and the receiver contract must be idempotent."
+      },
+      "defenseAnswers": [
+        {
+          "topic": "commit-crash-window",
+          "text": "The same transaction closes the lost-notification window between the order commit and queueing. It does not provide exactly-once HTTP: a crash after partner success but before marking delivered can redeliver, so I promise at-least-once and a stable event_id."
+        },
+        {
+          "topic": "lease-tradeoff",
+          "text": "The lease bounds recovery without holding locks across network I/O. If p99 partner latency approaches the lease, the worker must extend it or use fencing; otherwise two workers can send the same event."
+        },
+        {
+          "topic": "operational-diagnosis",
+          "text": "A growing due backlog with concurrency fixed at eight points to partner latency or retry pressure; low worker claims points to database contention. I would compare due_count, attempt outcome and lease expiry before raising concurrency."
+        }
+      ],
+      "calibrationExpectation": "mastery_supported"
+    },
+    {
+      "id": "python-surface-pass",
+      "archetype": "surface-correct-public-pass",
+      "variantId": "python-3.14-fastapi",
+      "sourceFingerprint": "python-background-task-v1",
+      "sourceEvidence": [
+        {
+          "id": "src:background-task",
+          "fact": "The order route commits PostgreSQL, returns 202, and registers deliver_webhook with FastAPI BackgroundTasks; no pending delivery row is written."
+        },
+        {
+          "id": "src:memory-retry",
+          "fact": "deliver_webhook retries 503 three times in the same process with asyncio.sleep(0.1); delivery state is written only after success or the third failure."
+        },
+        {
+          "id": "src:signature",
+          "fact": "The raw JSON body is signed with HMAC-SHA256 and the fixture secret; the signature scenario passes."
+        },
+        {
+          "id": "src:tenant-query",
+          "fact": "Subscription queries include tenant_id and endpoint_id."
+        }
+      ],
+      "technicalEvidence": {
+        "reportVerdict": "passed",
+        "scenarios": [
+          "temporary-partner-failure:passed",
+          "bad-signature:passed",
+          "tenant-isolation:passed",
+          "bounded-burst:passed",
+          "crash-after-order-commit:not-run"
+        ],
+        "telemetry": [
+          "order_acceptance_p99_ms=39",
+          "max_partner_concurrency=8",
+          "backlog_drain_ms=970",
+          "pending_delivery_rows=0 immediately after order commit"
+        ]
+      },
+      "decisionRecord": {
+        "beforeCode": "Use FastAPI BackgroundTasks because partner calls must be asynchronous and the case permits PostgreSQL without requiring another component.",
+        "afterCode": "The public scenarios are green. Three quick retries handled the temporary 503, so no architecture change was necessary."
+      },
+      "defenseAnswers": [
+        {
+          "topic": "commit-crash-window",
+          "text": "FastAPI keeps background tasks after the response, so I expect it to finish after a deploy or process crash. The public test passed, therefore I do not see a loss window."
+        },
+        {
+          "topic": "retry-policy",
+          "text": "Three retries are a common default. I would increase the number if partners report failures; I did not distinguish 429, 410 and 503 yet."
+        },
+        {
+          "topic": "correction",
+          "text": "If restart behaviour becomes a requirement, I could add Redis later. I cannot point to a persisted record that would resume the current notification."
+        }
+      ],
+      "calibrationExpectation": "mastery_not_yet_shown"
+    },
+    {
+      "id": "dotnet-critical-misunderstanding",
+      "archetype": "critical-misunderstanding",
+      "variantId": "dotnet-10-aspnet",
+      "sourceFingerprint": "dotnet-sync-retry-v1",
+      "sourceEvidence": [
+        {
+          "id": "src:inline-http",
+          "fact": "UpdateOrderStatus awaits Task.WhenAll over all partner POST requests before committing and returning the order response."
+        },
+        {
+          "id": "src:retry-all",
+          "fact": "The retry policy retries every non-2xx response, including 401, 403 and 410, up to 50 times without jitter."
+        },
+        {
+          "id": "src:cross-tenant",
+          "fact": "GetSubscription accepts subscription_id without tenant_id and the controller trusts the route tenant only for the order query."
+        },
+        {
+          "id": "src:secret-log",
+          "fact": "The retry warning logs the full endpoint URL and signing secret."
+        }
+      ],
+      "technicalEvidence": {
+        "reportVerdict": "failed",
+        "scenarios": [
+          "temporary-partner-failure:failed:order timeout",
+          "tenant-isolation:failed:cross-tenant endpoint called",
+          "secret-redaction:failed",
+          "bounded-burst:failed"
+        ],
+        "telemetry": [
+          "order_acceptance_p99_ms=6120",
+          "max_partner_concurrency=47",
+          "backlog_drain_ms=not-applicable",
+          "repeated_410_attempts=50"
+        ]
+      },
+      "decisionRecord": {
+        "beforeCode": "Wait for all partners so an accepted order guarantees exactly-once notification. Retry every error aggressively so no event is lost.",
+        "afterCode": "The timeout is an evaluator limitation. Production will be faster, and more retries make delivery safer."
+      },
+      "defenseAnswers": [
+        {
+          "topic": "request-boundary",
+          "text": "Returning before partners respond would mean the order is not complete. Task.WhenAll is still asynchronous, so it does not block the API."
+        },
+        {
+          "topic": "terminal-failure",
+          "text": "A 410 may become successful later, therefore retrying it 50 times is safer than dropping it."
+        },
+        {
+          "topic": "tenant-security",
+          "text": "The user already passed authentication, so subscription_id is enough to select the endpoint. Logs are internal and can contain the secret for debugging."
+        }
+      ],
+      "calibrationExpectation": "mastery_not_yet_shown"
+    },
+    {
+      "id": "python-reference-strong",
+      "archetype": "reference-like-ai-assisted-with-understanding",
+      "variantId": "python-3.14-fastapi",
+      "sourceFingerprint": "python-reference-like-v1",
+      "sourceEvidence": [
+        {
+          "id": "src:reference-outbox",
+          "fact": "The submitted diff inserts webhook_outbox in the order transaction with a unique tenant_id/event_id/endpoint_id key."
+        },
+        {
+          "id": "src:reference-worker",
+          "fact": "A PostgreSQL worker claims due rows with SKIP LOCKED, bounded batches and lease_until; HTTP happens after commit."
+        },
+        {
+          "id": "src:reference-policy",
+          "fact": "The worker honors Retry-After for 429, retries selected 5xx/timeouts, disables on 410 and records a terminal reason for other selected 4xx."
+        },
+        {
+          "id": "src:reference-security",
+          "fact": "Tenant-scoped subscriptions, HTTPS-only target validation with private-network rejection, redacted logs and raw-body HMAC are present."
+        }
+      ],
+      "technicalEvidence": {
+        "reportVerdict": "passed",
+        "scenarios": [
+          "temporary-partner-failure:passed",
+          "crash-after-order-commit:passed",
+          "tenant-isolation:passed",
+          "bad-signature:passed",
+          "outbound-target-policy:passed",
+          "bounded-burst:passed"
+        ],
+        "telemetry": [
+          "order_acceptance_p99_ms=51",
+          "max_partner_concurrency=8",
+          "backlog_drain_ms=3410",
+          "duplicate_send_after_worker-kill=1 with stable event_id"
+        ]
+      },
+      "decisionRecord": {
+        "beforeCode": "Use PostgreSQL as both consistency boundary and bounded work queue. I used an AI assistant to draft the worker and failure tests, then checked every branch against the case facts. A broker would add operations without removing the database transaction problem.",
+        "afterCode": "A worker kill after partner success produced one redelivery, so I changed the claim from exactly-once to at-least-once and made event_id stable. I also replaced a hostname string check with resolved-address validation because redirects and DNS resolution otherwise bypassed the outbound policy."
+      },
+      "defenseAnswers": [
+        {
+          "topic": "duplicate-window",
+          "text": "The database can atomically persist intent but cannot atomically commit a remote HTTP response. A crash after 204 and before our delivered update creates a duplicate; stable event_id plus receiver idempotency makes that explicit."
+        },
+        {
+          "topic": "outbound-policy",
+          "text": "Checking only the input hostname misses redirects and names that resolve to private addresses. I validate scheme, resolve each connection target, reject loopback/link-local/private ranges and revalidate redirects."
+        },
+        {
+          "topic": "change-trigger",
+          "text": "I would revisit a broker when independent delivery scaling, cross-service consumers or database queue contention becomes measured. I would still need an atomic handoff from the order transaction."
+        }
+      ],
+      "calibrationExpectation": "mastery_supported"
+    },
+    {
+      "id": "python-reference-weak",
+      "archetype": "same-reference-like-source-without-understanding",
+      "variantId": "python-3.14-fastapi",
+      "sourceFingerprint": "python-reference-like-v1",
+      "sourceEvidence": [
+        {
+          "id": "src:reference-outbox",
+          "fact": "The submitted diff inserts webhook_outbox in the order transaction with a unique tenant_id/event_id/endpoint_id key."
+        },
+        {
+          "id": "src:reference-worker",
+          "fact": "A PostgreSQL worker claims due rows with SKIP LOCKED, bounded batches and lease_until; HTTP happens after commit."
+        },
+        {
+          "id": "src:reference-policy",
+          "fact": "The worker honors Retry-After for 429, retries selected 5xx/timeouts, disables on 410 and records a terminal reason for other selected 4xx."
+        },
+        {
+          "id": "src:reference-security",
+          "fact": "Tenant-scoped subscriptions, HTTPS-only target validation with private-network rejection, redacted logs and raw-body HMAC are present."
+        }
+      ],
+      "technicalEvidence": {
+        "reportVerdict": "passed",
+        "scenarios": [
+          "temporary-partner-failure:passed",
+          "crash-after-order-commit:passed",
+          "tenant-isolation:passed",
+          "bad-signature:passed",
+          "outbound-target-policy:passed",
+          "bounded-burst:passed"
+        ],
+        "telemetry": [
+          "order_acceptance_p99_ms=51",
+          "max_partner_concurrency=8",
+          "backlog_drain_ms=3410",
+          "duplicate_send_after_worker-kill=1 with stable event_id"
+        ]
+      },
+      "decisionRecord": {
+        "beforeCode": "Use the recommended production patterns for reliable webhooks: outbox, retries, HMAC and SSRF protection.",
+        "afterCode": "All checks pass. The implementation follows best practices and should provide exactly-once delivery."
+      },
+      "defenseAnswers": [
+        {
+          "topic": "duplicate-window",
+          "text": "The unique key and SKIP LOCKED guarantee exactly once. The one duplicate in telemetry looks like test noise."
+        },
+        {
+          "topic": "outbound-policy",
+          "text": "The helper blocks bad URLs. I do not know whether it checks DNS or redirects; it came with the solution."
+        },
+        {
+          "topic": "change-trigger",
+          "text": "A broker is more scalable, but PostgreSQL is simpler. I cannot say what measurement should trigger the change."
+        }
+      ],
+      "calibrationExpectation": "mastery_not_yet_shown"
+    }
+  ]
+}

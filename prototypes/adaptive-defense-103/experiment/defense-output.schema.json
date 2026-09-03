@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fixtureId",
+    "questions",
+    "followUps",
+    "assessment"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "inside.adaptive-defense-result.v1"
+    },
+    "fixtureId": { "type": "string", "minLength": 1 },
+    "questions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/question" }
+    },
+    "followUps": {
+      "type": "array",
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/question" }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defenseSignal",
+        "confidence",
+        "dimensionSignals",
+        "contradictions",
+        "feedback",
+        "provenanceClaim",
+        "technicalEvidenceOverrideAttempted",
+        "summary"
+      ],
+      "properties": {
+        "defenseSignal": {
+          "type": "string",
+          "enum": ["mastery_supported", "mastery_not_yet_shown", "inconclusive"]
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dimensionSignals": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimension", "level", "evidenceRefs", "rationale"],
+            "properties": {
+              "dimension": {
+                "type": "string",
+                "enum": ["correctness", "reliability", "operability", "decision_quality"]
+              },
+              "level": {
+                "type": "string",
+                "enum": ["strong", "partial", "weak", "not_observed"]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "rationale": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "contradictions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claim", "evidenceRef", "effect"],
+            "properties": {
+              "claim": { "type": "string", "minLength": 1 },
+              "evidenceRef": { "type": "string", "minLength": 1 },
+              "effect": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "feedback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strengths", "nextSteps"],
+          "properties": {
+            "strengths": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "nextSteps": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "provenanceClaim": { "type": "string", "const": "none" },
+        "technicalEvidenceOverrideAttempted": { "type": "boolean", "const": false },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prompt", "groundedIn", "dimension", "whyAsked"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1 },
+        "groundedIn": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "dimension": {
+          "type": "string",
+          "enum": ["correctness", "reliability", "operability", "decision_quality"]
+        },
+        "whyAsked": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

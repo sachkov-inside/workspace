@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "inside.adaptive-defense-summary.v1",
+  "runCount": 15,
+  "fixtureCount": 5,
+  "expectedSignalMatches": 15,
+  "expectedSignalRate": 1,
+  "unanimousFixtures": 5,
+  "questionGroundingRate": 1,
+  "rubricGroundingRate": 1,
+  "provenanceViolations": 0,
+  "technicalOverrideAttempts": 0,
+  "latencyMs": {
+    "min": 24681,
+    "p50": 31277,
+    "p95": 41016,
+    "max": 41016
+  },
+  "usageTotals": {
+    "input_tokens": 216414,
+    "cached_input_tokens": 157440,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 19349,
+    "reasoning_output_tokens": 1436
+  },
+  "apiCostEstimate": {
+    "kind": "derived-not-billed",
+    "checkedAt": "2026-09-03",
+    "source": "https://developers.openai.com/api/docs/models/gpt-5.4",
+    "pricePerMillion": {
+      "input": 2.5,
+      "cachedInput": 0.25,
+      "output": 15
+    },
+    "uncachedInputTokens": 58974,
+    "totalUsd": 0.47703,
+    "perCallUsd": 0.031802,
+    "typicalTwoCallDefenseUsd": 0.063604,
+    "maximumThreeCallDefenseUsd": 0.095406,
+    "caveat": "The experiment used a ChatGPT-authenticated Codex CLI, not API billing. The estimate applies public API rates to provider-reported usage, which includes Codex runtime context."
+  },
+  "fixtures": [
+    {
+      "fixtureId": "dotnet-deliberate",
+      "expectedCalibration": "mastery_supported",
+      "signals": [
+        "mastery_supported",
+        "mastery_supported",
+        "mastery_supported"
+      ],
+      "unanimous": true,
+      "expectedMatches": 3,
+      "questionGroundingRate": 1,
+      "rubricGroundingRate": 1,
+      "questionDimensions": [
+        "correctness",
+        "decision_quality",
+        "operability",
+        "reliability"
+      ]
+    },
+    {
+      "fixtureId": "python-surface-pass",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "signals": [
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown"
+      ],
+      "unanimous": true,
+      "expectedMatches": 3,
+      "questionGroundingRate": 1,
+      "rubricGroundingRate": 1,
+      "questionDimensions": [
+        "correctness",
+        "decision_quality",
+        "operability",
+        "reliability"
+      ]
+    },
+    {
+      "fixtureId": "dotnet-critical-misunderstanding",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "signals": [
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown"
+      ],
+      "unanimous": true,
+      "expectedMatches": 3,
+      "questionGroundingRate": 1,
+      "rubricGroundingRate": 1,
+      "questionDimensions": [
+        "correctness",
+        "decision_quality",
+        "operability",
+        "reliability"
+      ]
+    },
+    {
+      "fixtureId": "python-reference-strong",
+      "expectedCalibration": "mastery_supported",
+      "signals": [
+        "mastery_supported",
+        "mastery_supported",
+        "mastery_supported"
+      ],
+      "unanimous": true,
+      "expectedMatches": 3,
+      "questionGroundingRate": 1,
+      "rubricGroundingRate": 1,
+      "questionDimensions": [
+        "correctness",
+        "decision_quality",
+        "operability",
+        "reliability"
+      ]
+    },
+    {
+      "fixtureId": "python-reference-weak",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "signals": [
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown",
+        "mastery_not_yet_shown"
+      ],
+      "unanimous": true,
+      "expectedMatches": 3,
+      "questionGroundingRate": 1,
+      "rubricGroundingRate": 1,
+      "questionDimensions": [
+        "correctness",
+        "decision_quality",
+        "reliability"
+      ]
+    }
+  ],
+  "sameSourceCalibration": {
+    "fingerprint": "python-reference-like-v1",
+    "strongSignals": [
+      "mastery_supported",
+      "mastery_supported",
+      "mastery_supported"
+    ],
+    "weakSignals": [
+      "mastery_not_yet_shown",
+      "mastery_not_yet_shown",
+      "mastery_not_yet_shown"
+    ]
+  }
+}

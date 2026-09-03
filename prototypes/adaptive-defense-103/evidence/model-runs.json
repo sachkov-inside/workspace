@@ -1,0 +1,2269 @@
+{
+  "schemaVersion": "inside.adaptive-defense-experiment.v1",
+  "environment": {
+    "providerHarness": "codex-cli 0.153.0",
+    "model": "gpt-5.4",
+    "reasoningEffort": "low",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v22.23.1",
+    "runsPerFixture": 3,
+    "concurrency": 3,
+    "note": "Provider usage includes the Codex agent runtime prompt; this is an upper bound, not production API billing."
+  },
+  "results": [
+    {
+      "fixtureId": "dotnet-critical-misunderstanding",
+      "repetition": 1,
+      "sourceFingerprint": "dotnet-sync-retry-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 6952,
+      "latencyMs": 34614.561208,
+      "usage": {
+        "input_tokens": 14282,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1490,
+        "reasoning_output_tokens": 123
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-critical-misunderstanding",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You say `Task.WhenAll` is acceptable because it is asynchronous, but the code still waits for all partner POSTs before commit/response. How does that satisfy the requirement that the order API must not wait for a partner endpoint, given the observed `order_acceptance_p99_ms=6120`?",
+            "groundedIn": [
+              "answer:request-boundary",
+              "src:inline-http",
+              "case:fact:1",
+              "technical:telemetry:1"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "This is the clearest contract-to-implementation mismatch and appears to be a fundamental misunderstanding of request boundary behavior."
+          },
+          {
+            "id": "q2",
+            "prompt": "You defend retrying HTTP 410 up to 50 times as safer, but the case says some 4xx responses are terminal and support needs a bounded terminal reason. What rule would stop retries for terminal responses here, and where is that reflected in this attempt?",
+            "groundedIn": [
+              "answer:terminal-failure",
+              "src:retry-all",
+              "case:fact:5",
+              "case:fact:6",
+              "technical:telemetry:4"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "The answer conflicts with bounded recovery and terminal-failure handling, which is central to reliable delivery."
+          },
+          {
+            "id": "q3",
+            "prompt": "You state `subscription_id` is enough and secrets can appear in internal logs, but the evidence shows cross-tenant endpoint selection and secret logging. How do those choices satisfy tenant isolation and secret handling requirements in this case?",
+            "groundedIn": [
+              "answer:tenant-security",
+              "src:cross-tenant",
+              "src:secret-log",
+              "case:fact:3",
+              "technical:scenario:2",
+              "technical:scenario:3"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The stated rationale appears to reject core isolation and security constraints rather than trade them off explicitly."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "fq1",
+            "prompt": "If a burst of 100 events in five seconds must stay at or under eight concurrent partner calls, how do you explain `max_partner_concurrency=47`, and what mechanism in this attempt was supposed to enforce the cap?",
+            "groundedIn": [
+              "case:fact:7",
+              "technical:telemetry:2",
+              "technical:scenario:4"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The attempt failed a measurable runtime constraint, and the current answers do not explain how that would be diagnosed or controlled."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.97,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:request-boundary",
+                "src:inline-http",
+                "case:fact:1",
+                "technical:telemetry:1"
+              ],
+              "rationale": "The answer treats asynchronous waiting as equivalent to not waiting, but the implementation explicitly waits for all partner calls before commit/response and telemetry shows materially elevated acceptance latency."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:terminal-failure",
+                "src:retry-all",
+                "case:fact:2",
+                "case:fact:5",
+                "case:fact:6",
+                "technical:telemetry:4"
+              ],
+              "rationale": "The defense rejects terminal failure handling by arguing 410 should be retried repeatedly, which conflicts with selected terminal 4xx behavior and bounded recovery/support state requirements."
+            },
+            {
+              "dimension": "operability",
+              "level": "weak",
+              "evidenceRefs": [
+                "technical:scenario:4",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "case:fact:6",
+                "case:fact:7"
+              ],
+              "rationale": "Runtime evidence shows concurrency exceeded the cap and backlog drain is not applicable, consistent with the lack of a bounded async delivery model and weak diagnostic posture for support."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:tenant-security",
+                "src:cross-tenant",
+                "src:secret-log",
+                "case:fact:3"
+              ],
+              "rationale": "The stated decisions prioritize aggressive retries and synchronous partner waiting, then dismiss observed failures as evaluator limitations. The security answer also accepts cross-tenant selection and secret exposure instead of reasoning within the case constraints."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "`Task.WhenAll` does not block the API boundary in a way that violates the requirement.",
+              "evidenceRef": "src:inline-http",
+              "effect": "Conflicts with the explicit requirement that the order API must not wait for a partner endpoint."
+            },
+            {
+              "claim": "Retrying 410 fifty times is safer than treating it as terminal.",
+              "evidenceRef": "src:retry-all",
+              "effect": "Conflicts with selected terminal 4xx handling and bounded terminal-failure requirements."
+            },
+            {
+              "claim": "`subscription_id` alone is sufficient because the user is authenticated.",
+              "evidenceRef": "src:cross-tenant",
+              "effect": "Conflicts with tenant isolation and is corroborated by the cross-tenant failure scenario."
+            },
+            {
+              "claim": "Internal logs can contain the signing secret for debugging.",
+              "evidenceRef": "src:secret-log",
+              "effect": "Conflicts with the case’s tenant-isolated secret handling expectations and the secret-redaction failure."
+            },
+            {
+              "claim": "The timeout is only an evaluator limitation and production will be faster.",
+              "evidenceRef": "technical:telemetry:1",
+              "effect": "Unsupported by the provided evidence and inconsistent with the synchronous partner-waiting implementation."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The defense answers are explicit enough to reveal the participant's actual reasoning, making the failure mode diagnosable.",
+              "The decision record consistently exposes the governing assumptions behind the implementation."
+            ],
+            "nextSteps": [
+              "Re-explain the request boundary using the exact contract in `case:fact:1` and the observed behavior in `src:inline-http` and `technical:telemetry:1`.",
+              "Define terminal versus retryable outcomes that match `case:fact:5` and produce bounded support state per `case:fact:6`.",
+              "Address tenant scoping and secret handling directly against `case:fact:3` instead of relying on authentication or internal-log arguments.",
+              "Explain what concurrency-control mechanism should satisfy `case:fact:7` and how telemetry would confirm it."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence shows a persistent mismatch between the participant’s explanation and the case constraints. The defense does not just omit details; it explicitly argues for synchronous partner waiting, unbounded retry of terminal responses, insufficient tenant scoping, and secret exposure in logs. Combined with failed technical scenarios and telemetry, this supports `mastery_not_yet_shown` rather than an inconclusive result."
+        }
+      }
+    },
+    {
+      "fixtureId": "dotnet-critical-misunderstanding",
+      "repetition": 2,
+      "sourceFingerprint": "dotnet-sync-retry-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 6952,
+      "latencyMs": 41015.949875,
+      "usage": {
+        "input_tokens": 14470,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1763,
+        "reasoning_output_tokens": 57
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-critical-misunderstanding",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You say `Task.WhenAll` is still asynchronous and therefore does not block the API. How do you reconcile that with the evidence that `UpdateOrderStatus` waits for all partner POSTs before commit/response and with `order_acceptance_p99_ms=6120`, given the case requirement that the order API must not wait for a partner endpoint?",
+            "groundedIn": [
+              "answer:request-boundary",
+              "src:inline-http",
+              "technical:telemetry:1",
+              "case:fact:1"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "This is the clearest direct mismatch between the defense explanation, the implementation, and the observable runtime behavior."
+          },
+          {
+            "id": "q2",
+            "prompt": "You defend retrying HTTP 410 fifty times as safer, but the implementation retries 401/403/410 up to 50 times and telemetry shows repeated 410 attempts. Which responses are terminal vs retryable in this design, and how would support get a bounded terminal state with a reason?",
+            "groundedIn": [
+              "answer:terminal-failure",
+              "src:retry-all",
+              "technical:telemetry:4",
+              "case:fact:5",
+              "case:fact:6"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This probes whether the participant can distinguish bounded recovery from unbounded or incorrect redelivery."
+          },
+          {
+            "id": "q3",
+            "prompt": "You state that `subscription_id` alone is enough and that internal logs may contain the secret. How does that fit with the cross-tenant endpoint call failure, the source evidence that subscription lookup is not tenant-scoped, and the tenant-isolation and secret-handling requirements?",
+            "groundedIn": [
+              "answer:tenant-security",
+              "src:cross-tenant",
+              "src:secret-log",
+              "technical:scenario:2",
+              "technical:scenario:3",
+              "case:fact:3"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "This probes whether the participant understands the security boundary and can justify or revise a risky design decision against explicit evidence."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "If production were 'faster' as you claim, what mechanism would reduce partner-call concurrency from the observed 47 down to the required cap of eight during a 100-event burst?",
+            "groundedIn": [
+              "decision:after-code",
+              "technical:telemetry:2",
+              "technical:scenario:4",
+              "case:fact:7"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The answer attributes failure to the evaluator rather than the design, but the telemetry shows a concrete concurrency violation that needs explanation."
+          },
+          {
+            "id": "f2",
+            "prompt": "Your earlier rationale was 'accepted order guarantees exactly-once notification.' Where in the supplied implementation or evidence is durability or deferred redelivery represented once a temporary failure occurs after the order-status change is committed?",
+            "groundedIn": [
+              "decision:before-code",
+              "src:inline-http",
+              "technical:scenario:1",
+              "technical:telemetry:3",
+              "case:fact:2"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This follows up on a likely incorrect guarantee claim and tests whether the participant can identify the missing recovery mechanism."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.98,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:request-boundary",
+                "src:inline-http",
+                "technical:telemetry:1",
+                "case:fact:1"
+              ],
+              "rationale": "The defense claims `Task.WhenAll` does not block the API, but the supplied source says the request awaits all partner POSTs before commit and response, and telemetry shows elevated acceptance latency. The explanation does not connect the runtime contract to the implementation correctly."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:terminal-failure",
+                "decision:before-code",
+                "decision:after-code",
+                "src:retry-all",
+                "technical:scenario:1",
+                "technical:telemetry:4",
+                "technical:telemetry:3",
+                "case:fact:2",
+                "case:fact:5",
+                "case:fact:6"
+              ],
+              "rationale": "The participant defends retrying terminal responses such as 410 and frames more retries as safer, despite explicit case requirements that only selected failure classes are retryable and support needs a bounded terminal state. The evidence also does not show a durable recovery path after temporary partner failure."
+            },
+            {
+              "dimension": "operability",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:after-code",
+                "src:secret-log",
+                "technical:scenario:3",
+                "technical:scenario:4",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "case:fact:6",
+                "case:fact:7"
+              ],
+              "rationale": "The defense does not diagnose the observed behavior from telemetry. It dismisses failures as evaluator artifacts while the supplied evidence shows concrete issues: concurrency far above the cap, no meaningful backlog drain metric, and secret exposure in logs, all of which harm bounded diagnostics and safe operations."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:tenant-security",
+                "src:cross-tenant",
+                "src:secret-log",
+                "technical:scenario:2",
+                "technical:scenario:3",
+                "case:fact:3"
+              ],
+              "rationale": "The stated decisions prioritize synchronous completion and aggressive retry without addressing the case constraints. The security reasoning is especially weak: authentication is treated as sufficient for tenant scoping, and secret logging is accepted for debugging despite direct evidence of cross-tenant access and secret leakage."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "`Task.WhenAll` is asynchronous, so it does not block the API.",
+              "evidenceRef": "src:inline-http",
+              "effect": "The source states the handler awaits all partner requests before commit and response, contradicting the defense's explanation of request behavior."
+            },
+            {
+              "claim": "Returning before partners respond would mean the order is not complete.",
+              "evidenceRef": "case:fact:1",
+              "effect": "This conflicts with the case requirement that the order API must not wait for a partner endpoint."
+            },
+            {
+              "claim": "A 410 may become successful later, therefore retrying it 50 times is safer than dropping it.",
+              "evidenceRef": "case:fact:5",
+              "effect": "This contradicts the stated retry policy requirements that selected 4xx responses are terminal."
+            },
+            {
+              "claim": "`subscription_id` is enough to select the endpoint after authentication.",
+              "evidenceRef": "technical:scenario:2",
+              "effect": "The technical evidence shows cross-tenant endpoint invocation, contradicting the claimed tenant-safety of the lookup."
+            },
+            {
+              "claim": "Logs are internal and can contain the secret for debugging.",
+              "evidenceRef": "src:secret-log",
+              "effect": "The source evidence shows secret exposure in logs, which conflicts with tenant-isolated secret handling and safe operability expectations."
+            },
+            {
+              "claim": "The timeout is an evaluator limitation. Production will be faster.",
+              "evidenceRef": "technical:telemetry:2",
+              "effect": "Observed partner concurrency of 47 versus the required cap of eight indicates a design-level issue, not just an evaluator artifact."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The defense does present explicit design intent around completion semantics and retry behavior, so the participant's reasoning is observable rather than missing."
+            ],
+            "nextSteps": [
+              "Re-explain the request boundary using the supplied source and telemetry, and align it to `case:fact:1` instead of appealing to `Task.WhenAll` being asynchronous.",
+              "Separate retryable and terminal outcomes according to `case:fact:5`, then describe the bounded terminal state and reason required by `case:fact:6`.",
+              "Address tenant scoping and secret handling directly from `src:cross-tenant` and `src:secret-log`, and explain what implementation change would satisfy `case:fact:3`.",
+              "Diagnose the burst/concurrency failure from the telemetry rather than attributing it to the evaluator."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence shows a consistent pattern of misunderstanding rather than a narrow implementation slip. The defense conflicts with the supplied source, technical failures, and case constraints on request boundaries, retry classification, tenant isolation, secrecy, and bounded concurrency. Technical failure alone is not the reason for the result; the explanations themselves do not demonstrate the ability to diagnose or correct the failures from the evidence provided."
+        }
+      }
+    },
+    {
+      "fixtureId": "dotnet-critical-misunderstanding",
+      "repetition": 3,
+      "sourceFingerprint": "dotnet-sync-retry-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 6952,
+      "latencyMs": 37197.61579200001,
+      "usage": {
+        "input_tokens": 14335,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1538,
+        "reasoning_output_tokens": 113
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-critical-misunderstanding",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "How does waiting on `Task.WhenAll` before commit and return satisfy the requirement that the order API must not wait for a partner endpoint, given the observed acceptance latency?",
+            "groundedIn": [
+              "case:fact:1",
+              "src:inline-http",
+              "technical:telemetry:1",
+              "answer:request-boundary"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The defense answer explicitly equates asynchronous fan-out with meeting the request-boundary requirement, which conflicts with the implementation and telemetry."
+          },
+          {
+            "id": "q2",
+            "prompt": "Why should `410 Gone` be treated as retryable here when the case says only selected temporary failures are retryable and telemetry shows 50 repeated attempts?",
+            "groundedIn": [
+              "case:fact:5",
+              "src:retry-all",
+              "technical:telemetry:4",
+              "answer:terminal-failure"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This probes a direct mismatch between the participant's retry rationale and the bounded retry/terminal-failure contract."
+          },
+          {
+            "id": "q3",
+            "prompt": "How is tenant isolation preserved when endpoint lookup accepts only `subscription_id`, while the route tenant is trusted only for the order query?",
+            "groundedIn": [
+              "case:fact:3",
+              "src:cross-tenant",
+              "technical:scenario:2",
+              "answer:tenant-security"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The answer appears to substitute authentication for tenant-scoped data isolation, which is a core case constraint."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "fq1",
+            "prompt": "What bounded delivery state and terminal-failure reason would Support see for a permanently invalid endpoint under the current retry-all behavior?",
+            "groundedIn": [
+              "case:fact:6",
+              "src:retry-all",
+              "answer:terminal-failure"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The supplied answer defends endless retry pressure but does not explain how operators get a bounded terminal state."
+          },
+          {
+            "id": "fq2",
+            "prompt": "Why is logging the signing secret acceptable if secrets are tenant-isolated and the secret-redaction scenario failed?",
+            "groundedIn": [
+              "case:fact:3",
+              "src:secret-log",
+              "technical:scenario:3",
+              "answer:tenant-security"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The answer asserts an operational trade-off that conflicts with the supplied security evidence."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.97,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "weak",
+              "evidenceRefs": [
+                "case:fact:1",
+                "src:inline-http",
+                "technical:telemetry:1",
+                "answer:request-boundary"
+              ],
+              "rationale": "The answer claims `Task.WhenAll` means the API does not wait, but the implementation explicitly waits for partner POSTs before commit/return and acceptance latency is 6120 ms."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "case:fact:2",
+                "case:fact:5",
+                "src:retry-all",
+                "technical:scenario:1",
+                "technical:telemetry:4",
+                "answer:terminal-failure"
+              ],
+              "rationale": "The defense treats aggressive retry of all non-2xx responses as safer, but the case distinguishes retryable temporary failures from terminal 4xx conditions, and the current behavior repeatedly retries 410 while the temporary-failure scenario still fails."
+            },
+            {
+              "dimension": "operability",
+              "level": "weak",
+              "evidenceRefs": [
+                "case:fact:6",
+                "case:fact:7",
+                "technical:scenario:4",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "src:secret-log"
+              ],
+              "rationale": "The bounded-burst constraint is violated at 47 concurrent calls, backlog drain is not applicable because there is no proper deferred pipeline, and secret logging undermines safe diagnostics. The defense does not show bounded support state or operational control."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:request-boundary",
+                "answer:terminal-failure",
+                "answer:tenant-security",
+                "case:fact:1",
+                "case:fact:3",
+                "case:fact:5"
+              ],
+              "rationale": "The stated decisions preserve the wrong guarantees: request completion is tied to partner completion, permanent 4xx responses are treated as safer to retry, and authentication is used as a substitute for tenant-scoped endpoint isolation. The post-hoc explanation dismisses failing evidence rather than reconciling it."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "`Task.WhenAll` is asynchronous, so it does not block the API.",
+              "evidenceRef": "src:inline-http",
+              "effect": "The method still awaits all partner calls before commit and return, contradicting the non-waiting API requirement."
+            },
+            {
+              "claim": "A 410 may become successful later, so retrying it 50 times is safer.",
+              "evidenceRef": "case:fact:5",
+              "effect": "The case explicitly separates retryable temporary failures from selected terminal 4xx responses."
+            },
+            {
+              "claim": "`subscription_id` is enough to select the endpoint after authentication.",
+              "evidenceRef": "src:cross-tenant",
+              "effect": "Endpoint lookup is not tenant-scoped, which conflicts with tenant isolation and matches the failed cross-tenant scenario."
+            },
+            {
+              "claim": "Internal logs can contain the secret for debugging.",
+              "evidenceRef": "src:secret-log",
+              "effect": "This conflicts with tenant-isolated secret handling and the failed secret-redaction scenario."
+            },
+            {
+              "claim": "The timeout is an evaluator limitation; production will be faster.",
+              "evidenceRef": "technical:scenario:1",
+              "effect": "The supplied technical evidence records an actual failed temporary-partner-failure scenario and elevated acceptance latency, not a neutral tooling artifact."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The participant states clear intended goals around delivery guarantees and loss avoidance.",
+              "The defense engages directly with request timing, retries, and tenant selection rather than avoiding the contested areas."
+            ],
+            "nextSteps": [
+              "Re-explain the request boundary starting from `case:fact:1` and `src:inline-http`, separating async implementation style from whether the HTTP response waits on partner I/O.",
+              "Reclassify retry behavior against `case:fact:5`, including which 4xx responses are terminal and what bounded terminal state Support should observe per `case:fact:6`.",
+              "Describe a tenant-scoped endpoint/secret lookup that satisfies `case:fact:3` and explain why secret values must not appear in logs."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence shows a persistent misunderstanding of the core contract: the defense continues to justify synchronous partner dependency, unbounded retry of terminal responses, and non-tenant-scoped endpoint access despite direct source and technical evidence to the contrary. This supports `mastery_not_yet_shown`, not because the build failed alone, but because the explanations conflict with the case constraints and do not demonstrate a credible path to correct the failures."
+        }
+      }
+    },
+    {
+      "fixtureId": "dotnet-deliberate",
+      "repetition": 1,
+      "sourceFingerprint": "dotnet-deliberate-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 8014,
+      "latencyMs": 24680.588708,
+      "usage": {
+        "input_tokens": 14496,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 967,
+        "reasoning_output_tokens": 32
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-deliberate",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You say the same transaction closes the lost-notification window. Which implementation facts show that the committed order-status change and pending delivery are written in one consistency boundary, and how does the unique delivery key affect retries or duplicate enqueue?",
+            "groundedIn": [
+              "answer:commit-crash-window",
+              "src:outbox-transaction",
+              "decision:before-code"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This is the core claim behind avoiding silent notification loss after commit and needs direct linkage from explanation to implementation."
+          },
+          {
+            "id": "q2",
+            "prompt": "Walk through why the worker claims rows with a 30-second lease and releases the transaction before the HTTP call, and explain the concrete failure mode if partner latency approaches the lease without extension or fencing.",
+            "groundedIn": [
+              "src:worker-lease",
+              "decision:after-code",
+              "answer:lease-tradeoff"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "This probes whether the participant can connect the concurrency design to the exact implementation and its known duplicate-delivery edge case."
+          },
+          {
+            "id": "q3",
+            "prompt": "Support needs bounded state and diagnosable terminal outcomes. Using the delivery policy and telemetry here, explain how you would distinguish retry pressure from database contention before changing concurrency.",
+            "groundedIn": [
+              "src:status-policy",
+              "answer:operational-diagnosis",
+              "technical:telemetry:2",
+              "technical:telemetry:3",
+              "technical:telemetry:4"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The answer mentions a diagnosis path, but this checks whether it is anchored to the actual bounded policy and observed runtime signals in this attempt."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.93,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "src:worker-lease",
+                "decision:after-code",
+                "answer:lease-tradeoff",
+                "src:tenant-secret"
+              ],
+              "rationale": "The defense ties observable behavior to the implementation: short claim transaction, lease-based work claiming, transaction release before HTTP, and tenant-scoped secret handling. It also names the concrete duplicate-delivery window when lease timing or crash timing goes wrong."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "src:outbox-transaction",
+                "src:status-policy",
+                "decision:before-code",
+                "answer:commit-crash-window"
+              ],
+              "rationale": "The participant correctly explains the consistency boundary that prevents silent loss after commit, distinguishes at-least-once from exactly-once delivery, and aligns retry versus terminal behavior with the implemented policy."
+            },
+            {
+              "dimension": "operability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:operational-diagnosis",
+                "src:status-policy",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "technical:telemetry:4",
+                "src:tenant-secret"
+              ],
+              "rationale": "The diagnosis answer is operationally grounded: it uses bounded concurrency, backlog behavior, attempt outcomes, and lease expiry to separate partner slowness or retry pressure from database contention, while preserving bounded diagnostics and tenant-safe logging."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:lease-tradeoff",
+                "answer:commit-crash-window"
+              ],
+              "rationale": "The defense explains why a leased worker was chosen over a broker, why row locks during HTTP were rejected, what trade-off remains around duplicate delivery, and when the design would need to change if latency or lifecycle demands increase."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "Connects the reliability contract to the exact transaction and worker design rather than speaking in generalities.",
+              "Explains the remaining duplicate-delivery edge cases clearly instead of overstating guarantees.",
+              "Uses concrete operational signals and policy boundaries to justify diagnosis and tuning decisions."
+            ],
+            "nextSteps": [
+              "In live defense, be explicit about how bounded delivery state is exposed to support, especially terminal reason reporting and disabled subscriptions.",
+              "If pressed on concurrency, state directly how the eight-call cap is enforced in the worker path, not only how you would diagnose pressure around it."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence supports mastery. The defense is technically coherent, tied to the actual implementation facts, and shows clear reasoning about consistency boundaries, lease-based concurrency, retry versus terminal behavior, and operational diagnosis. No material contradiction appears between answers, source evidence, technical evidence, and recorded decisions."
+        }
+      }
+    },
+    {
+      "fixtureId": "dotnet-deliberate",
+      "repetition": 2,
+      "sourceFingerprint": "dotnet-deliberate-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 8014,
+      "latencyMs": 31276.85775,
+      "usage": {
+        "input_tokens": 14684,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1142,
+        "reasoning_output_tokens": 133
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-deliberate",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "Вы утверждаете at-least-once и стабильный `event_id`. Как именно `src:outbox-transaction` и `answer:commit-crash-window` вместе закрывают окно потери после commit, но не обещают exactly-once HTTP?",
+            "groundedIn": [
+              "src:outbox-transaction",
+              "answer:commit-crash-window"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Проверяет, связывает ли защита границу консистентности с точным остаточным риском дубликатов."
+          },
+          {
+            "id": "q2",
+            "prompt": "Почему переход от удержания locks во время HTTP к short claim transaction с lease улучшает поведение системы, и какой новый риск вы этим принимаете по `decision:after-code`, `src:worker-lease` и `answer:lease-tradeoff`?",
+            "groundedIn": [
+              "decision:after-code",
+              "src:worker-lease",
+              "answer:lease-tradeoff"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "Проверяет понимание trade-off между пропускной способностью, изоляцией tenants и риском duplicate delivery."
+          },
+          {
+            "id": "q3",
+            "prompt": "Если due backlog растет при лимите в восемь partner calls, какие наблюдения из `answer:operational-diagnosis` и `technical:telemetry:2` помогут отличить partner latency/retry pressure от database contention?",
+            "groundedIn": [
+              "answer:operational-diagnosis",
+              "technical:telemetry:2"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Проверяет, может ли участник диагностировать runtime-поведение по bounded signals, а не по общим рассуждениям."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.94,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "src:outbox-transaction",
+                "src:worker-lease",
+                "src:status-policy",
+                "src:tenant-secret",
+                "answer:commit-crash-window"
+              ],
+              "rationale": "Защита точно связывает заявленный контракт с конкретными механизмами: общая транзакция для order change и delivery rows, lease-based claiming без удержания транзакции на HTTP, policy по retry/terminal, и tenant-scoped secret handling."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "src:outbox-transaction",
+                "src:status-policy",
+                "answer:commit-crash-window",
+                "answer:lease-tradeoff",
+                "technical:scenario:1",
+                "technical:scenario:2"
+              ],
+              "rationale": "Участник корректно различает lost-notification window и duplicate-delivery window, явно формулирует at-least-once семантику, bounded retry/terminal outcomes и условие, при котором lease требует extension или fencing."
+            },
+            {
+              "dimension": "operability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:operational-diagnosis",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "technical:telemetry:4",
+                "src:tenant-secret"
+              ],
+              "rationale": "Диагностика опирается на наблюдаемые сигналы: due backlog, attempt outcomes, lease expiry, concurrency ceiling и drain behavior. Также учтено bounded logging without secret leakage."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "src:worker-lease",
+                "answer:lease-tradeoff"
+              ],
+              "rationale": "Решение обосновано через явные ограничения: не держать DB transaction на network I/O, не добавлять broker преждевременно, и принять idempotent receiver contract как осознанную цену за отказ от lock-held HTTP delivery."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "Связывает архитектурные решения с конкретными failure windows вместо общих claims про надежность.",
+              "Ясно объясняет trade-off lease model: throughput и recovery против риска duplicate sends.",
+              "Операционные сигналы выбраны прикладно и соответствуют наблюдаемому bounded runtime state."
+            ],
+            "nextSteps": [
+              "Для еще более сильной защиты можно явнее привязать bounded delivery state и terminal reason к support workflow из case:fact:6.",
+              "Можно отдельно проговорить, какие именно 4xx terminal, а какие retryable, чтобы связка с policy была полностью исчерпывающей."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Защита демонстрирует устойчивое понимание точных гарантий системы, границ консистентности, lease-based execution и operational diagnosis. Ответы согласованы с source evidence и decision record; существенных противоречий не видно, поэтому bounded evidence поддерживает mastery_supported."
+        }
+      }
+    },
+    {
+      "fixtureId": "dotnet-deliberate",
+      "repetition": 3,
+      "sourceFingerprint": "dotnet-deliberate-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 8014,
+      "latencyMs": 31222.459375000002,
+      "usage": {
+        "input_tokens": 14496,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1054,
+        "reasoning_output_tokens": 37
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "dotnet-deliberate",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "В [answer:lease-tradeoff] вы говорите о риске двойной отправки при истечении lease. Какие именно факты в реализации показывают, что сеть не держит row lock и что восстановление после такого окна остается bounded?",
+            "groundedIn": [
+              "answer:lease-tradeoff",
+              "src:worker-lease",
+              "decision:after-code"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Нужно проверить, связывает ли ответ trade-off по lease с конкретным механизмом claim/release и bounded recovery, а не описывает риск абстрактно."
+          },
+          {
+            "id": "q2",
+            "prompt": "Покажите, какими точными фактами вы обосновываете, что accepted order change не ждет partner endpoint и при этом не теряет notification после временного сбоя.",
+            "groundedIn": [
+              "case:fact:1",
+              "case:fact:2",
+              "src:outbox-transaction",
+              "src:worker-lease",
+              "technical:telemetry:1",
+              "technical:scenario:1",
+              "technical:scenario:2",
+              "answer:commit-crash-window"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Это главный контракт кейса; нужно проверить связку между consistency boundary, async delivery и наблюдаемым поведением."
+          },
+          {
+            "id": "q3",
+            "prompt": "Вы упомянули диагностику backlog и fixed concurrency. Какие данные из попытки позволяют отличить partner latency/retry pressure от database contention, и почему вы не начинаете с повышения concurrency выше eight?",
+            "groundedIn": [
+              "answer:operational-diagnosis",
+              "case:fact:7",
+              "technical:telemetry:2",
+              "technical:telemetry:3",
+              "technical:telemetry:4"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Нужно проверить, опирается ли operational reasoning на реальные telemetry/constraint facts этой попытки и учитывает ли лимит concurrency."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.9,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:commit-crash-window",
+                "src:outbox-transaction",
+                "src:worker-lease",
+                "technical:scenario:1",
+                "technical:scenario:2"
+              ],
+              "rationale": "Ответ точно связывает observed contract с одной transactional boundary для order change и pending notification, и отдельно оговаривает at-least-once окно после успешного HTTP."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:lease-tradeoff",
+                "src:worker-lease",
+                "src:status-policy",
+                "decision:after-code"
+              ],
+              "rationale": "Участник корректно объясняет bounded recovery, retry/terminal split и trade-off lease against duplicate delivery without overstating exactly-once guarantees."
+            },
+            {
+              "dimension": "operability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:operational-diagnosis",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "technical:telemetry:4",
+                "src:tenant-secret"
+              ],
+              "rationale": "Ответ использует bounded diagnostics: backlog, attempt outcomes, lease expiry и concurrency cap; это согласовано с telemetry и с ограничением на безопасную observability без утечки secret/URL."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:lease-tradeoff",
+                "answer:commit-crash-window"
+              ],
+              "rationale": "Decision record и защита явно описывают выбранные ограничения, отвергнутую раннюю реализацию с lock during HTTP, текущие trade-offs и условия, при которых решение нужно менять."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "Защита различает lost-notification window и duplicate-delivery window и не смешивает consistency с exactly-once HTTP.",
+              "Объяснение lease-модели привязано к конкретной реализации и operational consequence, а не к общей теории retries.",
+              "Operational diagnosis опирается на реальные сигналы попытки и учитывает hard cap в eight concurrent calls."
+            ],
+            "nextSteps": [
+              "Попросить участника в устной защите еще явнее связать terminal-failure policy с support-facing bounded state и reason semantics из кейса.",
+              "Для дополнительной калибровки можно проверить, насколько точно участник объяснит tenant isolation и signing path через конкретные source facts."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "По ограниченному набору evidence защита демонстрирует уверенное понимание correctness, reliability, operability и decision trade-offs именно для этой реализации. Ответы конкретны, согласованы с source/decision/technical facts и не делают неподдержанных заявлений про exactly-once. Существенных противоречий в bounded evidence нет, поэтому advisory signal: mastery_supported."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-strong",
+      "repetition": 1,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 7836,
+      "latencyMs": 27706.195833000005,
+      "usage": {
+        "input_tokens": 14682,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 915,
+        "reasoning_output_tokens": 42
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-strong",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You changed the claim from exactly-once to at-least-once after seeing one duplicate send after a worker kill. Explain which implementation details bound that duplicate window and how support can distinguish retrying from terminal delivery state.",
+            "groundedIn": [
+              "decision:after-code",
+              "technical:telemetry:4",
+              "src:reference-worker",
+              "src:reference-policy",
+              "case:fact:6"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Probes whether the participant can connect the observed duplicate to the actual recovery model and bounded support state."
+          },
+          {
+            "id": "q2",
+            "prompt": "Why does the outbound-target policy need resolved-address validation and redirect revalidation instead of a hostname check, and which submitted safeguards enforce tenant-safe delivery?",
+            "groundedIn": [
+              "decision:after-code",
+              "answer:outbound-policy",
+              "src:reference-security",
+              "technical:scenario:5",
+              "case:fact:3"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Tests whether the participant can tie a concrete security correction to the implemented controls and tenant isolation requirement."
+          },
+          {
+            "id": "q3",
+            "prompt": "What measured signals would justify moving from the PostgreSQL outbox worker to a broker, and what consistency problem would still remain unchanged?",
+            "groundedIn": [
+              "decision:before-code",
+              "answer:change-trigger",
+              "src:reference-outbox",
+              "src:reference-worker"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "Checks whether the participant can explain the current architecture choice and the conditions under which it should change."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.92,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:outbound-policy",
+                "decision:after-code",
+                "src:reference-security",
+                "technical:scenario:5"
+              ],
+              "rationale": "The defense accurately explains why hostname-only validation is insufficient and matches the implemented resolved-address, redirect, and raw-body/HMAC safeguards."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:duplicate-window",
+                "decision:after-code",
+                "src:reference-worker",
+                "src:reference-policy",
+                "technical:scenario:1",
+                "technical:scenario:2",
+                "technical:telemetry:4"
+              ],
+              "rationale": "The participant correctly identifies the irreducible duplicate window around remote HTTP success, updates the delivery guarantee to at-least-once, and ties that to stable event_id, retries, and crash recovery."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-policy",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "technical:telemetry:4",
+                "case:fact:6"
+              ],
+              "rationale": "Evidence shows bounded concurrency, backlog drain, duplicate observability, and terminal-reason recording, but the supplied defense answers spend less time on how support or telemetry would be used diagnostically at runtime."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "answer:change-trigger",
+                "decision:after-code"
+              ],
+              "rationale": "The participant explains why PostgreSQL is the current consistency boundary, names concrete triggers for revisiting a broker, and preserves the key trade-off that atomic handoff from the order transaction remains necessary."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "Defense answers are tightly connected to concrete implementation facts and observed runtime behavior.",
+              "The participant corrected an overclaim after technical evidence and explained the consequence in system terms.",
+              "Trade-offs around broker adoption and outbound security are explicit and case-relevant."
+            ],
+            "nextSteps": [
+              "Probe operability a bit further: ask how support would inspect bounded delivery state and terminal reasons during an incident.",
+              "Ask for one concrete walkthrough from retryable failure to terminal failure using the recorded state transitions."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence supports mastery. The participant connects case constraints to the submitted outbox/worker design, correctly reasons about at-least-once delivery and duplicate windows, and explains the outbound security correction with implementation-level specificity. Operability is somewhat less directly demonstrated in the defense text, but the supplied evidence still shows bounded diagnostics and runtime controls."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-strong",
+      "repetition": 2,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 7836,
+      "latencyMs": 26311.67425000001,
+      "usage": {
+        "input_tokens": 14496,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 962,
+        "reasoning_output_tokens": 49
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-strong",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You state the design is at-least-once because a worker can crash after partner success but before marking delivery complete. Point to the exact implementation/evidence that bounds this duplicate window and explain how support can distinguish that case from a terminal failure.",
+            "groundedIn": [
+              "decision:after-code",
+              "answer:duplicate-window",
+              "src:reference-worker",
+              "src:reference-policy",
+              "technical:telemetry:4"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This is the main non-obvious failure mode; the defense should connect the trade-off to concrete delivery state and observed evidence, not just the general principle."
+          },
+          {
+            "id": "q2",
+            "prompt": "Why was hostname-only validation insufficient in this attempt, and what concrete checks now enforce the outbound target policy across redirects and resolved addresses?",
+            "groundedIn": [
+              "decision:after-code",
+              "answer:outbound-policy",
+              "src:reference-security",
+              "technical:scenario:5"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The defense claims a specific security correction; this tests whether the participant can tie the case requirement to the exact failure mode and implemented control."
+          },
+          {
+            "id": "q3",
+            "prompt": "You rejected adding a broker now. What measured signals in this implementation would tell you the PostgreSQL queue is no longer the right boundary, given the bounded concurrency and burst requirement?",
+            "groundedIn": [
+              "decision:before-code",
+              "answer:change-trigger",
+              "src:reference-worker",
+              "technical:scenario:6",
+              "technical:telemetry:2",
+              "technical:telemetry:3"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The trade-off is plausible, but the strongest defense shows when the decision should change using the concrete constraints and telemetry of this attempt."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.88,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:outbound-policy",
+                "decision:after-code",
+                "src:reference-security",
+                "technical:scenario:4",
+                "technical:scenario:5"
+              ],
+              "rationale": "The defense accurately explains a concrete security failure mode and the implemented correction, aligning the case signature and outbound-policy requirements with supplied source and passing scenarios."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "answer:duplicate-window",
+                "decision:after-code",
+                "src:reference-outbox",
+                "src:reference-worker",
+                "src:reference-policy",
+                "technical:scenario:1",
+                "technical:scenario:2",
+                "technical:telemetry:4"
+              ],
+              "rationale": "The participant clearly explains the atomicity boundary, duplicate window, stable event identity, retry behavior, and why the guarantee is at-least-once rather than exactly-once."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-policy",
+                "technical:telemetry:3",
+                "technical:telemetry:4"
+              ],
+              "rationale": "There is evidence of bounded delivery state and observable runtime behavior, but the supplied defense answers do not go deep on how support would use delivery state and terminal reasons during diagnosis."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "answer:change-trigger",
+                "src:reference-worker",
+                "technical:telemetry:2",
+                "technical:telemetry:3"
+              ],
+              "rationale": "The participant gives a coherent rationale for using PostgreSQL now, identifies the operational cost of a broker, and states concrete conditions under which the decision should be revisited."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "The defense connects the crash-after-success duplicate window to a precise consistency limit and the observed redelivery evidence.",
+              "The outbound-policy explanation is concrete and tied to the implemented redirect and resolved-address checks.",
+              "The architecture trade-off is justified with clear change triggers rather than generic preference."
+            ],
+            "nextSteps": [
+              "Strengthen operability explanations by naming the delivery states, terminal reasons, and support workflow you expect operators to use.",
+              "When discussing bounded recovery, explicitly connect retry classes and terminal classes back to the support-facing diagnostics requirement."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Bounded evidence supports mastery. The defense is technically coherent, grounded in the supplied implementation facts, and shows strong understanding of the main reliability and security trade-offs. Operability is somewhat less fully articulated than the other dimensions, but not enough to block a supportive signal."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-strong",
+      "repetition": 3,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_supported",
+      "promptUtf8Bytes": 7836,
+      "latencyMs": 30647.263250000004,
+      "usage": {
+        "input_tokens": 14443,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1300,
+        "reasoning_output_tokens": 71
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-strong",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "Как именно `lease_until` и `SKIP LOCKED` вместе ограничивают повторный захват одной и той же доставки, если воркер падает после claim, но до HTTP?",
+            "groundedIn": [
+              "src:reference-worker",
+              "technical:scenario:2"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Проверяет, связывает ли защита механизм claim/lease с восстановлением после сбоя, а не только с общим описанием outbox."
+          },
+          {
+            "id": "q2",
+            "prompt": "Почему стабильный `event_id` был правильной коррекцией после наблюдаемого `duplicate_send_after_worker-kill=1`, и какой контракт это оставляет на стороне получателя?",
+            "groundedIn": [
+              "technical:telemetry:4",
+              "decision:after-code",
+              "answer:duplicate-window"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Проверяет, умеет ли участник связать наблюдаемое поведение системы с точной семантикой доставки и соответствующей коррекцией."
+          },
+          {
+            "id": "q3",
+            "prompt": "Что в реализации гарантирует предел в восемь одновременных partner-вызовов именно на burst 100 событий за пять секунд: размер claim batch, число воркеров или отдельный concurrency limiter?",
+            "groundedIn": [
+              "case:fact:7",
+              "technical:scenario:6",
+              "technical:telemetry:2",
+              "src:reference-worker"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Проверяет, может ли участник объяснить наблюдаемый runtime-предел через конкретные управляющие механизмы."
+          }
+        ],
+        "followUps": [],
+        "assessment": {
+          "defenseSignal": "mastery_supported",
+          "confidence": 0.9,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "strong",
+              "evidenceRefs": [
+                "src:reference-outbox",
+                "src:reference-worker",
+                "src:reference-security",
+                "answer:duplicate-window",
+                "answer:outbound-policy",
+                "decision:after-code"
+              ],
+              "rationale": "Защита точно связывает контракт с реализацией: outbox в транзакции, HTTP после commit, raw-body HMAC и tenant-scoped controls. Участник также корректно объясняет известное окно дубликата и исправление через стабильный event_id."
+            },
+            {
+              "dimension": "reliability",
+              "level": "strong",
+              "evidenceRefs": [
+                "case:fact:2",
+                "case:fact:5",
+                "src:reference-worker",
+                "src:reference-policy",
+                "technical:scenario:1",
+                "technical:scenario:2",
+                "technical:telemetry:4",
+                "answer:duplicate-window"
+              ],
+              "rationale": "Показано понимание at-least-once семантики, recovery после crash, retry/terminal policy и bounded claiming через lease. Защита не путает технический pass с exactly-once и явно описывает границу консистентности."
+            },
+            {
+              "dimension": "operability",
+              "level": "strong",
+              "evidenceRefs": [
+                "case:fact:6",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "src:reference-policy",
+                "decision:after-code"
+              ],
+              "rationale": "Участник опирается на наблюдаемое runtime-поведение: concurrency cap, backlog drain и terminal reasons. Также демонстрирует диагностическое мышление на примере исправления outbound policy после обнаруженного обхода через DNS/redirects."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "strong",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "answer:change-trigger",
+                "answer:outbound-policy"
+              ],
+              "rationale": "Решение обосновано через явные trade-off'ы: PostgreSQL как consistency boundary, отказ от брокера до появления измеримого давления, и пересмотр security decision после выявленного пробела в hostname-only validation."
+            }
+          ],
+          "contradictions": [],
+          "feedback": {
+            "strengths": [
+              "Связывает наблюдаемый duplicate после kill с корректной семантикой at-least-once, а не маскирует его.",
+              "Объясняет outbound policy через конкретный failure mode с redirects и DNS resolution.",
+              "Описывает, при каких измеримых условиях архитектурное решение стоит пересмотреть."
+            ],
+            "nextSteps": [
+              "Уточнить в устной защите, каким именно механизмом удерживается предел concurrency=8 в рантайме.",
+              "Явно проговорить роль lease expiry в повторном захвате задач после падения воркера."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "По bounded evidence защита поддерживает вывод о mastery: участник корректно объясняет consistency boundary, duplicate window, retry/terminal policy, tenant/security constraints и архитектурные trade-off'ы, не противореча техническим и исходным фактам."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-weak",
+      "repetition": 1,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7171,
+      "latencyMs": 33984.217541999984,
+      "usage": {
+        "input_tokens": 14339,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1278,
+        "reasoning_output_tokens": 227
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-weak",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "Telemetry shows `duplicate_send_after_worker-kill=1 with stable event_id`. How does that fit with your `exactly once` claim, and what delivery guarantee does the implementation actually provide?",
+            "groundedIn": [
+              "answer:duplicate-window",
+              "technical:telemetry:4",
+              "src:reference-worker",
+              "src:reference-outbox"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "The answer asserts an exact guarantee that conflicts with observed duplicate delivery under worker failure."
+          },
+          {
+            "id": "q2",
+            "prompt": "Which concrete checks in this attempt enforce outbound target safety beyond 'blocking bad URLs'—for example HTTPS-only validation, private-network rejection, and tenant scoping—and why do they matter here?",
+            "groundedIn": [
+              "answer:outbound-policy",
+              "src:reference-security",
+              "technical:scenario:5"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The answer is vague about the implemented controls and does not connect the claimed policy to the actual evidence."
+          },
+          {
+            "id": "q3",
+            "prompt": "What specific operational signal or threshold would tell you PostgreSQL is no longer the right queueing choice for this workload, given the bounded burst and observed telemetry?",
+            "groundedIn": [
+              "answer:change-trigger",
+              "case:fact:7",
+              "technical:telemetry:2",
+              "technical:telemetry:3"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The answer names an alternative but cannot state a measurable trigger for changing the design."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "If support sees repeated 4xx failures, where would they find the bounded delivery state and terminal reason for that endpoint?",
+            "groundedIn": [
+              "case:fact:6",
+              "src:reference-policy"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Operability evidence exists in the implementation facts, but the defense did not show the participant can use it for diagnosis."
+          },
+          {
+            "id": "f2",
+            "prompt": "Why is the duplicate after worker kill not just 'test noise' if the event_id stayed stable across the resend?",
+            "groundedIn": [
+              "answer:duplicate-window",
+              "technical:telemetry:4"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This directly probes a defense claim that is contradicted by supplied telemetry."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.9,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "partial",
+              "evidenceRefs": [
+                "answer:outbound-policy",
+                "src:reference-security",
+                "technical:scenario:5"
+              ],
+              "rationale": "The defense points at a helper but cannot explain the concrete outbound safety and signing controls present in the attempt."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:duplicate-window",
+                "technical:telemetry:4",
+                "src:reference-worker",
+                "src:reference-outbox"
+              ],
+              "rationale": "The defense incorrectly claims exactly-once delivery and dismisses observed duplicate resend evidence instead of describing the actual at-least-once behavior under failure."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "case:fact:6",
+                "src:reference-policy"
+              ],
+              "rationale": "The implementation evidence includes bounded state and terminal reasons, but the defense does not demonstrate ability to diagnose failures from that state or telemetry."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:change-trigger",
+                "case:fact:7",
+                "technical:telemetry:2",
+                "technical:telemetry:3"
+              ],
+              "rationale": "The defense states a generic trade-off between PostgreSQL and a broker but cannot name a measurable condition for revisiting the decision."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "The implementation should provide exactly-once delivery.",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Observed duplicate resend after worker kill contradicts the exactly-once claim."
+            },
+            {
+              "claim": "The one duplicate in telemetry looks like test noise.",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Stable event_id on duplicate resend indicates a real failure-mode behavior, not random noise."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The defense recognizes core patterns such as outbox, retries, HMAC, and outbound target protection.",
+              "The implementation passed technical scenarios, but the defense does not accurately explain the guarantees those mechanisms provide."
+            ],
+            "nextSteps": [
+              "Explain guarantees in failure terms precisely: asynchronous post-commit delivery with retry and possible duplicate resend, not exactly once.",
+              "Be able to map security claims to concrete controls in the attempt, especially tenant scoping, HTTPS-only validation, private-network rejection, and raw-body HMAC.",
+              "Define measurable review triggers for architecture changes using throughput, backlog drain time, retry pressure, and concurrency limits."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "The bounded evidence shows a technically passing implementation, but the defense does not show reliable understanding of its guarantees. The largest gap is a repeated exactly-once claim that conflicts with duplicate-send telemetry. Security and architecture answers are also too vague to demonstrate firm command of the concrete implementation and its trade-offs."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-weak",
+      "repetition": 2,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7171,
+      "latencyMs": 30619.715375000014,
+      "usage": {
+        "input_tokens": 14335,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1290,
+        "reasoning_output_tokens": 119
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-weak",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "`technical:telemetry:4` shows one duplicate send after worker kill with a stable event_id. Explain why that does not support exactly-once, and what guarantee the outbox worker actually provides in this implementation.",
+            "groundedIn": [
+              "technical:telemetry:4",
+              "src:reference-worker",
+              "answer:duplicate-window",
+              "decision:after-code"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The defense claims exactly-once despite telemetry and worker behavior that indicate a duplicate window."
+          },
+          {
+            "id": "q2",
+            "prompt": "Using the actual policy in this attempt, which responses are retried, which are terminal, and where is the terminal reason captured for support?",
+            "groundedIn": [
+              "src:reference-policy",
+              "case:fact:5",
+              "case:fact:6"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This probes whether the participant can connect bounded recovery and terminal failure handling to the concrete implementation."
+          },
+          {
+            "id": "q3",
+            "prompt": "What concrete metric or threshold from this attempt would tell you PostgreSQL is no longer the right delivery mechanism, and why?",
+            "groundedIn": [
+              "technical:telemetry:2",
+              "technical:telemetry:3",
+              "answer:change-trigger",
+              "case:fact:7"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The answer admits no trigger for changing the design, leaving the trade-off ungrounded."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "You said the duplicate looked like test noise. What specific fact in `technical:telemetry:4` makes that interpretation unsafe?",
+            "groundedIn": [
+              "technical:telemetry:4",
+              "answer:duplicate-window"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The supplied answer appears to dismiss direct evidence instead of explaining it."
+          },
+          {
+            "id": "f2",
+            "prompt": "You said you do not know whether outbound validation checks DNS or redirects. Which protections are explicitly present in this attempt?",
+            "groundedIn": [
+              "answer:outbound-policy",
+              "src:reference-security",
+              "technical:scenario:5"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The answer is vague even though the supplied evidence names concrete outbound protections."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.88,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:duplicate-window",
+                "decision:after-code",
+                "technical:telemetry:4",
+                "src:reference-worker"
+              ],
+              "rationale": "The defense states exactly-once and dismisses the observed duplicate as noise, but the worker model and telemetry show a duplicate window after worker failure. The participant does not accurately connect the implementation to the actual delivery guarantee."
+            },
+            {
+              "dimension": "reliability",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-outbox",
+                "src:reference-worker",
+                "src:reference-policy",
+                "technical:scenario:1",
+                "technical:scenario:2",
+                "answer:duplicate-window"
+              ],
+              "rationale": "The implementation evidence shows strong retry and recovery behavior, and technical scenarios passed. But the defense explanation misses the at-least-once trade-off and therefore only partially demonstrates reasoning about redelivery and bounded failure handling."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-policy",
+                "src:reference-security",
+                "answer:outbound-policy",
+                "technical:scenario:5"
+              ],
+              "rationale": "The attempt contains bounded state, terminal reasons, and outbound protections, but the participant cannot clearly identify or diagnose the concrete target-validation behavior present in the supplied evidence."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:change-trigger",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "case:fact:7"
+              ],
+              "rationale": "The participant repeats a generic PostgreSQL-versus-broker trade-off but cannot name a concrete measurement or condition that would justify changing the decision in this attempt."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "The implementation should provide exactly-once delivery.",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Directly conflicts with observed duplicate delivery after worker kill."
+            },
+            {
+              "claim": "The unique key and SKIP LOCKED guarantee exactly once.",
+              "evidenceRef": "src:reference-worker",
+              "effect": "The cited mechanisms support durable claiming and concurrency control, not exactly-once delivery across crash windows."
+            },
+            {
+              "claim": "The one duplicate in telemetry looks like test noise.",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Dismisses the supplied runtime evidence instead of explaining the known duplicate window."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The defense at least recognizes the major production patterns present: outbox, retries, HMAC, and target validation.",
+              "The implementation evidence and technical report show the system satisfies key behavioral scenarios, including temporary failure recovery and bounded concurrency."
+            ],
+            "nextSteps": [
+              "Explain the real guarantee precisely: durable enqueue plus at-least-once delivery with idempotent event identity, not exactly-once.",
+              "Tie retryable versus terminal outcomes to the concrete policy, including where support can see terminal reasons.",
+              "Ground design trade-offs in actual metrics from this attempt, such as concurrency ceiling, drain time, backlog growth, or lease contention thresholds."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Mastery is not yet shown. The main gap is not implementation failure but explanation failure: the defense repeats reference-pattern language and asserts exactly-once even though the supplied telemetry and worker design show an at-least-once duplicate window. Reliability and operability are partially supported by the concrete implementation evidence, but the participant does not demonstrate a precise understanding of the guarantees, failure modes, or decision triggers."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-reference-weak",
+      "repetition": 3,
+      "sourceFingerprint": "python-reference-like-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7171,
+      "latencyMs": 37287.47649999999,
+      "usage": {
+        "input_tokens": 14390,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1539,
+        "reasoning_output_tokens": 157
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-reference-weak",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "В `answer:duplicate-window` вы утверждаете exactly-once и называете дубликат шумом. Как это согласуется с `technical:telemetry:4`, где зафиксирован повторный send после kill worker при стабильном `event_id`, и с тем, что `src:reference-worker` делает повторную доставку после сбоя?",
+            "groundedIn": [
+              "answer:duplicate-window",
+              "technical:telemetry:4",
+              "src:reference-worker"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Есть прямое противоречие между объяснением участника и наблюдаемым поведением системы при сбое."
+          },
+          {
+            "id": "q2",
+            "prompt": "В `answer:outbound-policy` сказано, что вы не знаете, проверяет ли решение DNS или redirects. Какие именно меры из `src:reference-security` обеспечивают HTTPS-only validation и private-network rejection, и как это связано с tenant isolation из `case:fact:3`?",
+            "groundedIn": [
+              "answer:outbound-policy",
+              "src:reference-security",
+              "case:fact:3"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Нужно проверить, может ли участник связать заявленные security-свойства с конкретной реализацией, а не с общими best practices."
+          },
+          {
+            "id": "q3",
+            "prompt": "В `answer:change-trigger` вы не можете назвать измерение для перехода на broker. Какие из `technical:telemetry:2`, `technical:telemetry:3` и `case:fact:7` вы бы использовали как trigger, и почему текущая схема на PostgreSQL пока достаточна или уже недостаточна?",
+            "groundedIn": [
+              "answer:change-trigger",
+              "technical:telemetry:2",
+              "technical:telemetry:3",
+              "case:fact:7"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "Ответ про trade-off остался без порога принятия решения и без связи с фактической нагрузкой/поведением."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "Если здесь допустим duplicate send, какой delivery guarantee система реально дает партнеру: at-most-once, at-least-once или exactly-once? Ответ сошлите на `technical:telemetry:4` и `src:reference-outbox`.",
+            "groundedIn": [
+              "technical:telemetry:4",
+              "src:reference-outbox",
+              "answer:duplicate-window"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Нужно уточнить базовую модель доставки, потому что исходный ответ формулирует ее неверно."
+          },
+          {
+            "id": "f2",
+            "prompt": "Какие selected 4xx являются terminal по фактам попытки, и где support увидит bounded state и reason for terminal failure? Свяжите ответ с `src:reference-policy` и `case:fact:6`.",
+            "groundedIn": [
+              "src:reference-policy",
+              "case:fact:6"
+            ],
+            "dimension": "operability",
+            "whyAsked": "В ответах не показано понимание terminal failure и диагностируемого состояния доставки."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.89,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-security",
+                "answer:outbound-policy",
+                "case:fact:3"
+              ],
+              "rationale": "Участник упоминает нужную область, но не может объяснить, какие именно проверки реализованы и как они обеспечивают заявленные ограничения."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:duplicate-window",
+                "technical:telemetry:4",
+                "src:reference-worker",
+                "src:reference-outbox"
+              ],
+              "rationale": "Объяснение модели доставки неверно: наблюдается duplicate send после сбоя, а ответ объявляет exactly-once и списывает сигнал на шум."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:reference-policy",
+                "case:fact:6",
+                "technical:telemetry:3"
+              ],
+              "rationale": "Есть проходящие технические признаки bounded recovery, но в защите не показано понимание terminal reason, delivery state и того, как это использовать для диагностики."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "answer:change-trigger",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "case:fact:7"
+              ],
+              "rationale": "Trade-off между PostgreSQL и broker назван поверхностно; участник не может назвать измеримый trigger для смены решения."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "\"The unique key and SKIP LOCKED guarantee exactly once. The one duplicate in telemetry looks like test noise.\"",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Прямо противоречит зафиксированному duplicate send после kill worker; модель exactly-once не подтверждается."
+            },
+            {
+              "claim": "\"All checks pass... should provide exactly-once delivery.\"",
+              "evidenceRef": "technical:telemetry:4",
+              "effect": "Технический проход не подтверждает exactly-once; телеметрия показывает повторную отправку с тем же event_id."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "Участник попал в общую архитектурную форму решения: outbox, retries, HMAC и target policy присутствуют в фактах попытки.",
+              "Технические сценарии и телеметрия показывают, что реализация работоспособна по основным требованиям кейса."
+            ],
+            "nextSteps": [
+              "Исправить объяснение guarantees: различать internal deduplication/claiming и внешний delivery semantics при crash recovery.",
+              "Научиться связывать security и outbound policy с конкретными проверками реализации, а не с общими best practices.",
+              "Формулировать decision triggers через наблюдаемые метрики и пороги, а не только через абстрактное \"broker scales better\".",
+              "Явно объяснять terminal failure, bounded state и reason codes с позиции support и runtime diagnosis."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Технически попытка проходит сценарии, но защита не показывает уверенного понимания ключевых свойств системы. Основной сбой в защите: участник неверно описывает семантику доставки как exactly-once несмотря на явный duplicate send в телеметрии, не может конкретно объяснить outbound security checks и не связывает архитектурный выбор с измеримыми триггерами. Это больше похоже на узнавание reference-pattern, чем на способность точно диагностировать поведение и защищать решение."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-surface-pass",
+      "repetition": 1,
+      "sourceFingerprint": "python-background-task-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7142,
+      "latencyMs": 34376.208708,
+      "usage": {
+        "input_tokens": 14322,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1419,
+        "reasoning_output_tokens": 90
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-surface-pass",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "Вы утверждаете, что FastAPI background tasks переживут deploy или crash, но после commit не создается pending delivery row, а crash-after-order-commit вообще не запускался. Как именно в текущей реализации уведомление будет продолжено после падения процесса?",
+            "groundedIn": [
+              "src:background-task",
+              "technical:scenario:5",
+              "technical:telemetry:4",
+              "answer:commit-crash-window"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Есть прямой риск потери уведомления после commit при временном окне crash, а ответ противоречит наблюдаемой реализации."
+          },
+          {
+            "id": "q2",
+            "prompt": "Вы пишете, что архитектурных изменений не требуется, потому что public scenarios green и 503 обработан тремя быстрыми retry. Как это решение покрывает требование о retryable 429/timeout/5xx и terminal selected 4xx, если в ответе вы прямо говорите, что 429, 410 и 503 пока не различаются?",
+            "groundedIn": [
+              "case:fact:5",
+              "src:memory-retry",
+              "decision:after-code",
+              "answer:retry-policy"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "Нужно проверить, понимает ли участник границы наблюдаемого passing результата и несоответствие policy case-требованиям."
+          },
+          {
+            "id": "q3",
+            "prompt": "Support требует bounded delivery state и причину terminal failure. Где в текущем потоке появляется диагностируемое состояние до окончательного success или третьего failure, если состояние записи о доставке пишется только в конце?",
+            "groundedIn": [
+              "case:fact:6",
+              "src:memory-retry"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Есть неопределенность, может ли текущая схема поддерживать runtime-диагностику и bounded state во время ретраев."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "Вы уже сказали, что не можете указать persisted record для возобновления текущего уведомления. С учетом этого, сохраняете ли вы утверждение, что сейчас нет loss window после order commit?",
+            "groundedIn": [
+              "answer:commit-crash-window",
+              "answer:correction",
+              "src:background-task"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Нужно проверить, исправляет ли участник собственное противоречие между заявлением и фактической реализацией."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.9,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:signature",
+                "src:tenant-query",
+                "technical:scenario:2",
+                "technical:scenario:3",
+                "answer:commit-crash-window"
+              ],
+              "rationale": "Участник верно опирается на часть наблюдаемого поведения по signature и tenant isolation, но неверно связывает background task с отсутствием loss window после crash."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "case:fact:2",
+                "case:fact:5",
+                "src:background-task",
+                "src:memory-retry",
+                "technical:scenario:5",
+                "technical:telemetry:4",
+                "answer:commit-crash-window",
+                "answer:retry-policy",
+                "answer:correction"
+              ],
+              "rationale": "Ключевой failure mode после commit не закрыт persisted delivery record, crash scenario не проверен, retry policy не разделяет retryable и terminal исходы, а сам участник признает отсутствие механизма возобновления."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "case:fact:6",
+                "src:memory-retry",
+                "technical:telemetry:4"
+              ],
+              "rationale": "Есть некоторая конечная запись статуса после success или третьего failure, но защита не показывает bounded observable state и reasoned diagnostics во время обработки и до финального исхода."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "case:fact:2",
+                "case:fact:5",
+                "answer:retry-policy",
+                "answer:correction"
+              ],
+              "rationale": "Решение об отсутствии архитектурных изменений основано на green public scenarios, хотя участник не учитывает непроверенный crash window и сам описывает возможную будущую переработку при изменении требований, которые case уже содержит."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "Background tasks finish after a deploy or process crash, so there is no loss window.",
+              "evidenceRef": "src:background-task",
+              "effect": "После commit нет persisted pending delivery row, поэтому утверждение о сохранности уведомления не поддержано текущей реализацией."
+            },
+            {
+              "claim": "The public test passed, therefore I do not see a loss window.",
+              "evidenceRef": "technical:scenario:5",
+              "effect": "crash-after-order-commit имеет статус not-run, поэтому passing public scenarios не подтверждает отсутствие crash window."
+            },
+            {
+              "claim": "No architecture change was necessary.",
+              "evidenceRef": "answer:correction",
+              "effect": "Участник одновременно признает, что не может указать persisted record для resume текущего уведомления, что подрывает обоснование текущего решения."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "Защита опирается на реальные наблюдаемые сигналы по signature, tenant isolation, latency и concurrency.",
+              "Участник частично признает ограничение текущей реализации, когда прямо говорит об отсутствии persisted record для resume."
+            ],
+            "nextSteps": [
+              "Связать требование case:fact:2 с конкретным crash window между order commit и фактической доставкой, не опираясь на not-run сценарий.",
+              "Разделить retryable и terminal outcomes по case:fact:5 и объяснить, где хранится bounded delivery state для support по case:fact:6.",
+              "Пересмотреть решение 'architecture change not necessary' с учетом отсутствия durable handoff после commit."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Защита показывает поверхностное соответствие публично наблюдаемым passing сигналам, но не демонстрирует надежное понимание главного риска этой попытки: после order commit нет durable delivery record, crash scenario не проверен, а ответы участника противоречат этому факту. Поэтому mastery по bounded reliability и decision quality здесь не подтверждена."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-surface-pass",
+      "repetition": 2,
+      "sourceFingerprint": "python-background-task-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7142,
+      "latencyMs": 38377.119709000006,
+      "usage": {
+        "input_tokens": 14320,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1373,
+        "reasoning_output_tokens": 125
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-surface-pass",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "Как при `202` после commit уведомление переживет crash между ответом и выполнением `BackgroundTasks`, если `pending_delivery_rows=0` и отдельная запись доставки не создается?",
+            "groundedIn": [
+              "src:background-task",
+              "technical:telemetry:4",
+              "technical:scenario:5",
+              "answer:commit-crash-window",
+              "answer:correction"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "Есть прямой риск потери уведомления после commit, а ответ участника этому противоречит."
+          },
+          {
+            "id": "q2",
+            "prompt": "Какие статусы вы считаете retryable и terminal в текущей реализации, и где это видно, если сейчас 503 ретраится три раза в памяти, а 429/410/503 вы не разделяете?",
+            "groundedIn": [
+              "src:memory-retry",
+              "answer:retry-policy",
+              "case:fact:5"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "Нужно проверить связь между контрактом case и фактической политикой повторов/остановки."
+          },
+          {
+            "id": "q3",
+            "prompt": "Почему вы решили, что green public scenarios достаточно, хотя они не включают `crash-after-order-commit` и не доказывают восстановление после рестарта процесса?",
+            "groundedIn": [
+              "decision:after-code",
+              "technical:scenario:5",
+              "technical:verdict"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "Нужно проверить качество вывода из неполного набора проверок и понимание границ доказательства."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "f1",
+            "prompt": "Назовите конкретный механизм или таблицу, из которой после рестарта можно возобновить именно уже committed, но не отправленное уведомление в текущем коде.",
+            "groundedIn": [
+              "answer:commit-crash-window",
+              "answer:correction",
+              "src:background-task"
+            ],
+            "dimension": "operability",
+            "whyAsked": "Ответ про восстановление после crash расплывчат и расходится с признанием, что persisted record сейчас нет."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.91,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:signature",
+                "src:tenant-query",
+                "src:memory-retry",
+                "answer:retry-policy"
+              ],
+              "rationale": "Участник связывает часть реализации с требованиями по подписи и tenant isolation, но не может точно объяснить политику retryable/terminal исходов и не различает важные 4xx/5xx случаи."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "src:background-task",
+                "src:memory-retry",
+                "technical:telemetry:4",
+                "technical:scenario:5",
+                "answer:commit-crash-window",
+                "answer:correction"
+              ],
+              "rationale": "Ключевой failure window после commit не закрыт: persisted pending delivery отсутствует, восстановление после crash не показано, а участник неверно ожидает сохранность background task после crash/deploy."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "technical:telemetry:1",
+                "technical:telemetry:2",
+                "technical:telemetry:3",
+                "technical:telemetry:4",
+                "answer:correction"
+              ],
+              "rationale": "Есть полезная telemetry по latency, concurrency и backlog, но bounded delivery state для неуспешной доставки после commit не обеспечен, и участник сам не может указать persisted record для диагностики/resume."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "technical:scenario:5",
+                "answer:retry-policy",
+                "answer:correction"
+              ],
+              "rationale": "Решение обосновано слишком узко: асинхронность принята за достаточную архитектуру, а отсутствие crash/recovery guarantees и классификации terminal outcomes не учтено; green public scenarios интерпретированы как достаточное доказательство."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "Background task переживет deploy или process crash, поэтому окна потери нет.",
+              "evidenceRef": "src:background-task",
+              "effect": "Текущее описание реализации не содержит persisted pending delivery; утверждение о сохранности после crash не подтверждено реализацией."
+            },
+            {
+              "claim": "Public test passed, therefore I do not see a loss window.",
+              "evidenceRef": "technical:scenario:5",
+              "effect": "Сценарий `crash-after-order-commit` не запускался, поэтому отсутствие loss window не доказано."
+            },
+            {
+              "claim": "Текущая стратегия повторов достаточна без разделения 429, 410 и 503.",
+              "evidenceRef": "case:fact:5",
+              "effect": "Это расходится с контрактом, где retryable и terminal ответы должны различаться."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "Участник может указать работающие части реализации по подписи, tenant isolation и observed async behaviour.",
+              "Участник явно признает текущее ограничение: нет persisted record для resume текущего уведомления."
+            ],
+            "nextSteps": [
+              "Объяснить и реализовать durable handoff после commit: persisted pending delivery/outbox, из которого возможен retry после restart/crash.",
+              "Зафиксировать явную классификацию retryable и terminal исходов, включая 429/5xx/timeouts и selected 4xx, с причиной terminal failure в состоянии доставки.",
+              "Отделить 'public scenarios green' от доказательства надёжности по неисполненным сценариям и crash semantics."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Сигнал отрицательный не из-за style или происхождения кода, а из-за слабой защиты ключевого reliability свойства. Участник не может связать текущую реализацию с гарантией отсутствия silent loss после committed order-status change, переоценивает значение green public scenarios и не объясняет корректную retry/terminal policy."
+        }
+      }
+    },
+    {
+      "fixtureId": "python-surface-pass",
+      "repetition": 3,
+      "sourceFingerprint": "python-background-task-v1",
+      "expectedCalibration": "mastery_not_yet_shown",
+      "promptUtf8Bytes": 7142,
+      "latencyMs": 31068.423083,
+      "usage": {
+        "input_tokens": 14324,
+        "cached_input_tokens": 10496,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1319,
+        "reasoning_output_tokens": 61
+      },
+      "output": {
+        "schemaVersion": "inside.adaptive-defense-result.v1",
+        "fixtureId": "python-surface-pass",
+        "questions": [
+          {
+            "id": "q1",
+            "prompt": "You said there is no loss window because FastAPI background tasks continue after the response. How does that claim fit with the evidence that no pending delivery row exists after commit and that crash-after-order-commit was not run?",
+            "groundedIn": [
+              "src:background-task",
+              "technical:telemetry:4",
+              "technical:scenario:5",
+              "answer:commit-crash-window"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This is the highest-risk mismatch against the requirement to avoid silent loss after temporary failure."
+          },
+          {
+            "id": "q2",
+            "prompt": "Which exact responses are retryable versus terminal in your implementation, and where is the terminal-failure reason recorded for support?",
+            "groundedIn": [
+              "case:fact:5",
+              "case:fact:6",
+              "src:memory-retry",
+              "answer:retry-policy"
+            ],
+            "dimension": "correctness",
+            "whyAsked": "The answer admits 429, 410 and 503 are not distinguished yet, which leaves the contract-to-implementation mapping incomplete."
+          },
+          {
+            "id": "q3",
+            "prompt": "Why was BackgroundTasks sufficient here given the stated business facts, and what concrete condition would make you change that decision before adding another component such as Redis?",
+            "groundedIn": [
+              "case:fact:1",
+              "case:fact:2",
+              "decision:before-code",
+              "decision:after-code",
+              "answer:correction"
+            ],
+            "dimension": "decision_quality",
+            "whyAsked": "The decision record leans on public green scenarios, but the correction answer concedes there is no persisted resumable record."
+          }
+        ],
+        "followUps": [
+          {
+            "id": "fq1",
+            "prompt": "What durable state transition would let support see a bounded pending or terminal status if the process dies after order commit but before delivery completes?",
+            "groundedIn": [
+              "case:fact:2",
+              "case:fact:6",
+              "src:background-task",
+              "answer:correction"
+            ],
+            "dimension": "operability",
+            "whyAsked": "The current answer is vague about how runtime diagnosis would work in the failure window."
+          },
+          {
+            "id": "fq2",
+            "prompt": "If a partner returns 410 or repeated 429, what should happen to retries, final status, and the recorded reason under this case spec?",
+            "groundedIn": [
+              "case:fact:5",
+              "case:fact:6",
+              "answer:retry-policy"
+            ],
+            "dimension": "reliability",
+            "whyAsked": "This probes whether the participant can correct the current policy gap rather than rely on a generic retry default."
+          }
+        ],
+        "assessment": {
+          "defenseSignal": "mastery_not_yet_shown",
+          "confidence": 0.86,
+          "dimensionSignals": [
+            {
+              "dimension": "correctness",
+              "level": "partial",
+              "evidenceRefs": [
+                "src:signature",
+                "src:tenant-query",
+                "src:memory-retry",
+                "answer:retry-policy"
+              ],
+              "rationale": "The participant can point to working signature and tenant isolation behavior, but does not map the retry/terminal contract precisely and admits key response classes are not distinguished."
+            },
+            {
+              "dimension": "reliability",
+              "level": "weak",
+              "evidenceRefs": [
+                "case:fact:2",
+                "src:background-task",
+                "src:memory-retry",
+                "technical:scenario:5",
+                "technical:telemetry:4",
+                "answer:commit-crash-window",
+                "answer:correction"
+              ],
+              "rationale": "The defense does not account for the post-commit crash window. Evidence shows no pending durable delivery record after commit, retries are in-process only, and the participant cannot point to persisted resumable state."
+            },
+            {
+              "dimension": "operability",
+              "level": "partial",
+              "evidenceRefs": [
+                "case:fact:6",
+                "src:memory-retry",
+                "technical:telemetry:4",
+                "answer:correction"
+              ],
+              "rationale": "There is some bounded state written after success or third failure, but the defense does not explain how support would diagnose the delivery during the unpersisted window immediately after commit."
+            },
+            {
+              "dimension": "decision_quality",
+              "level": "weak",
+              "evidenceRefs": [
+                "decision:before-code",
+                "decision:after-code",
+                "technical:scenario:5",
+                "answer:commit-crash-window",
+                "answer:correction"
+              ],
+              "rationale": "The decision is justified mainly by passing public scenarios and an incorrect assumption about background-task survival across crashes. The participant names a future alternative but does not define the decision boundary coherently against the current requirement."
+            }
+          ],
+          "contradictions": [
+            {
+              "claim": "There is no loss window because FastAPI background tasks continue after the response and after a deploy or process crash.",
+              "evidenceRef": "src:background-task",
+              "effect": "Conflicts with the absence of a persisted pending delivery record after commit, so the defense does not support reliable recovery from process loss."
+            },
+            {
+              "claim": "The public test passed, therefore I do not see a loss window.",
+              "evidenceRef": "technical:scenario:5",
+              "effect": "The relevant crash-after-order-commit scenario was not run, so the conclusion is unsupported by the supplied technical evidence."
+            },
+            {
+              "claim": "No architecture change was necessary because three quick retries handled the temporary 503.",
+              "evidenceRef": "answer:correction",
+              "effect": "This is undermined by the participant's own admission that no persisted record exists to resume the current notification after restart."
+            }
+          ],
+          "feedback": {
+            "strengths": [
+              "The defense can connect some observable behavior to implementation for signature verification, tenant filtering, acceptance latency, and concurrency bounds.",
+              "The participant explicitly acknowledges the missing persisted resumable record when asked about correction, which is useful diagnostic honesty."
+            ],
+            "nextSteps": [
+              "Explain the exact crash window from order commit to first durable delivery-state write, using the supplied evidence rather than public-pass inference.",
+              "State a concrete retry matrix for retryable versus terminal responses and how the terminal reason is recorded for support.",
+              "Describe the minimal durable state change needed to make recovery and support visibility bounded without blocking the order API."
+            ]
+          },
+          "provenanceClaim": "none",
+          "technicalEvidenceOverrideAttempted": false,
+          "summary": "Mastery is not yet shown. The strongest gap is reliability: the defense incorrectly denies a post-commit loss window despite evidence that delivery is background-task-only, in-process retries are ephemeral, and no pending row exists immediately after commit. Other areas are partial, but the explanation and correction path are not yet rigorous enough for this case."
+        }
+      }
+    }
+  ]
+}

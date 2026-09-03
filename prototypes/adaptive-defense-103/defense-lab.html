@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adaptive defense lab — throwaway prototype #103</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18211c;
+      --muted: #5d6a62;
+      --paper: #f5f2ea;
+      --panel: #fffdf8;
+      --line: #d8d5ca;
+      --accent: #1f6b4f;
+      --accent-soft: #dcece4;
+      --warning: #9a5b12;
+      --danger: #a23b3b;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 72px;
+    }
+
+    header {
+      display: grid;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 750;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 900px; margin-bottom: 0; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.03; }
+    h2 { margin-bottom: 14px; font-size: 1.35rem; }
+    h3 { margin-bottom: 8px; font-size: 1rem; }
+
+    .question {
+      max-width: 900px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.06rem;
+    }
+
+    .notice {
+      padding: 12px 16px;
+      border: 1px solid #caa772;
+      border-radius: 10px;
+      background: #fff5df;
+      color: #6f480f;
+      font-size: 0.92rem;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric, .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 10px 30px rgba(35, 45, 39, 0.04);
+    }
+
+    .metric { padding: 14px; }
+    .metric strong { display: block; font-size: 1.45rem; }
+    .metric span { color: var(--muted); font-size: 0.82rem; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.7fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel { padding: 20px; }
+    .stack { display: grid; gap: 18px; }
+    .fixture-list, .actions, .tabs, .walkthrough-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button.active, button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    button.warning { border-color: #d3a25f; color: var(--warning); }
+    button.danger { border-color: #d79a9a; color: var(--danger); }
+    button:focus-visible { outline: 3px solid #9ccab6; outline-offset: 2px; }
+
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .state-field {
+      min-height: 78px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #faf9f4;
+    }
+
+    .state-field span { display: block; color: var(--muted); font-size: 0.76rem; }
+    .state-field strong { display: block; overflow-wrap: anywhere; }
+
+    .event {
+      margin: 12px 0 0;
+      padding-left: 12px;
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }
+
+    .badge.negative { background: #f5dddd; color: var(--danger); }
+    .badge.neutral { background: #eee9dc; color: #615c50; }
+
+    .question-card {
+      margin-top: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .question-card p { margin-bottom: 8px; }
+    .refs { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; }
+
+    .walkthrough {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .step-done { text-decoration: line-through; opacity: 0.55; }
+    .comparison { margin: 8px 0 0; padding-left: 20px; }
+    .comparison li { margin-bottom: 4px; }
+    .small { color: var(--muted); font-size: 0.84rem; }
+
+    @media (max-width: 820px) {
+      main { width: min(100% - 20px, 720px); padding-top: 24px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .workspace { grid-template-columns: 1fr; }
+      .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .metrics, .state-grid { grid-template-columns: 1fr; }
+      button { width: 100%; text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Throwaway logic prototype · issue #103</div>
+      <h1>Adaptive defense как bounded mastery signal</h1>
+      <p class="question">
+        Вопрос: может ли короткая защита отличить понимание конкретного решения от одного лишь
+        technical pass, не угадывая авторство кода и не присваивая `Verified` самостоятельно?
+        Выберите fixture, прожмите state model или пройдите сценарий ниже.
+      </p>
+      <div class="notice">
+        Это записанный prototype: provider live не вызывается. Встроены representative results из
+        15 прогонов GPT-5.4; удаление файла удаляет весь demo.
+      </div>
+      <div class="metrics" aria-label="Результаты эксперимента">
+        <div class="metric"><strong>15 / 15</strong><span>calibration matches</span></div>
+        <div class="metric"><strong>100%</strong><span>canonical grounding</span></div>
+        <div class="metric"><strong>31.3 s</strong><span>provider call p50</span></div>
+        <div class="metric"><strong>≈ $0.064</strong><span>derived typical two-call API proxy</span></div>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="stack">
+        <section class="panel">
+          <h2>Attempt fixture</h2>
+          <div id="fixture-list" class="fixture-list"></div>
+          <p id="fixture-note" class="small"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Free play</h2>
+          <p class="small">Кнопки всегда доступны. Illegal transition останется видимым событием.</p>
+          <div class="actions">
+            <button class="primary" data-action="START">Начать defense</button>
+            <button data-action="ANSWER">Записать ответ</button>
+            <button data-action="APPLY_RESULT">Принять recorded result</button>
+            <button class="warning" data-action="PROVIDER_ERROR">Provider error</button>
+            <button data-action="RETRY">Retry</button>
+            <button class="warning" data-action="LOW_CONFIDENCE">Low confidence</button>
+            <button class="danger" data-action="EVIDENCE_CONFLICT">Evidence conflict</button>
+            <button data-action="RESET">Сбросить</button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="stack">
+        <section class="panel">
+          <h2>Полное relevant state</h2>
+          <div id="state-grid" class="state-grid"></div>
+          <p id="last-event" class="event"></p>
+          <div id="comparison"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Recorded adaptive questions</h2>
+          <div id="questions"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Guided walkthroughs</h2>
+          <div id="tabs" class="tabs" role="tablist"></div>
+          <div class="walkthrough">
+            <h3 id="walkthrough-title"></h3>
+            <p id="walkthrough-description" class="small"></p>
+            <div id="walkthrough-actions" class="walkthrough-actions"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const fixtures = {
+      "dotnet-deliberate": {
+        label: ".NET · осознанный",
+        fingerprint: "dotnet-deliberate-v1",
+        technical: "passed",
+        signal: "mastery_supported",
+        confidence: 0.93,
+        note: "Outbox + leased worker; участник объясняет duplicate window и diagnosis.",
+        questions: [
+          ["reliability", "Что в transaction boundary предотвращает silent loss, а что всё ещё допускает duplicate delivery?", ["src:outbox-transaction", "answer:commit-crash-window"]],
+          ["correctness", "Почему lease без row lock во время HTTP лучше ведёт себя с медленным partner и какой риск появляется у границы lease?", ["src:worker-lease", "answer:lease-tradeoff"]],
+          ["operability", "Как отличить retry pressure от database contention до изменения concurrency?", ["src:status-policy", "technical:telemetry:2", "technical:telemetry:3"]]
+        ]
+      },
+      "python-surface-pass": {
+        label: "Python · surface pass",
+        fingerprint: "python-background-task-v1",
+        technical: "passed (crash not run)",
+        signal: "mastery_not_yet_shown",
+        confidence: 0.90,
+        note: "Public checks зелёные, но BackgroundTasks не создаёт durable resume path.",
+        questions: [
+          ["reliability", "После commit нет pending delivery row, а crash scenario не запускался. Как уведомление продолжится после падения процесса?", ["src:background-task", "technical:scenario:5", "technical:telemetry:4"]],
+          ["decision_quality", "Как три быстрых retry покрывают различие retryable 429/503 и terminal 410?", ["src:memory-retry", "answer:retry-policy", "case:fact:5"]],
+          ["operability", "Где Support увидит bounded state до success или третьего failure?", ["src:memory-retry", "case:fact:6"]]
+        ]
+      },
+      "dotnet-critical-misunderstanding": {
+        label: ".NET · critical fail",
+        fingerprint: "dotnet-sync-retry-v1",
+        technical: "failed",
+        signal: "mastery_not_yet_shown",
+        confidence: 0.97,
+        note: "Partner HTTP ожидается в order request; terminal errors retry; tenant/secret checks fail.",
+        questions: [
+          ["correctness", "Как awaiting Task.WhenAll соблюдает 'order API must not wait', если p99 равен 6120 ms?", ["src:inline-http", "technical:telemetry:1", "case:fact:1"]],
+          ["reliability", "Какой bounded terminal state остаётся при 50 повторах 410?", ["src:retry-all", "technical:telemetry:4", "case:fact:6"]],
+          ["decision_quality", "Как lookup без tenant_id и secret в logs обеспечивают tenant isolation?", ["src:cross-tenant", "src:secret-log", "technical:scenario:2"]]
+        ]
+      },
+      "python-reference-strong": {
+        label: "Reference-like · понимает",
+        fingerprint: "python-reference-like-v1",
+        technical: "passed",
+        signal: "mastery_supported",
+        confidence: 0.92,
+        note: "AI-assisted source; участник объясняет at-least-once, SSRF seam и broker trigger.",
+        questions: [
+          ["reliability", "Почему worker kill дал duplicate и как stable event_id превращает его в явный at-least-once contract?", ["decision:after-code", "technical:telemetry:4", "src:reference-worker"]],
+          ["correctness", "Почему hostname check недостаточен без redirect/DNS revalidation?", ["answer:outbound-policy", "src:reference-security"]],
+          ["decision_quality", "Какой измеримый сигнал оправдает broker и какую consistency problem он не уберёт?", ["answer:change-trigger", "src:reference-outbox"]]
+        ]
+      },
+      "python-reference-weak": {
+        label: "Reference-like · не понимает",
+        fingerprint: "python-reference-like-v1",
+        technical: "passed",
+        signal: "mastery_not_yet_shown",
+        confidence: 0.90,
+        note: "Тот же source/report, но participant настаивает на exactly-once и не объясняет controls.",
+        questions: [
+          ["reliability", "Telemetry показывает duplicate после worker kill. Какая гарантия на самом деле реализована?", ["answer:duplicate-window", "technical:telemetry:4", "src:reference-worker"]],
+          ["correctness", "Какие exact controls стоят за helper, который 'blocks bad URLs'?", ["answer:outbound-policy", "src:reference-security"]],
+          ["decision_quality", "Какой конкретный threshold означает, что PostgreSQL queue больше не подходит?", ["answer:change-trigger", "technical:telemetry:3"]]
+        ]
+      }
+    };
+
+    // Pure logic module. It has no DOM or browser dependencies and can be lifted into a real seam.
+    const DefenseSession = (() => {
+      const maximumProviderCalls = 3;
+
+      function initial(fixtureId, comparisons = []) {
+        return {
+          fixtureId,
+          attemptState: "defense_pending",
+          defenseState: "pending",
+          providerCalls: 0,
+          providerErrors: 0,
+          retryAfter: "—",
+          answersRecorded: 0,
+          questionBudget: "3 + ≤2 follow-ups",
+          defenseSignal: "—",
+          confidence: "—",
+          technicalResult: fixtures[fixtureId].technical,
+          verifiedCandidate: false,
+          finalAuthority: "Platform policy (not AI)",
+          resolutionPath: "start defense",
+          comparisons,
+          lastEvent: `Loaded ${fixtureId}; immutable technical evidence retained.`
+        };
+      }
+
+      function reduce(state, action) {
+        if (action.type === "LOAD_FIXTURE") {
+          return initial(action.fixtureId, state.comparisons);
+        }
+        if (action.type === "RESET") {
+          return initial(state.fixtureId, state.comparisons);
+        }
+        if (action.type === "START") {
+          if (state.defenseState !== "pending") return illegal(state, "Defense можно начать только из pending.");
+          return {
+            ...state,
+            defenseState: "in_progress",
+            providerCalls: state.providerCalls + 1,
+            retryAfter: "—",
+            resolutionPath: "answer grounded questions",
+            lastEvent: "Versioned input accepted; question generation started."
+          };
+        }
+        if (action.type === "ANSWER") {
+          if (state.defenseState !== "in_progress") return illegal(state, "Ответ относится только к in_progress defense.");
+          if (state.answersRecorded >= 5) return illegal(state, "Question budget исчерпан: 3 initial + 2 follow-ups.");
+          return {
+            ...state,
+            answersRecorded: state.answersRecorded + 1,
+            lastEvent: `Recorded bounded answer ${state.answersRecorded + 1}; source and report unchanged.`
+          };
+        }
+        if (action.type === "APPLY_RESULT") {
+          if (state.defenseState !== "in_progress") return illegal(state, "Recorded result применяется только к in_progress defense.");
+          const fixture = fixtures[state.fixtureId];
+          const verifiedCandidate = fixture.technical.startsWith("passed") && fixture.signal === "mastery_supported";
+          const comparison = {
+            fixtureId: state.fixtureId,
+            fingerprint: fixture.fingerprint,
+            signal: fixture.signal
+          };
+          return {
+            ...state,
+            attemptState: "evaluated",
+            defenseState: "completed",
+            defenseSignal: fixture.signal,
+            confidence: fixture.confidence,
+            verifiedCandidate,
+            resolutionPath: verifiedCandidate ? "Platform may compose MasteryResult" : "feedback → new Attempt or manual path",
+            comparisons: [...state.comparisons, comparison],
+            lastEvent: "Strict result accepted. AI stored an advisory signal; Platform still owns Verified."
+          };
+        }
+        if (action.type === "PROVIDER_ERROR") {
+          if (state.defenseState !== "in_progress") return illegal(state, "Provider error обрабатывается только для active call.");
+          const providerErrors = state.providerErrors + 1;
+          if (state.providerCalls >= maximumProviderCalls) {
+            return {
+              ...state,
+              attemptState: "defense_pending",
+              defenseState: "pending",
+              providerErrors,
+              retryAfter: "manual/support",
+              defenseSignal: "—",
+              verifiedCandidate: false,
+              resolutionPath: "manual/support; no negative signal",
+              lastEvent: "Retry budget exhausted. Technical evidence is intact; no mastery penalty emitted."
+            };
+          }
+          return {
+            ...state,
+            attemptState: "defense_pending",
+            defenseState: "pending",
+            providerErrors,
+            retryAfter: providerErrors === 1 ? "30 s" : "120 s",
+            defenseSignal: "—",
+            verifiedCandidate: false,
+            resolutionPath: "retry same defense version",
+            lastEvent: "Transient provider error. Attempt remains resumable with the same immutable input."
+          };
+        }
+        if (action.type === "RETRY") {
+          if (state.defenseState !== "pending" || state.providerErrors === 0 || state.providerCalls >= maximumProviderCalls) {
+            return illegal(state, "Retry доступен только после transient error и внутри budget.");
+          }
+          return {
+            ...state,
+            defenseState: "in_progress",
+            providerCalls: state.providerCalls + 1,
+            retryAfter: "—",
+            resolutionPath: "resume same defense version",
+            lastEvent: "Retry started; no new Attempt or technical evaluation created."
+          };
+        }
+        if (action.type === "LOW_CONFIDENCE") {
+          if (state.defenseState !== "in_progress") return illegal(state, "Low-confidence result относится только к active defense.");
+          return inconclusive(state, "Confidence below 0.75. No hidden fail; send to manual calibration or a new Attempt.");
+        }
+        if (action.type === "EVIDENCE_CONFLICT") {
+          if (state.defenseState !== "in_progress") return illegal(state, "Conflict относится только к active defense.");
+          return inconclusive(state, "Semantic conflict recorded. Technical report remains authoritative; manual review required.");
+        }
+        return illegal(state, `Unknown action: ${action.type}`);
+      }
+
+      function inconclusive(state, message) {
+        return {
+          ...state,
+          attemptState: "evaluated",
+          defenseState: "completed",
+          defenseSignal: "inconclusive",
+          confidence: "< 0.75 or conflict",
+          verifiedCandidate: false,
+          resolutionPath: "manual calibration or new Attempt",
+          lastEvent: message
+        };
+      }
+
+      function illegal(state, message) {
+        return { ...state, lastEvent: `Ignored illegal transition: ${message}` };
+      }
+
+      return { initial, reduce };
+    })();
+
+    const walkthroughs = {
+      "understood": {
+        title: "Happy path: понимание подтверждено",
+        description: "Technical pass и grounded explanation согласованы; итог остаётся candidate для Platform policy.",
+        steps: [
+          ["Загрузить deliberate fixture", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Начать defense", { type: "START" }],
+          ["Ответить на consistency question", { type: "ANSWER" }],
+          ["Ответить на operability question", { type: "ANSWER" }],
+          ["Принять structured result", { type: "APPLY_RESULT" }]
+        ]
+      },
+      "surface": {
+        title: "Technical pass, но mastery не показано",
+        description: "Public scenario зелёный; defense находит конкретное crash window без durable record.",
+        steps: [
+          ["Загрузить surface-pass fixture", { type: "LOAD_FIXTURE", fixtureId: "python-surface-pass" }],
+          ["Начать defense", { type: "START" }],
+          ["Записать поверхностный ответ", { type: "ANSWER" }],
+          ["Принять structured result", { type: "APPLY_RESULT" }]
+        ]
+      },
+      "outage": {
+        title: "Provider unavailable",
+        description: "Три calls исчерпывают initial + 2 retry budget; Attempt и technical evidence не теряются.",
+        steps: [
+          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Call 1", { type: "START" }],
+          ["Ошибка 1", { type: "PROVIDER_ERROR" }],
+          ["Retry после 30 s", { type: "RETRY" }],
+          ["Ошибка 2", { type: "PROVIDER_ERROR" }],
+          ["Retry после 120 s", { type: "RETRY" }],
+          ["Ошибка 3 → manual", { type: "PROVIDER_ERROR" }]
+        ]
+      },
+      "confidence": {
+        title: "Low confidence",
+        description: "Результат становится inconclusive, а не скрытым fail или бесконечным AI loop.",
+        steps: [
+          ["Загрузить attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-deliberate" }],
+          ["Начать defense", { type: "START" }],
+          ["Получить confidence < 0.75", { type: "LOW_CONFIDENCE" }]
+        ]
+      },
+      "conflict": {
+        title: "AI конфликтует с technical evidence",
+        description: "AI не может превратить failed report в pass; конфликт заканчивается manual calibration.",
+        steps: [
+          ["Загрузить failed attempt", { type: "LOAD_FIXTURE", fixtureId: "dotnet-critical-misunderstanding" }],
+          ["Начать defense", { type: "START" }],
+          ["Сымитировать конфликт", { type: "EVIDENCE_CONFLICT" }]
+        ]
+      },
+      "same-source": {
+        title: "Один source, разное понимание",
+        description: "Fingerprint и technical report одинаковы; signal зависит от explanation, не от угадывания provenance.",
+        steps: [
+          ["Загрузить strong explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-strong" }],
+          ["Начать strong defense", { type: "START" }],
+          ["Зафиксировать strong result", { type: "APPLY_RESULT" }],
+          ["Загрузить weak explanation", { type: "LOAD_FIXTURE", fixtureId: "python-reference-weak" }],
+          ["Начать weak defense", { type: "START" }],
+          ["Зафиксировать weak result", { type: "APPLY_RESULT" }]
+        ]
+      }
+    };
+
+    let state = DefenseSession.initial("dotnet-deliberate");
+    let activeWalkthrough = "understood";
+    let walkthroughStep = 0;
+
+    const fixtureList = document.querySelector("#fixture-list");
+    const stateGrid = document.querySelector("#state-grid");
+    const questions = document.querySelector("#questions");
+    const fixtureNote = document.querySelector("#fixture-note");
+    const lastEvent = document.querySelector("#last-event");
+    const comparison = document.querySelector("#comparison");
+    const tabs = document.querySelector("#tabs");
+    const walkthroughTitle = document.querySelector("#walkthrough-title");
+    const walkthroughDescription = document.querySelector("#walkthrough-description");
+    const walkthroughActions = document.querySelector("#walkthrough-actions");
+
+    for (const [fixtureId, fixture] of Object.entries(fixtures)) {
+      const button = document.createElement("button");
+      button.textContent = fixture.label;
+      button.addEventListener("click", () => {
+        state = DefenseSession.reduce(state, { type: "LOAD_FIXTURE", fixtureId });
+        walkthroughStep = 0;
+        render();
+      });
+      button.dataset.fixture = fixtureId;
+      fixtureList.append(button);
+    }
+
+    document.querySelectorAll("[data-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state = DefenseSession.reduce(state, { type: button.dataset.action });
+        render();
+      });
+    });
+
+    for (const [walkthroughId, walkthrough] of Object.entries(walkthroughs)) {
+      const button = document.createElement("button");
+      button.textContent = walkthrough.title.split(":")[0];
+      button.setAttribute("role", "tab");
+      button.dataset.walkthrough = walkthroughId;
+      button.addEventListener("click", () => {
+        activeWalkthrough = walkthroughId;
+        walkthroughStep = 0;
+        state = DefenseSession.initial(state.fixtureId, state.comparisons);
+        render();
+      });
+      tabs.append(button);
+    }
+
+    function render() {
+      const fixture = fixtures[state.fixtureId];
+      fixtureList.querySelectorAll("button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.fixture === state.fixtureId);
+      });
+      tabs.querySelectorAll("button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.walkthrough === activeWalkthrough);
+      });
+
+      fixtureNote.textContent = `${fixture.note} Source fingerprint: ${fixture.fingerprint}.`;
+      lastEvent.textContent = state.lastEvent;
+      stateGrid.replaceChildren(...Object.entries({
+        "Attempt": state.attemptState,
+        "AI defense": state.defenseState,
+        "Technical result": state.technicalResult,
+        "Provider calls": `${state.providerCalls} / 3`,
+        "Provider errors": state.providerErrors,
+        "Retry after": state.retryAfter,
+        "Answers": `${state.answersRecorded} / ${state.questionBudget}`,
+        "Defense signal": state.defenseSignal,
+        "Confidence": state.confidence,
+        "Verified candidate": state.verifiedCandidate ? "yes; Platform decides" : "no",
+        "Final authority": state.finalAuthority,
+        "Next": state.resolutionPath
+      }).map(([label, value]) => stateField(label, value)));
+
+      questions.replaceChildren(...fixture.questions.map(([dimension, prompt, refs], index) => {
+        const card = document.createElement("article");
+        card.className = "question-card";
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = `${index + 1} · ${dimension}`;
+        const text = document.createElement("p");
+        text.textContent = prompt;
+        const evidence = document.createElement("div");
+        evidence.className = "refs";
+        evidence.textContent = refs.join(" · ");
+        card.append(badge, text, evidence);
+        return card;
+      }));
+
+      if (state.comparisons.length === 0) {
+        comparison.replaceChildren();
+      } else {
+        const heading = document.createElement("h3");
+        heading.textContent = "Completed results in this walkthrough";
+        const list = document.createElement("ul");
+        list.className = "comparison";
+        for (const item of state.comparisons) {
+          const row = document.createElement("li");
+          row.textContent = `${item.fixtureId} · ${item.fingerprint} → ${item.signal}`;
+          list.append(row);
+        }
+        comparison.replaceChildren(heading, list);
+      }
+
+      renderWalkthrough();
+    }
+
+    function stateField(label, value) {
+      const field = document.createElement("div");
+      field.className = "state-field";
+      const caption = document.createElement("span");
+      caption.textContent = label;
+      const content = document.createElement("strong");
+      content.textContent = String(value);
+      field.append(caption, content);
+      return field;
+    }
+
+    function renderWalkthrough() {
+      const walkthrough = walkthroughs[activeWalkthrough];
+      walkthroughTitle.textContent = walkthrough.title;
+      walkthroughDescription.textContent = walkthrough.description;
+      walkthroughActions.replaceChildren(...walkthrough.steps.map(([label, action], index) => {
+        const button = document.createElement("button");
+        button.textContent = `${index + 1}. ${label}`;
+        if (index < walkthroughStep) button.classList.add("step-done");
+        if (index === walkthroughStep) button.classList.add("primary");
+        button.disabled = index !== walkthroughStep;
+        button.addEventListener("click", () => {
+          state = DefenseSession.reduce(state, action);
+          walkthroughStep += 1;
+          render();
+        });
+        return button;
+      }));
+    }
+
+    render();
+  </script>
+</body>
+</html>
