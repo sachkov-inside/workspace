@@ -101,37 +101,18 @@ A supported stack-specific working form of one Production Case that preserves it
 and observable contract. Availability is declared explicitly in the case-to-stack coverage matrix.
 _Avoid_: Separate case, reference solution
 
-**Assignment**:
-An Account's private working instance of one Case Variant. It owns the starter baseline and the
-submitted Attempts without becoming the Production Case itself.
-_Avoid_: Production Case, repository template, course enrollment
-
-**Attempt**:
-An immutable declaration that one Assignment state is ready for evaluation, bound to an exact
-source revision and the versions of the case and evaluator that interpret it.
-_Avoid_: Commit, push, local test run
-
-**Attempt Evidence**:
-The versioned facts collected for one Attempt, including its source revision and accepted local
-evaluation report. Evidence records how a result was reached without becoming a certificate.
-_Avoid_: Local report, certificate, log bundle
-
-**Attempt Result**:
-Workshop's outcome for one Attempt derived from its required executable checks and source binding.
-`Passed` means the Workshop checks passed; it is not an external professional certification.
-_Avoid_: Mastery Result, Verified, certificate, grade, XP
-
-**Solution Reveal**:
-The recorded unlocking of an exact author solution for an Account and Production Case version,
-either after an Attempt or through the Account's explicit choice to study the solution earlier.
-_Avoid_: Material publication, case completion, pass
-
 **Workshop Entitlement**:
 Platform's finite grant that an Account may access protected Workshop content. It remains a
 separate authority from MembershipEntitlement even when one active Inside subscription grants and
 renews both.
 _Avoid_: MembershipEntitlement, purchase record, permanent member flag
 
-`Assignment`, `Attempt`, `Attempt Evidence`, `Attempt Result` and `Solution Reveal` above describe
-the implemented case-first foundation. They are deferred vocabulary, not the current Kafka
-evaluation contract, until the post-CaseSpec decision explicitly accepts their reuse.
+**Workshop Resource**:
+A published Workshop Track outline, Laboratory or Production Case body or artifact governed by
+Workshop publication state and access mode. A referenced Material remains a ContentAccess Resource.
+_Avoid_: Material Resource, URL, Track Item, Git source file
+
+**WorkshopAccess**:
+Platform's authority for deciding a Subject's Workshop Action on a Workshop Resource. It consumes
+public access mode or Workshop Entitlement without weakening ContentAccess for referenced Materials.
+_Avoid_: ContentAccess, UI lock state, route-local entitlement check

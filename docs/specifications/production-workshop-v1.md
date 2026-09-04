@@ -61,8 +61,9 @@ Workshop access потребует явного `ContentAccess`-решения �
 Первая версия `WorkshopEntitlement` открывает весь опубликованный Workshop. Покупка отдельного
 Track, cohort, edition, временный bootcamp и пожизненный доступ не входят в текущую модель.
 
-Публичные Workshop resources не требуют entitlement. Их доступность принадлежит самому Material,
-Laboratory или Production Case, а Track Item только показывает canonical policy target.
+Публичные Workshop Resources не требуют entitlement. Доступность Laboratory и Production Case
+решает `WorkshopAccess`; доступность Material решает `ContentAccess`. Track Item только показывает
+canonical policy target.
 
 ## 4. Учебная модель
 
@@ -174,10 +175,10 @@ Platform сейчас.
 prerequisites, ожидаемые навыки и карточки всех элементов. Закрытая карточка честно показывает,
 что входит в подписку, но не раскрывает protected body или artifacts.
 
-Любой Material, Laboratory или Production Case можно опубликовать бесплатно. Это не специальное
-правило «первого урока» и не отдельный тариф. Track Item отображает canonical availability своей
-цели, поэтому один переиспользуемый resource не бывает одновременно public и protected в разных
-Tracks. Free resource:
+Любой Material, Laboratory или Production Case можно опубликовать бесплатно через его owning
+access authority. Это не специальное правило «первого урока» и не отдельный тариф. Track Item
+отображает canonical availability своей цели, поэтому один переиспользуемый resource не бывает
+одновременно public и protected в разных Tracks. Free resource:
 
 - заметно отмечен в Track и на собственной странице;
 - открывается без Account или WorkshopEntitlement, если его собственная security boundary это
@@ -270,12 +271,13 @@ Case не навязывает единственную topology. Author solutio
 | Membership и Workshop grants | Platform access Modules |
 | Track/Laboratory/Case source | `sachkov-inside/workshop-cases` exact Git commit |
 | Published Workshop snapshots и progress | Platform Workshop Module |
-| Public preview delivery | Platform routes через declared access mode |
+| Material delivery | Platform ContentAccess |
+| Workshop outline/Laboratory/Case delivery | Platform WorkshopAccess |
 | Community и announcements | Telegram application |
 | Case submission/evaluation | Deferred до отдельного решения после Kafka CaseSpec |
 
-Access checks остаются server-side. Track navigation не является authority и не может раскрыть
-protected body через route, API, asset URL или cached response.
+ContentAccess и WorkshopAccess остаются server-side. Track navigation не является authority и не
+может раскрыть protected body через route, API, asset URL или cached response.
 
 ## 9. Delivery sequence
 
