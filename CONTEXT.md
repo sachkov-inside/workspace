@@ -61,19 +61,33 @@ _Avoid_: Boolean Membership check, provider response
 ## Production Workshop
 
 **Workshop**:
-An Inside learning product in which an Account works through Production Cases and receives
-structured practice feedback. It is commercially and operationally distinct from Membership even
-when Membership temporarily grants beta access.
-_Avoid_: Course, Material Series, Membership feature
+Inside's practical learning area in which an Account follows Workshop Tracks, experiments in
+Laboratories and solves Production Cases. An active Inside subscription currently grants access
+to it through a distinct Workshop Entitlement.
+_Avoid_: Course, Material Series, separate current subscription
 
-**Learning Branch**:
-A curated path through Production Cases and related Materials around a technology or transferable
-engineering capability. It is not a Git branch and need not map one-to-one to a content Topic.
-_Avoid_: Git branch, Topic, grade track
+**Workshop Track**:
+An authored thematic path through ordered Track Items around a technology or transferable
+engineering capability. Its order is a recommendation, not an implicit unlock rule, and it need
+not map one-to-one to a content Topic.
+_Avoid_: Learning Branch, Material Series, Topic, course
+
+**Track Item**:
+One ordered placement in a Workshop Track that references exactly one Material, Laboratory or
+Production Case and declares whether it is public or requires Workshop access. It does not own the
+referenced content.
+_Avoid_: Lesson, copied Material, prerequisite gate
+
+**Laboratory**:
+A versioned guided local experiment in which a learner builds or changes an environment, predicts
+behaviour, observes the real system and records an optional conclusion. Manual step progress is a
+resume aid, not verified mastery.
+_Avoid_: Material format, Production Case, hosted sandbox, quiz
 
 **Production Case**:
-A versioned engineering situation with existing context, constraints, executable checks and
-learning guidance. One Production Case may have several stack-specific Case Variants.
+A versioned business engineering problem in which a learner designs and implements a change under
+explicit context and constraints. One Production Case may have several stack-specific Case
+Variants; its submission and evaluation policy is defined separately.
 _Avoid_: Coding exercise, homework, quiz
 
 **Case Variant**:
@@ -107,6 +121,7 @@ either after an Attempt or through the Account's explicit choice to study the so
 _Avoid_: Material publication, case completion, pass
 
 **Workshop Entitlement**:
-Platform's grant that an Account may access a Workshop scope and the Materials explicitly included
-with it. It is independent of MembershipEntitlement.
+Platform's finite grant that an Account may access protected Workshop content. It remains a
+separate authority from MembershipEntitlement even when one active Inside subscription grants and
+renews both.
 _Avoid_: MembershipEntitlement, purchase record, permanent member flag
