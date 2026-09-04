@@ -286,7 +286,7 @@ ContentAccess и WorkshopAccess остаются server-side. Track navigation �
 1. согласовать shared product contract и repository-local model;
 2. спроектировать Kafka Track, Laboratory и notification Production Case;
 3. на готовом CaseSpec выбрать submission/evaluation boundary;
-4. реализовать versioned Workshop authoring/import и publication;
+4. реализовать versioned Workshop authoring/import, publication и backend ручного Laboratory progress;
 5. связать активную подписку с MembershipEntitlement и WorkshopEntitlement;
 6. после завершения текущего visual foundation выбрать интерфейс Track/Laboratory;
 7. подготовить C#/.NET и Python variants, backend operations и выбранную evaluation model;
