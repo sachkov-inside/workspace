@@ -289,9 +289,9 @@ ContentAccess и WorkshopAccess остаются server-side. Track navigation �
 4. реализовать versioned Workshop authoring/import и publication;
 5. связать активную подписку с MembershipEntitlement и WorkshopEntitlement;
 6. после завершения текущего visual foundation выбрать интерфейс Track/Laboratory;
-7. доставить public preview, learner progress и production pages;
-8. подготовить и проверить C#/.NET и Python variants;
-9. соединить выбранную evaluation model и провести end-to-end acceptance.
+7. подготовить C#/.NET и Python variants, backend operations и выбранную evaluation model;
+8. реализовать полноценный frontend Workshop, Track, Laboratory и Production Case на реальных API;
+9. провести end-to-end acceptance всего learner journey.
 
 Каждый этап имеет отдельную repository-owned задачу. Завершённые foundations прежнего
 Partner Webhooks slice могут переиспользоваться только после проверки их соответствия новому
