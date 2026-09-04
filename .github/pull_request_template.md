@@ -1,71 +1,74 @@
-## Implementation report
+## Отчёт о реализации
 
 <!--
-Complete every applicable section after final review and current-head CI closure.
-For trivial docs/chore, keep Result, Related issue, Verification, Not tested / out of scope,
-and Owner decisions; remove the other sections.
+Оформляй весь отчёт по-русски: заголовки, подписи таблиц, статусы и пояснения.
+На английском оставляй только точные названия кода, команд, файлов, API и продуктов.
+
+Заполни все подходящие разделы после итоговой проверки и успешного CI для текущего коммита.
+Для небольшой правки документации или обслуживания оставь разделы «Результат», «Связанная задача»,
+«Проверки», «Не проверено и не входит в задачу» и «Решения владельца»; остальные разделы удали.
 -->
 
-### Result
+### Результат
 
-<!-- What outcome does this PR deliver? Describe the observable result, not the activity. -->
+<!-- Какой результат даёт этот PR? Опиши наблюдаемый итог, а не выполненные действия. -->
 
-### Related issue
+### Связанная задача
 
-<!-- Use "Closes #<issue>" for tracked work. Use "N/A — trivial docs/chore" otherwise. -->
+<!-- Для задачи используй «Closes #<номер>». Иначе напиши: «Не относится — небольшая правка документации или обслуживания». -->
 
-### Changed surfaces
+### Затронутые части системы
 
-<!-- Use Yes/No and one concise explanation. Add a repository-specific surface when needed. -->
+<!-- Укажи «Да» или «Нет» и дай одно короткое пояснение. При необходимости добавь часть, особую для этого репозитория. -->
 
-| Surface | Changed | Details |
+| Часть системы | Изменена | Что изменилось |
 | --- | --- | --- |
-| Product/UI |  |  |
-| Backend/API |  |  |
-| Domain |  |  |
-| Data/persistence |  |  |
-| Access/security |  |  |
-| Operations/infrastructure |  |  |
-| Agent workflow/tooling |  |  |
+| Продукт и интерфейс |  |  |
+| Серверная часть и API |  |  |
+| Бизнес-правила |  |  |
+| Данные и база |  |  |
+| Доступ и безопасность |  |  |
+| Эксплуатация и инфраструктура |  |  |
+| Работа агентов и инструменты |  |  |
 
-### Implementation outline
+### Как это работает
 
-<!-- Explain the main runtime or delivery flow in a few ordered steps. -->
+<!-- В нескольких последовательных шагах объясни основной сценарий работы или доставки. -->
 
-### Business and domain changes
+### Изменения бизнес-правил и предметной области
 
-<!-- Name changed rules, models, invariants, and existing behavior. Use "None" when unchanged. -->
+<!-- Назови изменённые правила, модели, обязательные условия и прежнее поведение. Если изменений нет, напиши «Нет». -->
 
-### Architecture and future extensibility
+### Архитектура и дальнейшее развитие
 
-<!-- Name material choices, extension points, and known constraints. Use "None" when not material. -->
+<!-- Назови важные решения, места для расширения и известные ограничения. Если существенных изменений нет, напиши «Нет». -->
 
-### Key files and review order
+### Ключевые файлы и порядок проверки
 
-<!-- Give a bounded path through 3–10 conceptual files or groups. Separate generated/mechanical files. -->
+<!-- Укажи понятный маршрут по 3–10 основным файлам или группам. Сгенерированные и механически изменённые файлы перечисли отдельно. -->
 
-### Verification
+### Проверки
 
-<!-- List exact commands or manual checks, their result, and what each one proves. -->
+<!-- Перечисли точные команды или ручные проверки, их результат и то, что подтверждает каждая проверка. -->
 
-### Review closure
+### Итоги проверки кода и требований
 
 <!--
-- Reviewed head: <full remote SHA>
-- Standards: PASS / disposition
-- Spec: PASS / disposition
-- Findings: fixed, deferred with linked issue, or rejected with evidence
-For trivial docs/chore, record the bounded diff review instead.
+- Проверенный коммит: <полный SHA в удалённом репозитории>
+- Проверка по стандартам: пройдена / принятое решение
+- Проверка по требованиям: пройдена / принятое решение
+- Замечания: исправлены, отложены со ссылкой на задачу или отклонены с объяснением
+Для небольшой правки документации или обслуживания вместо этого зафиксируй проверку ограниченного набора изменений.
 -->
 
-### Documentation impact
+### Изменения документации
 
-<!-- List authoritative docs updated, or explain why code/schema/tests are the complete authority. -->
+<!-- Перечисли обновлённые основные документы или объясни, почему код, схема и тесты полностью описывают изменение. -->
 
-### Not tested / out of scope
+### Не проверено и не входит в задачу
 
-<!-- State what was not checked or delivered. Use "None" when everything relevant was covered. -->
+<!-- Укажи, что не проверялось или не сделано. Если всё существенное покрыто, напиши «Нет». -->
 
-### Owner decisions
+### Решения владельца
 
-<!-- Decisions that still require explicit owner GO. Use "None" when there are none. -->
+<!-- Укажи решения, для которых ещё нужно явное согласие владельца. Если таких решений нет, напиши «Нет». -->

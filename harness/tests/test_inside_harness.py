@@ -116,19 +116,26 @@ class HarnessCliTest(unittest.TestCase):
         self.assertIn("repository-root `WORKFLOW.md`", adr_format)
 
         template = (package / "github/pull_request_template.md").read_text()
+        self.assertTrue(template.startswith("## Отчёт о реализации\n"))
+        self.assertIn(
+            "Оформляй весь отчёт по-русски: заголовки, подписи таблиц, статусы и пояснения.",
+            template,
+        )
+        self.assertIn("Укажи «Да» или «Нет»", template)
+        self.assertIn("| Часть системы | Изменена | Что изменилось |", template)
         for section in (
-            "Result",
-            "Related issue",
-            "Changed surfaces",
-            "Implementation outline",
-            "Business and domain changes",
-            "Architecture and future extensibility",
-            "Key files and review order",
-            "Verification",
-            "Review closure",
-            "Documentation impact",
-            "Not tested / out of scope",
-            "Owner decisions",
+            "Результат",
+            "Связанная задача",
+            "Затронутые части системы",
+            "Как это работает",
+            "Изменения бизнес-правил и предметной области",
+            "Архитектура и дальнейшее развитие",
+            "Ключевые файлы и порядок проверки",
+            "Проверки",
+            "Итоги проверки кода и требований",
+            "Изменения документации",
+            "Не проверено и не входит в задачу",
+            "Решения владельца",
         ):
             self.assertIn(f"### {section}", template)
 
