@@ -1,695 +1,346 @@
-# Спецификация фундамента Inside Production Workshop v1
+# Спецификация Inside Workshop v1
 
-Статус: accepted shared specification из
-[Workspace issue #98](https://github.com/sachkov-inside/workspace/issues/98), уточнённая owner
-decisions из [Wayfinder #100](https://github.com/sachkov-inside/workspace/issues/100), для human
-outcome [#97](https://github.com/sachkov-inside/workspace/issues/97).
+Статус: accepted shared specification для human outcome
+[#97](https://github.com/sachkov-inside/workspace/issues/97), обновлённая подтверждёнными owner
+decisions из [#108](https://github.com/sachkov-inside/workspace/issues/108).
 
-Дата: 2026-09-03.
+Дата последнего изменения: 2026-09-04.
+
+Эта редакция заменяет первоначальный case-first срез с `Partner Webhooks`. Она сохраняет уже
+созданные технические foundations, если они не противоречат новой продуктовой модели, но не
+обязывает использовать прежний evaluator или managed Assignment flow.
 
 ## 1. Результат и authority
 
-Inside Production Workshop, далее **Workshop** или «Мастерская», становится отдельным learning
-workflow внутри Platform для разработчиков, которые уже умеют писать код, но хотят получить опыт
-решения правдоподобных production-ситуаций. Участник работает локально в настоящем repository,
-принимает и объясняет инженерные решения, проходит несколько слоёв проверки и изучает связанные
-Materials без превращения опыта в набор coding puzzles.
-
-Эта спецификация фиксирует shared product contract, cross-repository границы, logical model,
-trust boundary первой beta и направление эволюции. Она не является application ADR или
-implementation specification:
-
-- Workspace владеет этим shared product contract, общим языком и delivery routing;
-- `sachkov-inside/platform` владеет learner-facing product brief, application model, UI, GitHub
-  integration, Workshop access, попытками, результатами и собственными ADR;
-- текущий Platform v1 остаётся каноническим foundation для Account, Materials, ContentAccess и
-  authoring, но Workshop не входит в его accepted delivery scope;
-- конкретный local evaluator, будущий remote Evaluation Runtime и новый repository получают
-  отдельного owner только после доказанной runtime/trust/lifecycle границы;
-- точные dependencies, schemas, package paths, deploy scripts, prompts, models и runbooks остаются
-  в owning application repositories.
-
-Позднее явное owner decision может изменить этот документ, но owning product brief и application
-specification должны быть синхронизированы до реализации соответствующей функции.
-
-## 2. Product thesis и аудитория
-
-### 2.1 Проблема
-
-Обычные тренажёры хорошо проверяют SQL, синтаксис, алгоритм или изолированную функцию, но слабо
-воспроизводят работу в существующей системе. Coding agent поднимает требования к качеству case:
-executable checks должны проверять observable production contract и failure behaviour, а не только
-перевод полного условия в код и happy path.
-
-Production-мышление проявляется иначе: разработчик восстанавливает контекст, замечает скрытые
-ограничения, выбирает компромисс, безопасно меняет систему, собирает operational evidence и может
-объяснить последствия своего решения. Workshop тренирует именно этот цикл; конкретные технологии
-и будущие evidence для резюме поддерживают его, но не заменяют.
-
-### 2.2 Входной контракт
-
-Workshop предназначен человеку, который уже умеет программировать и способен локально работать с
-Git, приложением и базовыми developer tools. Формальный grade не является входной границей:
-
-- основной ранний спрос ожидается от job seekers, junior+ и работающих разработчиков, которым не
-  хватает production-практики;
-- один Workshop не делится на отдельные junior и middle продукты;
-- сложность задаёт Production Case: количество неизвестных, глубина существующей системы, число
-  затронутых dependencies, неоднозначность компромиссов и требуемая сила evidence;
-- обучение программированию с нуля и подробный scaffolding базового CRUD не входят в обещание.
-
-Docker-compatible runtime является обязательным prerequisite для Case Variants, использующих
-локальную infrastructure topology. Platform показывает prerequisite и preflight до начала кейса.
-
-### 2.3 Покупаемый результат
-
-Участник должен уметь:
-
-1. разобраться в неполном production-контексте;
-2. сформулировать risks, invariants и alternatives;
-3. реализовать решение в существующем или новом коде;
-4. проверить функциональное и operational поведение;
-5. объяснить trade-offs и адаптировать решение к изменившимся условиям;
-6. отличить работающее решение от случайного прохождения happy-path тестов.
-
-Workshop не обещает grade, трудоустройство, персональное менторство, безлимитный review автора или
-независимую профессиональную сертификацию.
-
-## 3. Product и commercial boundary
-
-Workshop является отдельным продуктом Inside, а не обязательной частью Membership:
-
-- целевой покупатель сможет получить Workshop без постоянной активной Membership;
-- Workshop Entitlement не является MembershipEntitlement и не выводится из Telegram roster;
-- Workshop может включать доступ только к явно связанным Materials, не открывая всю Membership;
-- текущие участники Membership могут получить time-bounded beta access и будущий launch credit;
-- Telegram остаётся местом community, вопросов и сезонных групповых разборов;
-- Platform владеет кейсами, assignment, attempts, feedback и progression, но не создаёт comments
-  или chat в первом slice.
-
-Финальная цена, длительность commercial access, состав Edition, скидки, bundle и право на будущие
-ветки не определены. До отдельного owner decision нельзя обещать покупателю весь будущий каталог
-навсегда.
-
-## 4. Learning architecture
-
-### 4.1 Core и Learning Branches
-
-Workshop имеет короткий core, который знакомит с общим production cycle, и расширяемые Learning
-Branches. Верхний уровень taxonomy намеренно гибридный:
-
-- technology-oriented branches могут называться Kafka, PostgreSQL, Redis или CI/CD;
-- capability-oriented branches могут описывать observability, security, reliable messaging,
-  system design или microservices;
-- technologies, skills, difficulty и prerequisites остаются разными facets даже когда UI
-  показывает их рядом;
-- Learning Branch не равна Platform Topic, Material Series или Git branch.
-
-Polished interactive skill tree не входит в первый slice. До реальных веток Platform показывает
-простой ordered flow и сохранённый Attempt Result.
-
-Workshop имеет ровно один ordered core и 0..N Learning Branches. Core и branches ссылаются на
-Production Cases через placements, а не копируют CaseSpec. Placement задаёт ordinal и explicit
-prerequisite case IDs; отсутствие prerequisite не выводится из визуального соседства карточек.
-
-Progression вычисляется для Account:
-
-- core открывает первый Case сразу, а следующий — после completed prerequisite placements;
-- branch может быть видна до выполнения prerequisites, но locked Case явно объясняет условие;
-- Production Case считается completed, когда любой его supported Case Variant имеет evaluated
-  Attempt с `AttemptResult.status=passed`, если placement отдельно не требует variant-specific
-  outcome;
-- один Case может входить в несколько branches без повторного прохождения;
-- первый slice содержит один сразу доступный core Case и не требует generic graph engine.
-
-### 4.2 Production Cases
-
-Базовая единица Workshop — самостоятельный Production Case. По умолчанию участник получает цельный
-problem context и сам определяет decomposition: искусственные этапы не должны подсказывать
-архитектуру решения. Low-difficulty Case может давать guided steps и checkpoints; medium/high Case
-оставляет их скрытыми либо использует только естественные стадии реального сценария. Difficulty
-управляет scaffolding, а не создаёт разные продукты или обязательную state machine этапов.
-
-Вся Мастерская не живёт в одном учебном приложении; отдельная Learning Branch может переиспользовать
-один fictional product и накопительный контекст, когда это усиливает навык.
-
-Editorial bias — brownfield-first: участник чаще получает существующий сервис, историю решений,
-дефект, инцидент или новое ограничение. Greenfield допустим, когда сам learning outcome требует
-проектирования с нуля.
-
-Типичный case lifecycle:
-
-1. восстановить систему и problem context;
-2. назвать invariants, unknowns, constraints и risks;
-3. предложить решение и alternatives;
-4. изменить код/configuration/infrastructure;
-5. собрать functional и operational evidence;
-6. отправить Attempt и получить test-based Attempt Result;
-7. при необходимости открыть hints или точное авторское решение;
-8. повторить Attempt и сравнить своё решение с alternatives.
-
-### 4.3 Multiple stacks
-
-Один Production Case может иметь несколько Case Variants. Поддержка публикуется как честная
-матрица `Production Case × stack`:
-
-- AI-generated port не считается поддержанным без common conformance scenarios и экспертной
-  приёмки ecosystem-specific поведения;
-- варианты сохраняют общий learning outcome и observable contract, но starter code, build adapter,
-  diagnostics и idiomatic solution могут различаться;
-- первый vertical slice использует Production Case `Partner Webhooks` и два variants: C#/.NET и
-  Python, принятые в [decision #101](https://github.com/sachkov-inside/workspace/issues/101);
-- этот выбор проверяет coverage contract первого slice, но не задаёт обязательные stacks для всего
-  будущего каталога;
-- отсутствие варианта не блокирует публикацию кейса на уже проверенном стеке.
-
-## 5. Versioned CaseSpec
-
-Case authoring первой версии происходит через versioned CaseSpec в закрытом Git repository.
-Универсальный visual admin builder появится только после нескольких реальных кейсов, когда schema
-подтверждена usage.
-
-CaseSpec логически содержит:
-
-| Область | Contract |
-|---|---|
-| Identity | stable case ID, version, lifecycle state и compatibility policy |
-| Learning | outcome, prerequisites, difficulty signals, skills и technologies |
-| Scenario | цельный context, constraints, supplied artifacts, allowed assumptions и optional guidance для low difficulty |
-| Materials | prerequisites, optional references, раскрываемые hints, author solution, alternatives и failure-mode explanation |
-| Variants | supported stacks, starter baseline, toolchain/evaluator adapter versions |
-| Evaluation | public executable scenario contract, required evidence и pass policy |
-| Reveal | post-attempt и explicit early-reveal rules, warning и exact solution resources |
-| Operations | expected runtime/resources, logs, timeouts и support diagnostics |
-
-CaseSpec не содержит secrets, platform credentials или hidden remote scenario payloads. Будущий
-remote evaluator связывает закрытый test version с case version внутри trusted runtime.
-
-Изменение learning outcome, starter baseline или evaluator meaning создаёт новую case version.
-Published Attempts продолжают ссылаться на exact versions, с которыми были интерпретированы.
-
-## 6. Logical model и invariants
-
-Physical schema и package ownership принадлежат Platform implementation specification. Shared
-logical entities имеют следующие роли:
-
-| Entity | Cardinality и invariant |
-|---|---|
-| `Workshop` | содержит ровно один ordered core и 0..N Learning Branches; задаёт access/progression boundary |
-| `LearningBranch` | содержит 1..N ordered Case memberships; Case может входить в 0..N branches |
-| `CasePlacement` | включает один Production Case в core или Learning Branch, задаёт ordinal и 0..N explicit prerequisites |
-| `ProductionCase` | stable identity; имеет 0..N historical versions; published/startable Case имеет ровно одну current published version |
-| `ProductionCaseVersion` | immutable после publish CaseSpec snapshot; только current version published/startable Case используется для новых Assignments |
-| `CaseVariant` | принадлежит одной case version и одному supported stack identity |
-| `WorkshopEntitlement` | связывает Account с bounded Workshop scope независимо от Membership |
-| `Assignment` | принадлежит одному Account и одному Case Variant; хранит starter baseline и managed repository identity |
-| `LocalEvaluationRun` | mutable learner-side run; сам по себе не является Attempt или trusted evidence |
-| `Attempt` | immutable evaluation identity и inputs: Assignment, exact source revision и case/variant/evaluator versions |
-| `AttemptEvidence` | append-only typed evidence set одного Attempt: source snapshot и accepted local report |
-| `AttemptResult` | принадлежит одному evaluated Attempt; хранит `needs_work` или `passed`, required scenario outcomes и diagnostics |
-| `SolutionReveal` | фиксирует, когда и почему exact author solution стал доступен для Account/Case version: после Attempt или по explicit early request |
-| `WorkshopProgress` | derived Account projection по placements и completed Production Cases; не является authority для Attempt result |
-
-Ключевые invariants:
-
-- Production Case, Case Variant, Assignment и Git repository не взаимозаменяемы;
-- Git push или local test run не создаёт Attempt;
-- каждый Attempt ссылается на один exact source revision и никогда не переносится на новый HEAD;
-- количество промежуточных commits не ограничено и не меняет evaluation semantics;
-- Platform хранит versions и evidence provenance даже когда learner UI показывает один итоговый
-  статус;
-- Membership не становится неявным permanent Workshop purchase;
-- один Case Variant не считается parity-доказательством другого стека.
-
-### 6.1 Canonical states
-
-| Entity | States и transitions |
-|---|---|
-| `ProductionCase` | `draft → published → retired`; retired Case не выдаёт новые Assignments, но сохраняет Materials, history и results |
-| `ProductionCaseVersion` | `draft → published → withdrawn`; published snapshot immutable, новая версия supersede-ит current, withdrawn закрывает новые starts без удаления historical Attempts |
-| `CaseVariant` | `draft → available → retired`; available Variant принадлежит published CaseVersion и проходит declared conformance |
-| `Assignment` | `provisioning → ready → archived`; provisioning failure даёт `unavailable`, из которого explicit retry создаёт/восстанавливает ready Assignment без фиктивного Attempt |
-| `LocalEvaluationRun` | `running → passed`, `failed` или `aborted`; состояние learner-controlled и никогда само не завершает Case |
-| `Attempt` | `submitted → evaluated`; immutable inputs не меняются, ingestion/evaluation retry не создаёт новый Attempt |
-| `AttemptResult` | terminal `needs_work` или `passed` для одного evaluated Attempt; новый результат требует нового Attempt |
-| `SolutionReveal` | derived `locked → revealed`; обратный переход запрещён для той же Account/Case version |
-| `WorkshopProgress` | derived `locked`, `available`, `in_progress` или `completed` per placement; source authority — prerequisites и Attempt results |
-
-`AttemptEvidence` добавляется только известными typed records и не переписывает уже принятый record.
-AttemptResult может ссылаться только на evidence versions того же Attempt. SolutionReveal не меняет
-AttemptResult и не утверждает, что последующая работа выполнена без изучения решения.
-
-## 7. Assignment и GitHub UX
-
-### 7.1 Managed assignment
-
-Первый slice использует существующую managed GitHub organization `sachkov-inside` и private
-repository per Assignment. Отдельная organization не создаётся без обновления `REPOSITORIES.md` и
-нового owner decision. GitHub остаётся source host и transport, а не grader runtime.
-
-Happy path:
-
-1. Account с Workshop Entitlement нажимает «Начать кейс» и выбирает доступный Case Variant.
-2. Platform через GitHub App создаёт private assignment repository из versioned starter baseline,
-   связывает его с Account и показывает готовую clone command.
-3. Preflight объясняет Docker, GitHub access, supported architecture, required resources и
-   platform-owned local evaluator command.
-4. Участник клонирует repository и работает локально любым количеством commits.
-5. Участник пушит изменения в managed default branch; специальные branch names, tags и commit
-   message conventions не требуются.
-6. Platform показывает текущий pushed HEAD, SHA, время синхронизации и readiness.
-7. Local evaluator отправляет structured report для этого HEAD.
-8. Участник явно подтверждает «Проверить этот commit»; Platform скачивает полный source snapshot
-   exact SHA через GitHub App и создаёт immutable Attempt.
-
-Platform не запускает evaluation на каждый push. Возможная будущая отправка другого commit создаёт
-новый Attempt, а не перезаписывает старый.
-
-### 7.2 Error prevention
-
-UX обязан предотвращать или ясно диагностировать:
-
-- GitHub App не установлен или Account не связан с нужной GitHub identity;
-- repository не создан, удалён, inaccessible или больше не соответствует Assignment;
-- local checkout указывает на чужой remote;
-- HEAD не pushed или Platform видит другой SHA;
-- Docker/Compose отсутствует, имеет несовместимую версию или недостаточно ресурсов;
-- заняты required ports, unsupported CPU architecture или dependency download failed;
-- report относится к другой case/variant/evaluator version;
-- source snapshot недоступен или изменённый SHA не принадлежит Assignment repository;
-- повторное нажатие пытается отправить уже существующий Attempt.
-
-No-op commit, branch naming или ручной ввод SHA не являются частью happy path.
-
-## 8. Local evaluation v1
-
-### 8.1 Scope
-
-Технические scenarios первого slice выполняются на устройстве участника. Platform-owned evaluator
-предоставляет одну documented command для preflight, запуска public scenarios и отправки report.
-Docker-compatible runtime обязателен для воспроизводимой topology с Kafka, PostgreSQL, Redis и
-другими dependencies.
-
-Закрытая beta поддерживает три host OS: macOS arm64, Linux amd64 и Windows amd64. До beta каждая
-комбинация должна пройти representative end-to-end runtime smoke на настоящей OS/architecture;
-cross-build без запуска не считается подтверждением. Иные architectures показываются как
-unsupported, пока не появится отдельное evidence.
-
-Local evaluator:
-
-- выбирает adapter по exact Case Variant и evaluator version;
-- проверяет repository identity и pushed HEAD;
-- поднимает platform-owned local topology;
-- выполняет public functional/operational scenarios;
-- собирает bounded logs, timings, tool versions и declared environment;
-- отправляет structured report, связанный с one-time attempt draft и commit SHA;
-- не получает long-lived Platform или GitHub credentials;
-- не содержит secret future remote tests.
-
-Case adapter задаёт controlled build/run contract. Participant-owned Dockerfile или arbitrary
-pipeline не является обязательным extension point beta; конкретный case может разрешить изменение
-infrastructure files только когда это входит в learning outcome.
-
-### 8.2 Trust boundary
-
-Участник полностью контролирует local machine, source code, Docker runtime и evaluator process.
-Поэтому nonce, client signature или structured schema могут предотвратить случайный replay, но не
-доказывают честность выполнения.
-
-Owner decision для v1: Platform доверяет принятому local report. Learner-facing label `Passed`
-отображает только `AttemptResult.status=passed`: required Workshop checks прошли для exact source
-revision. Он не означает независимую adversarial verification, оценку авторства или employer-facing
-proof. Термин `Verified`, public portfolio и certificate не входят в первый slice.
-
-Внутри Platform всё равно сохраняются:
-
-- source revision и starter revision;
-- case, variant, evaluator и report schema versions;
-- execution method `local`;
-- scenario results и bounded diagnostic evidence;
-- timestamps, Account и Assignment identity.
-
-Добавление remote execution позднее усиливает mechanism для новых attempts, но не переименовывает
-исторические `Passed` results и не превращает их задним числом в certification evidence.
-
-### 8.3 Attempts и cost control
-
-Количество attempts не ограничено как learning policy. Platform применяет readiness gates,
-cooldown, concurrency и abuse limits к source snapshot, report ingestion и другим дорогостоящим
-operations. Every attempt immutable; повторная работа происходит через новый commit и новый
-Attempt.
-
-## 9. Executable evaluation и result
-
-Attempt получает `AttemptResult.status=passed`, а Case становится completed и показывает label
-`Passed`, когда выполнены оба условия:
-
-1. accepted structured local report сообщает pass по required public scenarios;
-2. Platform получила immutable source snapshot exact pushed commit.
-
-Failing required scenario создаёт `AttemptResult.status=needs_work` с конкретными scenario outcomes
-и bounded diagnostics. V1 не выводит qualitative mastery dimensions и не притворяется, что public
-local checks доказывают decision quality. Constraints, alternatives, trade-offs и failure modes
-объясняются через Materials, hints и авторский разбор.
-
-Platform валидирует report schema/version, Assignment, exact SHA и required scenario coverage, но
-не исполняет participant source и не переписывает learner-controlled local verdict. UI показывает
-scenario feedback и следующий доступный шаг, а не global score, grade или leaderboard.
-
-## 10. AI-assisted work и отложенный AI feedback
-
-Использование coding agents разрешено и не снижает Attempt Result. Workshop не пытается определить,
-кто написал код, и не требует ручного набора. При этом первая версия не использует AI provider,
-adaptive defense, AI rubric, Decision Record или qualitative model feedback ни для `Passed`, ни для
-solution reveal.
-
-AI feedback возвращается в отдельный owner decision только после human beta, если появится хотя бы
-один измеримый trigger:
-
-- executable tests систематически пропускают решения с критическим непониманием;
-- Materials и author solution не дают достаточно конкретного feedback для следующей Attempt;
-- manual author review становится operational bottleneck;
-- появляется learning outcome, который нельзя надёжно проверить executable scenario.
-
-Прошлый prototype #103 остаётся discovery evidence, а не готовым production contract. Будущее
-решение заново определяет provider, prompts, context/privacy boundary, retention, cost и влияние на
-result; эти seams не резервируются в V1 Platform implementation.
-
-## 11. Materials, hints и solution reveal
-
-Platform Material остаётся единственной content entity; Workshop не копирует body или video в
-CaseSpec. Case version связывается с Materials ролями:
-
-- prerequisite foundation;
-- optional reference;
-- hint;
-- exact author walkthrough/solution;
-- post-case alternatives и deeper dive.
-
-Prerequisite и optional reference Materials доступны сразу. Hints раскрываются участником по одному
-и не навязывают decomposition medium/high Case; low-difficulty Case может использовать guided
-steps. Минимальный authoring pack содержит problem context/invariants, setup, optional references,
-hints, exact author solution/walkthrough и объяснение alternatives, trade-offs, failure modes и
-того, какие observable guarantees проверяет evaluator.
-
-Exact solution конкретного кейса автоматически открывается после qualifying attempt, чтобы
-застрявший участник мог доучиться и создать следующую Attempt. Участник, который хочет изучить
-разбор без практики, может открыть solution раньше явным действием после предупреждения. Early
-reveal не является fail, не блокирует последующий `Passed` и не создаёт утверждения о самостоятельном
-решении.
-
-Qualifying attempt требует:
-
-- ready Assignment и source changes относительно starter revision;
-- pushed source revision, доступный Platform;
-- выполненный public local evaluation flow, даже если required scenarios ещё не прошли.
-
-Platform фиксирует `solutionRevealedAt` и reason `after_attempt` или `learner_requested`;
-`AttemptResult.status=passed` не уничтожает эту историю. Exact solution нельзя получить через
-direct Material URL без Workshop access/reveal decision.
-
-## 12. Seasons и author boundary
-
-Workshop имеет evergreen content access и периодические seasons:
-
-- человек решает кейсы в своём темпе без hard individual deadlines;
-- season создаёт общую cadence, темы, live events и авторские разборы;
-- automated scenario feedback доступен для каждой accepted Attempt;
-- базовая цена не обещает personal author review каждому;
-- Кирилл разбирает характерные решения и отдельные participant examples выборочно;
-- policy согласия на публикацию participant code/identity определяется перед первым записываемым
-  разбором и не блокирует technical slice.
-
-## 13. First end-to-end vertical slice
-
-### 13.1 Входит
-
-- beta Workshop Entitlement для Accounts с current MembershipEntitlement через controlled grant;
-- простая Workshop/case page без polished skill tree;
-- один representative Production Case с цельным problem context и difficulty-aware guidance;
-- два supported Case Variants и coverage metadata;
-- beta runtime support на macOS arm64, Linux amd64 и Windows amd64;
-- versioned CaseSpec in Git и linked Materials;
-- managed private GitHub Assignment repository;
-- clone/preflight/readiness UX без branch/tag conventions;
-- Docker-compatible local evaluator и public scenarios;
-- explicit submission exact pushed HEAD и immutable source snapshot;
-- unlimited versioned Attempts с operational limits;
-- executable Attempt Result и один learner-facing display label `Passed` для
-  `AttemptResult.status=passed`;
-- optional progressive hints;
-- exact solution reveal после qualifying attempt либо по explicit early request с warning;
-- Telegram handoff для season/community.
-
-### 13.2 Не входит
-
-- commercial checkout, финальная price/Edition/access policy;
-- больше одного Production Case или обязательный полный core/branch catalog;
-- polished interactive skill tree, XP, leaderboard или social graph;
-- Platform comments/chat, peer review или guaranteed personal review;
-- public portfolio, employer verification, certificate или identity proctoring;
-- remote hidden/fault-injection execution;
-- GitHub Actions как grader runtime;
-- arbitrary participant Dockerfiles как общий build contract;
-- universal visual CaseSpec admin builder;
-- создание отдельного microservice/repository только ради языка или future scale;
-- production release/deploy/SLA/backup contract.
-
-### 13.3 Slice acceptance journey
-
-Slice принят, когда один beta Account без ручного исправления branch/repository state проходит путь:
-
-1. получает access;
-2. открывает case и связанные Materials;
-3. выбирает один из двух stack variants;
-4. создаёт и клонирует Assignment;
-5. проходит preflight и запускает local scenarios;
-6. пушит решение и видит совпадающий HEAD в Platform;
-7. отправляет structured attempt;
-8. получает scenario feedback и `Passed` либо `Needs work`;
-9. открывает author solution после Attempt или раньше явным действием с warning;
-10. изучает alternatives и может создать следующую Attempt.
-
-Negative acceptance покрывает mismatched repository/SHA, unsupported Docker, stale evaluator,
-failed report, empty changes, unavailable GitHub, duplicate submission, direct solution access без
-Reveal decision и Account без Workshop Entitlement.
-
-## 14. System ownership и seams
-
-```mermaid
-flowchart LR
-    Learner[Participant] --> Web[Inside Platform]
-    Web --> Workshop[Workshop application module]
-    Workshop --> PDB[(Platform PostgreSQL)]
-    Workshop --> GH[GitHub App]
-    Workshop --> CA[ContentAccess]
-    CA --> Materials[Materials and exact solution]
-
-    Learner --> Repo[Managed assignment repo]
-    Learner --> Local[Local evaluator]
-    Local --> Docker[Local Docker topology]
-    Local --> Workshop
-    GH --> Repo
-
-    Workshop -. future .-> Remote[Remote Evaluation Runtime]
+Inside Workshop, далее **Workshop** или «Мастерская», становится практической частью Inside для
+разработчиков, которые уже умеют программировать и хотят изучать современные технологии через
+наблюдение, проектирование и реализацию работающих систем.
+
+Workshop не заменяет Библиотеку и не превращается в один большой линейный курс. Он собирает
+Материалы, Лаборатории и Production Cases в тематические Tracks. Автор предлагает порядок, но
+участник может открыть доступный элемент трека раньше и выбрать нужную ему глубину практики.
+
+Этот документ фиксирует общий продуктовый контракт и cross-repository границы:
+
+- Workspace владеет общей моделью продукта и терминологией;
+- Platform владеет доступом, публикацией, прогрессом и пользовательским интерфейсом;
+- `sachkov-inside/workshop-cases` хранит versioned authoring source для Tracks, Laboratories,
+  Production Cases и stack-specific artifacts;
+- Materials остаются Platform-owned content и создаются через редактор Platform либо MCP;
+- конкретная проверка Production Case определяется после проектирования первого Kafka-кейса.
+
+## 2. Проблема и обещание
+
+Документация и coding agent позволяют быстро получить рабочий код, но сами по себе не формируют
+надёжную модель системы. Разработчику всё ещё нужно:
+
+1. понять, как технология ведёт себя в нормальном режиме и при сбоях;
+2. решить, нужна ли она в конкретном бизнес-контексте;
+3. сформулировать ограничения, invariants и компромиссы;
+4. спроектировать изменение и разделить работу на проверяемые шаги;
+5. использовать агента как инструмент, сохраняя ответственность за решение;
+6. собрать evidence, объяснить фактическое поведение и скорректировать гипотезу.
+
+Workshop тренирует этот цикл. Он не обещает grade, трудоустройство, персональное менторство,
+независимую сертификацию или обучение программированию с нуля.
+
+## 3. Продуктовая и коммерческая граница
+
+В первой версии `Inside Subscription` является одним коммерческим bundle. Пока она активна,
+Platform поддерживает два самостоятельных права:
+
+- Библиотеку через `MembershipEntitlement`;
+- Мастерскую через `WorkshopEntitlement`.
+
+Раздельные права нужны не ради двух текущих тарифов, а чтобы позднее можно было отдельно
+спроектировать Workshop-only offer. Пока действует подписка, действуют оба права; прекращение
+подписки завершает оба связанных доступа после их обычного bounded validity. Будущий отдельный
+Workshop access потребует явного `ContentAccess`-решения для включённых Membership Materials и не
+считается уже поддержанным этой моделью.
+
+Первая версия `WorkshopEntitlement` открывает весь опубликованный Workshop. Покупка отдельного
+Track, cohort, edition, временный bootcamp и пожизненный доступ не входят в текущую модель.
+
+Публичные Workshop Resources не требуют entitlement. Доступность Laboratory и Production Case
+решает `WorkshopAccess`; доступность Material решает `ContentAccess`. Track Item только показывает
+canonical policy target.
+
+## 4. Учебная модель
+
+```text
+Workshop
+└── 1..N Workshop Tracks
+    └── 1..N ordered Track Items
+        ├── Material reference ─────────→ Platform Material
+        ├── Laboratory ─────────────────→ guided local experiments
+        └── Production Case ────────────→ design + implementation problem
 ```
 
-Platform owns the control plane:
+### 4.1 Workshop Track
 
-- access and Account identity;
-- Workshop catalog/progression projection;
-- Assignment and GitHub integration;
-- source snapshot and immutable Attempt;
-- Attempt Result, hints and reveal policy;
-- Material relationships and ContentAccess calls;
-- job orchestration required by its own application lifecycle.
+**Workshop Track** — авторская тематическая траектория вокруг технологии или инженерной
+способности. Первый Track посвящён Kafka.
 
-Local evaluator owns only reproducible learner-side execution and report generation. It does not
-own Workshop access, completion policy or source authority.
+Track содержит:
 
-Future Remote Evaluation Runtime is an execution plane, not a second product backend. It receives
-versioned evaluation work and returns evidence through a narrow contract; it does not read Platform
-database, decide entitlement or call GitHub with broad credentials.
+- цель и ожидаемый практический результат;
+- prerequisites и примерную сложность;
+- рекомендуемый порядок элементов;
+- явную доступность каждого элемента;
+- ожидаемое время только как ориентир, без обещания одинакового темпа;
+- published lifecycle, чтобы черновая структура не появлялась у участника.
 
-### 14.1 Architecture fitness contract
+Порядок помогает выбрать следующий шаг, но не является unlock rule. В первой версии нет строгих
+prerequisites, универсального curriculum graph, XP, grade или автоматического доказательства
+знаний.
 
-Каждый implementing repository обязан поставить guardrail вместе с первым реальным seam. Shared
-specification задаёт ближайшую fitness function, но не выдумывает package path до application
-design:
+### 4.2 Track Item
 
-| Rule / seam | Owner | Closest executable fitness |
-|---|---|---|
-| Workshop access не выводится из Membership | Platform Workshop access module + ContentAccess | access-matrix test принимает explicit WorkshopEntitlement и negative fixture отклоняет один MembershipEntitlement там, где Workshop grant обязателен |
-| Attempt source authority — managed repository и exact SHA | Platform GitHub/Assignment module | integration contract принимает matching repository/SHA и negative fixtures отклоняют foreign repo, unpushed/stale SHA и report без source snapshot |
-| CaseSpec и evaluator report имеют совместимые versions | Platform + owning local evaluator module/repository | shared schema/conformance corpus с representative valid case и invalid version/field fixtures в full checks обоих owners |
-| `Passed` создаётся только из required executable checks и exact source binding | Platform Workshop evaluation module | representative report создаёт `passed`; negative fixtures с failed/missing scenario или mismatched SHA обязаны остаться `needs_work`/rejected |
-| Local evaluator не владеет completion policy | Platform Workshop module + local evaluator adapter | valid fixture принимает report без Platform status; failing negative fixture добавляет запрещённое поле `platformStatus` и обязана быть отклонена schema validation |
-| Future remote worker не читает Platform DB и не получает broad GitHub credentials | owning Evaluation Runtime | controlled adapter test проходит через one-use snapshot/evidence contract; negative fixture пытается использовать forbidden credential/network route и обязана завершиться deny |
-| Новый deployable не делит runtime package или database с Platform | owning application repository | dependency/import guardrail и integration contract появляются в том же change, который создаёт process boundary |
+**Track Item** — одно место в рекомендуемом порядке Track, которое ссылается ровно на один
+Material, Laboratory или Production Case. Элемент задаёт:
 
-Последние две remote/deployable fitness functions пока не исполнимы: соответствующих processes и
-owning repositories ещё нет. Их создание является trigger, после которого prose-only rule без
-positive representative case и failing negative fixture не считается implementation-ready.
+- ordinal внутри Track;
+- краткое объяснение, зачем он расположен здесь;
+- presentation metadata, включая authored rationale;
+- отображение canonical availability referenced target;
+- optional relation к другим элементам только для навигации, не для скрытой блокировки.
 
-## 15. Technology-selection policy
+Один Material, Laboratory или Production Case может быть переиспользован в нескольких Tracks без
+копирования содержимого.
 
-Workshop is allowed to become polyglot, but language preference alone never creates a microservice.
-Every new deployable needs at least one demonstrated reason:
+### 4.3 Materials
 
-- independent trust/security boundary;
-- materially different scaling or resource profile;
-- independent release/failure lifecycle;
-- platform/runtime compatibility that the existing process cannot satisfy cleanly;
-- clear ownership that reduces, rather than moves, coordination cost.
+Material объясняет понятие, решение или наблюдение. Его canonical body и publication lifecycle
+принадлежат Platform. Автор или coding agent создаёт Material через Platform editor либо MCP.
 
-Confirmed direction by component:
+Track хранит ссылку на опубликованный Material и не копирует его body в Workshop authoring
+repository. Динамические подборки по Topic и Tags могут дополнять Track как рекомендации, но не
+заменяют явный authored порядок и не становятся prerequisite.
 
-| Component | Direction | Decision status |
-|---|---|---|
-| Platform web/control plane, evaluator ingress и GitHub adapter | Existing TypeScript/Next/Nest modular Platform | Confirmed by Platform contract и prototype #102 |
-| Workshop application logic | Start inside Platform modules; no network service seam without evidence | Confirmed direction |
-| AI feedback orchestration | Не входит в V1 и не резервирует application/service seam | Deferred until measured human-beta trigger |
-| Cross-platform local evaluator/CLI | Go как отдельно собираемый Platform-owned Module | Accepted in prototype #102; actual OS smokes required before ADR/beta |
-| Future remote evaluation worker | Go is a strong candidate for process/container orchestration and low-footprint worker | Deferred until remote scope |
-| Case Variant toolchains | Match learner stack; isolated adapters/containers do not dictate control-plane language | Confirmed principle |
-| Isolation substrate | Container/runtime technology, not application language, owns code-execution security | Confirmed principle |
+### 4.4 Laboratories
 
-Go must prove the local evaluator requirements before production ADR и закрытой beta:
+**Laboratory** — самостоятельная пошаговая практика, в которой участник локально собирает
+окружение, изменяет его и наблюдает реальное поведение технологии. Это отдельная сущность, а не
+формат Material и не упрощённый Production Case.
 
-- distribution/update и actual runtime smoke на macOS arm64, Linux amd64 и Windows amd64;
-- Docker/Compose orchestration and cancellation;
-- Git/repository/HEAD discovery;
-- device/session authentication without long-lived secrets;
-- stable structured report schema and bounded log streaming;
-- testability of platform/CLI protocol and compatibility policy.
+Лаборатория задаёт цель, prerequisites, ожидаемое окружение и упорядоченные шаги. Типичный шаг
+ведёт через мягкий экспериментальный цикл:
 
-Будущее возвращение AI feedback не создаёт microservice автоматически. Новый process требует
-измеренного trust, lifecycle, scale или ownership boundary и отдельного owner decision.
+1. сформулировать предположение о поведении системы;
+2. выполнить команду или изменить configuration/code;
+3. наблюдать logs, metrics, UI или output клиента;
+4. сравнить результат с предположением и сохранить короткий вывод.
 
-Cross-process contracts use versioned wire schemas and conformance fixtures. Repositories do not
-share runtime source packages, databases or migration history.
+Поля предположения, наблюдения и вывода помогают думать и сохранять заметки, но не блокируют
+следующий шаг. Участник сам отмечает шаги выполненными; Platform сохраняет прогресс и не выдаёт
+ручную отметку за подтверждённое mastery.
 
-Hard-to-reverse language/runtime choices receive owning application ADR only after prototype
-evidence, actual supported-OS smokes и owner approval. Эта shared specification не подменяет
-Platform ADR.
+В первой версии:
 
-## 16. Future remote evaluation
+- лаборатория выполняется на компьютере участника;
+- готовая облачная sandbox-среда не предоставляется;
+- участник сам создаёт Docker Compose и необходимые файлы по guide;
+- команды и checkpoints могут быть приведены прямо в шагах;
+- prompts показывают, как использовать агента для исследования и проверки, не делегируя ему
+  решение целиком;
+- сохранённый manual progress можно продолжить после возвращения.
 
-Remote execution вводится отдельной specification после local slice и реального case evidence.
-Shared direction:
+### 4.5 Production Cases
 
-- GitHub остаётся source transport, но GitHub Actions не является compute dependency;
-- Platform control plane сохраняет immutable source snapshot и создаёт versioned Evaluation work;
-- isolated workers получают snapshot через bounded one-use access и не имеют Platform/GitHub
-  credentials внутри participant sandbox;
-- build и test выполняются отдельно; hidden harness не mount-ится в participant process;
-- network default-deny, CPU/RAM/PID/disk/time/log limits и full cleanup обязательны;
-- evidence связывает source SHA, artifact digest, case/test/adapter/runtime versions и verdict;
-- execution runtime скрыт за интерфейсом, позволяющим начать с dedicated gVisor worker и перейти к
-  disposable VM, Kata или Firecracker при более сильном threat model;
-- Kubernetes является orchestration choice, а не sandbox сам по себе.
+**Production Case** — правдоподобная бизнес-задача, в которой участник сначала проектирует
+изменение, затем реализует и проверяет его на поддерживаемом стеке. Условие описывает цель,
+контекст, ограничения и observable requirements, но не разжёвывает техническое решение.
 
-Remote runtime не требуется для first slice и не должен блокировать local learner feedback.
-Reference для будущего design: [gVisor security model](https://gvisor.dev/docs/architecture_guide/security/),
-[Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/) и
-[Firecracker production host setup](https://github.com/firecracker-microvm/firecracker/blob/main/docs/prod-host-setup.md).
+Case может иметь несколько **Case Variants**. Варианты сохраняют общий learning outcome и
+business contract, но используют разные starter code, libraries и idiomatic implementation.
 
-## 17. Security, privacy и operational boundaries
+Первый Kafka-кейс получает варианты C#/.NET и Python. Их parity подтверждается общим behavioural
+contract и отдельной проверкой ecosystem-specific поведения. Автоматический port, который никто
+не запускал, не считается поддержанным вариантом.
 
-First slice обязан:
+Механизм submission и evaluation намеренно не определён этой редакцией. Старые `Assignment`,
+`Attempt`, source archive и Go evaluator являются доступными foundations, а не обязательным
+решением. Сначала фиксируются case contract и ожидаемые решения, затем отдельная задача сравнивает
+локальную проверку, GitHub-based flow и возможную новую модель evidence.
 
-- использовать least-privilege GitHub App permissions и short-lived tokens;
-- хранить repository IDs и exact revisions, а не доверять URL/branch name;
-- не передавать Platform/GitHub secrets в assignment repository или local topology;
-- ограничивать uploaded logs/report/source size и redaction известных secret formats;
-- не исполнять participant source внутри Platform API/worker process;
-- предупреждать, что assignment repository предназначен только для case solution и не должен
-  содержать рабочие или персональные secrets;
-- версионировать CaseSpec, evaluator и report contracts;
-- иметь idempotent attempt creation и понятные retry states;
-- не принимать early solution reveal за Attempt или result;
-- определить retention/deletion source snapshots и assignment repositories до real paid launch.
+### 4.6 Projects
 
-Записанные author group reviews требуют отдельной consent policy до использования participant code
-или identity. Эта policy не блокирует first technical slice, если разбор использует только
-author-owned examples.
+Длинные проекты, в которых участник последовательно строит целый сервис, остаются следующим
+уровнем Workshop. Они не входят в первый Kafka-срез и не требуют отдельной верхнеуровневой секции
+Platform сейчас.
 
-## 18. Edge scenarios
+## 5. Публичная витрина и доступность
 
-| Scenario | Required behaviour |
+Публичный посетитель видит страницу Workshop и полный план опубликованного Track: цель,
+prerequisites, ожидаемые навыки и карточки всех элементов. Закрытая карточка честно показывает,
+что входит в подписку, но не раскрывает protected body или artifacts.
+
+Любой Material, Laboratory или Production Case можно опубликовать бесплатно через его owning
+access authority. Это не специальное правило «первого урока» и не отдельный тариф. Track Item
+отображает canonical availability своей цели, поэтому один переиспользуемый resource не бывает
+одновременно public и protected в разных Tracks. Free resource:
+
+- заметно отмечен в Track и на собственной странице;
+- открывается без Account или WorkshopEntitlement, если его собственная security boundary это
+  допускает;
+- использует тот же published content, а не урезанную копию;
+- может предлагать вход или подписку для сохранения прогресса и продолжения Track.
+
+Для первого Kafka Track публичен план и первая Laboratory. Остальные Materials и Production Case
+доступны активному подписчику.
+
+## 6. Authoring и публикация
+
+Tracks, Laboratories и Production Cases создаются как versioned structured content в private
+`sachkov-inside/workshop-cases`. Несмотря на историческое имя repository, в первой версии он
+является authoring source всего Workshop practice content.
+
+Platform импортирует exact source commit, валидирует references и публикует immutable snapshot.
+Новая смысловая редакция опубликованной сущности создаёт новую version; существующий progress и
+будущий evaluation evidence продолжают ссылаться на прежнюю version.
+
+Workshop source может ссылаться только на stable identifiers опубликованных Materials. Material
+body не дублируется в Git. Отсутствующая, unpublished или конфликтующая с expected availability
+ссылка делает publication fail-closed.
+
+Universal visual builder и двусторонняя синхронизация Git ↔ Platform не входят в первый срез.
+
+## 7. Первый Kafka Track
+
+### 7.1 Учебный результат
+
+После Track участник должен:
+
+- объяснить роль broker, topic, partition, offset и consumer group;
+- предсказать распределение сообщений и поведение consumers при rebalance;
+- воспроизвести повторное чтение, backlog и типичные failure modes;
+- отличить транспортную доставку от успешной бизнес-обработки;
+- решить, где Kafka уместна в сценарии, и назвать стоимость выбранной архитектуры;
+- спроектировать и реализовать асинхронную функцию, учитывая duplicates, retries,
+  idempotency, ordering, schema evolution и observability;
+- объяснить, что сделал coding agent и каким evidence участник проверил результат.
+
+### 7.2 Состав первой версии
+
+Первая версия Track содержит небольшой authored набор Materials, одну составную Laboratory и один
+Production Case. Точные Material IDs добавляются по мере публикации контента и не блокируют
+проектирование практики.
+
+Laboratory «Kafka: от запуска до сбоев» проводит участника через:
+
+1. самостоятельную сборку и запуск минимального Docker Compose окружения;
+2. создание topic и наблюдение partition assignment;
+3. отправку и чтение сообщений;
+4. изменение размера consumer group и наблюдение rebalance;
+5. работу с offsets, остановку consumer и накопление backlog;
+6. повторный запуск и replay;
+7. намеренный сбой обработки и разбор того, что Kafka гарантирует, а что должен обеспечить
+   application code.
+
+Replication, broker cluster failure, production capacity planning и глубокий tuning остаются за
+границей первой Laboratory.
+
+### 7.3 Kafka Production Case: надёжная рассылка уведомлений
+
+Участник получает бизнес-требование вынести отправку уведомлений из синхронного потока приложения
+и поддержать несколько каналов без замедления основной операции. В контексте присутствуют сбои
+провайдера, повторная доставка сообщения, необходимость повторной обработки и эксплуатационная
+диагностика.
+
+Участник должен:
+
+1. описать границы сервисов и обосновать, где Kafka нужна либо не нужна;
+2. выбрать events/topics, key и consumer topology;
+3. определить semantics успешной обработки, retries, poison message и terminal failure;
+4. защитить бизнес-эффект от duplicates и учесть требуемый порядок;
+5. описать compatibility событий и минимальную observability;
+6. реализовать выбранную функцию в C#/.NET или Python;
+7. предоставить functional и operational evidence.
+
+Case не навязывает единственную topology. Author solution обязано объяснить допустимые
+альтернативы и причины, по которым решение удовлетворяет либо нарушает business invariants.
+
+Точные fictional domain, API, нагрузочные ограничения, starter baseline и pass policy определяет
+отдельная content-design задача до изменения evaluator.
+
+## 8. System boundaries
+
+| Область | Authority |
 |---|---|
-| Membership истекла во время beta | Workshop access следует explicit beta grant, а не случайно исчезает вместе с Membership, если grant уже выдан с собственной validity |
-| Один Case поддерживает только один stack | Case публикуется с честной coverage matrix; отсутствующий variant не симулируется |
-| Участник открыл exact solution до Attempt | Platform показывает warning, сохраняет reason `learner_requested` и разрешает последующие Attempts/`Passed` без claims о самостоятельности |
-| Участник посмотрел exact solution после Attempt | reveal сохраняется в history; последующие Attempts не переписывают прошлое |
-| Local report подделан | v1 trust model может принять его; внешний certification claim запрещён, source snapshot сохраняется для диагностики |
-| GitHub недоступен после local pass | report не создаёт Attempt без immutable source snapshot; participant может retry позднее |
-| CaseSpec обновлён во время работы | Assignment/Attempt продолжают ссылаться на начатую case version; migration требует explicit policy |
-| Starter repo удалён | существующий Assignment сохраняет baseline identity; новый start закрывается с operational error |
-| Case требует CI/CD или external provider | contract получает bounded simulator/provider seam; unrestricted production credentials участнику не выдаются |
-| Будущий remote grader добавлен | новый runtime усиливает future evaluation, не меняя один learner-facing completion status исторических cases |
+| Materials body, taxonomy и publication | Platform Materials Module |
+| Membership и Workshop grants | Platform access Modules |
+| Track/Laboratory/Case source | `sachkov-inside/workshop-cases` exact Git commit |
+| Published Workshop snapshots и progress | Platform Workshop Module |
+| Material delivery | Platform ContentAccess |
+| Workshop outline/Laboratory/Case delivery | Platform WorkshopAccess |
+| Community и announcements | Telegram application |
+| Case submission/evaluation | Deferred до отдельного решения после Kafka CaseSpec |
 
-## 19. Success evidence первой beta
+ContentAccess и WorkshopAccess остаются server-side. Track navigation не является authority и не
+может раскрыть protected body через route, API, asset URL или cached response.
 
-Beta оценивает не коммерческую масштабируемость всего каталога, а жизнеспособность learner loop:
+## 9. Delivery sequence
 
-- Account проходит journey без ручного исправления Git/GitHub state автором;
-- local preflight отделяет environment errors от case failures;
-- scenario reports воспроизводимы на двух supported variants;
-- public checks ловят representative correctness, reliability и operability failures, а diagnostics
-  позволяют исправить Attempt без ручного вмешательства автора;
-- участники используют optional hints и author solution; отдельно измерены reveal после Attempt и
-  explicit early reveal;
-- author solution помогает сравнить alternatives и создать следующую Attempt;
-- support load, authoring cost, completion time и repeated-attempt patterns измерены;
-- один CaseSpec можно изменить/version без ручного переписывания historical attempts.
+Работа развивается поэтапно:
 
-Go/no-go расширения каталога принимается по фактическим прохождениям и authoring/support cost, а не
-по существованию красивого skill-tree UI.
+1. согласовать shared product contract и repository-local model;
+2. спроектировать Kafka Track, Laboratory и notification Production Case;
+3. на готовом CaseSpec выбрать submission/evaluation boundary;
+4. реализовать versioned Workshop authoring/import, publication и backend ручного Laboratory progress;
+5. связать активную подписку с MembershipEntitlement и WorkshopEntitlement;
+6. после завершения текущего visual foundation выбрать интерфейс Track/Laboratory;
+7. подготовить C#/.NET и Python variants, backend operations и выбранную evaluation model;
+8. реализовать полноценный frontend Workshop, Track, Laboratory и Production Case на реальных API;
+9. провести end-to-end acceptance всего learner journey.
 
-## 20. Delivery sequence и repository routing
+Каждый этап имеет отдельную repository-owned задачу. Завершённые foundations прежнего
+Partner Webhooks slice могут переиспользоваться только после проверки их соответствия новому
+контракту.
 
-Эта последовательность не создаёт implementation tickets до owner acceptance specification:
+## 10. Не входит и открытые решения
 
-1. **Workspace — shared specification.** Принять документ и glossary через #98, затем синхронизировать
-   tests-only V1 owner decisions через #100.
-2. **Workspace — bounded Wayfinder map.** Выбрать representative first case, два stack variants,
-   local evaluator; AI defense исследован и явно отложен за пределы V1.
-3. **Platform — product/application specification.** Зафиксировать Workshop module, access grants,
-   CaseSpec ingestion, GitHub App, Attempt state machine, result/reveal contract, UX и first slice
-   delivery graph в `sachkov-inside/platform`.
-4. **Platform — vertical tickets.** Поставлять user-visible slices, а enabling GitHub/CLI work
-   связывать с ближайшим convergence ticket.
-5. **Platform — CLI/evaluator ADR.** Go evaluator остаётся отдельно собираемым Platform-owned Module.
-   ADR принимается после actual runtime smoke на всей beta OS matrix; новый repository/process
-   требует нового lifecycle/ownership evidence.
-6. **Workspace — remote evaluation specification.** Создаётся после local beta и threat/cost data;
-   cross-repository parent нужен только если появляется отдельный runtime owner.
-7. **Workspace — commercial release specification.** Price, Edition, checkout, support, retention,
-   production infrastructure и public claims получают отдельный cross-product owner-approved gate;
-   implementation tickets маршрутизируются в owning application repositories.
+В первый Kafka-срез не входят:
 
-## 21. Deferred decisions и triggers
+- hosted Kafka environment или выполнение participant code внутри Platform;
+- длинный Project Track и portfolio/certificate;
+- strict progression, cohort, deadlines, mentor review или guaranteed feedback;
+- отдельная продажа Kafka, Track-level checkout и несколько уровней подписки;
+- глубокая Kafka operations laboratory;
+- AI-generated grade либо оценка того, насколько самостоятельно человек писал код.
 
-| Decision | Не решается сейчас | Trigger возврата |
-|---|---|---|
-| Workshop price/access | Нет final Edition, lifetime или annual promise | Несколько cases, beta evidence и measured support cost |
-| Public portfolio | Не входит в v1 | Надёжный remote evidence и employer-facing product decision |
-| Remote sandbox | Не нужен local slice | Need for hidden/fault-injection or external verification |
-| Separate runtime service/repo | Microservice не создаётся заранее | Proven trust, lifecycle, scale or ownership boundary |
-| AI feedback | Не входит в V1 и не резервирует provider/application seam | Tests пропускают критическое непонимание, Materials недостаточны, manual review стал bottleneck или outcome не проверяется executable scenario |
-| Participant review consent | Не блокирует author-owned beta reviews | Первый разбор с participant code/identity |
-| Production operations | Нет release/SLA/backup/deploy contract | Owner GO на paid or persistent beta environment |
+Отдельный Workshop-only offer и правило доступа к связанным Membership Materials проектируются
+вместе, если появляется реальная задача продавать или выдавать Workshop без подписки. До этого
+такой доступ не обещается.
 
-## 22. Acceptance этой specification
+Имя `workshop-cases` исторически уже не отражает его новую роль. Возможное переименование в
+`workshop-content` оценивается после первого Track/Laboratory source, когда можно измерить цену
+миграции repository links и integrations; оно не блокирует первый Kafka-срез.
 
-Документ принят, когда:
+После готовности Kafka CaseSpec нужно отдельно решить:
 
-- owner подтверждает product promise, v1 trust boundary и exclusions;
-- Platform v1, Membership и Material terminology не переопределены;
-- domain terms добавлены в shared `CONTEXT.md` без implementation detail;
-- first slice имеет один complete learner journey и negative scenarios;
-- technology policy допускает Go/TypeScript/polyglot components без premature microservices;
-- every deferred decision имеет trigger и owning delivery destination;
-- full Workspace verification и Standards/Spec review закрыты;
-- merge выполнен только после explicit owner approval.
+1. что считается сдачей design artifact и implementation;
+2. какие проверки выполняются локально, а каким evidence доверяет Platform;
+3. нужен ли managed GitHub Assignment либо достаточно другого source handoff;
+4. остаётся ли `Passed` корректным result language;
+5. какие части существующего Go evaluator и versioned contracts переиспользуются.
+
+Эти вопросы не должны скрыто решаться persistence schema или UI prototype.
+
+## 11. Acceptance первого продуктового среза
+
+Первый Kafka-срез считается собранным, когда:
+
+- публичный посетитель видит понятный план Track и может открыть бесплатную Laboratory;
+- активный подписчик получает доступ ко всем опубликованным элементам через две корректные
+  entitlement boundaries;
+- Laboratory можно пройти локально, сохранить ручной progress и вернуться к нему;
+- Track связывает Materials без копирования их body;
+- Production Case публикует единый business contract и честно поддержанные C#/.NET и Python
+  variants;
+- выбранный после CaseSpec submission/evaluation flow проверен отдельно и не выдаёт local run за
+  независимое доказательство;
+- mobile и desktop UI показывают рекомендуемый путь, тип, доступность и состояние каждого
+  элемента без ложной обязательной последовательности.
+
+Финальный merge каждой implementation-задачи, production credentials/actions и изменение
+commercial terms требуют отдельных owner gates по repository workflow.
