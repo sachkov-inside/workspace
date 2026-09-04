@@ -153,7 +153,8 @@ Work is ready for owner merge when:
 - acceptance criteria are met without silently expanding scope;
 - relevant focused checks and full repository verification pass;
 - durable documents and ADRs are updated when a confirmed decision changed;
-- the pull request follows its template, links an issue when applicable, and states `Not tested`;
+- the pull request follows its template, links an issue when applicable, and its final
+  Implementation Report reflects the current remote head;
 - a UI change includes mobile and desktop evidence and passes the repository-specific UI
   Definition of Done;
 - the owner gives explicit merge approval.
@@ -193,6 +194,24 @@ type, schema, test, lint or guardrail first; repository coding standard for recu
 specification for required behaviour; ADR for a hard-to-reverse trade-off; tracker issue for
 deferred work. Pull request history is the durable home for one-off findings. Do not create a
 repository review ledger.
+
+### Implementation report
+
+After final review closure and current-head pull request CI closure, the writing agent updates the
+pull request body from the final diff, issue or specification, verification evidence, and review
+outcomes. The repository pull request template is the single authority for the report format. The
+report guides owner review; it does not replace Standards, Spec, CI, or owner approval.
+
+Complete every applicable template section, state unchanged surfaces explicitly, and give a
+bounded review path through the conceptual files or groups that explain the change. Separate
+generated and mechanical files from that path. Record the final remote head SHA and the disposition
+of review findings. If code or durable documents change afterward, repeat the relevant verification
+and review closure, then refresh the report for the new head. Trivial documentation or chore work
+may keep only the compact template sections named by their comments.
+
+The report is complete when the owner can identify the delivered outcome, affected product and
+business surfaces, material design constraints, evidence, remaining gaps, and requested decisions
+without reconstructing them from the full diff.
 
 ### Architecture fitness
 
