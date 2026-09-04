@@ -46,21 +46,23 @@ Workshop тренирует этот цикл. Он не обещает grade, �
 
 ## 3. Продуктовая и коммерческая граница
 
-В первой версии Inside продаётся как одна активная подписка. Она открывает две самостоятельные
-продуктовые области:
+В первой версии `Inside Subscription` является одним коммерческим bundle. Пока она активна,
+Platform поддерживает два самостоятельных права:
 
 - Библиотеку через `MembershipEntitlement`;
 - Мастерскую через `WorkshopEntitlement`.
 
-Раздельные права нужны не ради двух текущих тарифов, а чтобы позднее Workshop можно было выдать
-или продать отдельно без переписывания ContentAccess. Пока действует подписка, действуют оба
-права; прекращение подписки завершает оба связанных доступа после их обычного bounded validity.
+Раздельные права нужны не ради двух текущих тарифов, а чтобы позднее можно было отдельно
+спроектировать Workshop-only offer. Пока действует подписка, действуют оба права; прекращение
+подписки завершает оба связанных доступа после их обычного bounded validity. Будущий отдельный
+Workshop access потребует явного `ContentAccess`-решения для включённых Membership Materials и не
+считается уже поддержанным этой моделью.
 
 Первая версия `WorkshopEntitlement` открывает весь опубликованный Workshop. Покупка отдельного
 Track, cohort, edition, временный bootcamp и пожизненный доступ не входят в текущую модель.
 
-Публичные элементы Workshop не требуют entitlement. Их доступность задаётся явно для каждого
-элемента, а не выводится из его позиции в треке.
+Публичные Workshop resources не требуют entitlement. Их доступность принадлежит самому Material,
+Laboratory или Production Case, а Track Item только показывает canonical policy target.
 
 ## 4. Учебная модель
 
@@ -98,8 +100,8 @@ Material, Laboratory или Production Case. Элемент задаёт:
 
 - ordinal внутри Track;
 - краткое объяснение, зачем он расположен здесь;
-- access mode `public` или `workshop`;
-- presentation metadata, включая явную бесплатную отметку;
+- presentation metadata, включая authored rationale;
+- отображение canonical availability referenced target;
 - optional relation к другим элементам только для навигации, не для скрытой блокировки.
 
 Один Material, Laboratory или Production Case может быть переиспользован в нескольких Tracks без
@@ -172,8 +174,10 @@ Platform сейчас.
 prerequisites, ожидаемые навыки и карточки всех элементов. Закрытая карточка честно показывает,
 что входит в подписку, но не раскрывает protected body или artifacts.
 
-Любой Track Item можно опубликовать бесплатно. Это не специальное правило «первого урока» и не
-отдельный тариф. Free item:
+Любой Material, Laboratory или Production Case можно опубликовать бесплатно. Это не специальное
+правило «первого урока» и не отдельный тариф. Track Item отображает canonical availability своей
+цели, поэтому один переиспользуемый resource не бывает одновременно public и protected в разных
+Tracks. Free resource:
 
 - заметно отмечен в Track и на собственной странице;
 - открывается без Account или WorkshopEntitlement, если его собственная security boundary это
@@ -195,8 +199,8 @@ Platform импортирует exact source commit, валидирует refere
 будущий evaluation evidence продолжают ссылаться на прежнюю version.
 
 Workshop source может ссылаться только на stable identifiers опубликованных Materials. Material
-body не дублируется в Git. Отсутствующая, недоступная или unpublished ссылка делает publication
-fail-closed.
+body не дублируется в Git. Отсутствующая, unpublished или конфликтующая с expected availability
+ссылка делает publication fail-closed.
 
 Universal visual builder и двусторонняя синхронизация Git ↔ Platform не входят в первый срез.
 
@@ -301,6 +305,14 @@ Partner Webhooks slice могут переиспользоваться толь�
 - отдельная продажа Kafka, Track-level checkout и несколько уровней подписки;
 - глубокая Kafka operations laboratory;
 - AI-generated grade либо оценка того, насколько самостоятельно человек писал код.
+
+Отдельный Workshop-only offer и правило доступа к связанным Membership Materials проектируются
+вместе, если появляется реальная задача продавать или выдавать Workshop без подписки. До этого
+такой доступ не обещается.
+
+Имя `workshop-cases` исторически уже не отражает его новую роль. Возможное переименование в
+`workshop-content` оценивается после первого Track/Laboratory source, когда можно измерить цену
+миграции repository links и integrations; оно не блокирует первый Kafka-срез.
 
 После готовности Kafka CaseSpec нужно отдельно решить:
 

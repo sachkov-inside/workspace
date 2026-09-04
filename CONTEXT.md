@@ -5,6 +5,11 @@ Repository-specific glossaries refine local concepts without renaming these shar
 
 ## Identity and Membership
 
+**Inside Subscription**:
+The current commercial bundle that, while active, grants both Membership-scoped access and
+Workshop access through two separate finite entitlements. It is not itself a Platform permission.
+_Avoid_: MembershipEntitlement, WorkshopEntitlement, permanent purchase
+
 **Account**:
 Platform's stable private identity for one authenticated human. It owns Platform permissions and
 is independent of profile presentation and Membership.
@@ -33,8 +38,9 @@ through an opaque cross-repository reference.
 _Avoid_: Raw Telegram status, permanent member flag, MembershipEntitlement
 
 **MembershipEntitlement**:
-Platform's finite grant that an Account currently has Inside Membership access.
-_Avoid_: IdP role, Telegram role, subscription
+Platform's finite grant that an Account may access Membership-scoped Platform surfaces, including
+protected Library content and Member Profiles. It does not authorize protected Workshop content.
+_Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 
 **Canonical Membership Chat**:
 The single closed Telegram chat whose current roster is the Membership Signal for Inside.
@@ -74,8 +80,8 @@ _Avoid_: Learning Branch, Material Series, Topic, course
 
 **Track Item**:
 One ordered placement in a Workshop Track that references exactly one Material, Laboratory or
-Production Case and declares whether it is public or requires Workshop access. It does not own the
-referenced content.
+Production Case and presents that target's canonical availability. It neither owns content nor
+changes its access policy.
 _Avoid_: Lesson, copied Material, prerequisite gate
 
 **Laboratory**:
@@ -125,3 +131,7 @@ Platform's finite grant that an Account may access protected Workshop content. I
 separate authority from MembershipEntitlement even when one active Inside subscription grants and
 renews both.
 _Avoid_: MembershipEntitlement, purchase record, permanent member flag
+
+`Assignment`, `Attempt`, `Attempt Evidence`, `Attempt Result` and `Solution Reveal` below describe
+the implemented case-first foundation. They are deferred vocabulary, not the current Kafka
+evaluation contract, until the post-CaseSpec decision explicitly accepts their reuse.
