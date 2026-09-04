@@ -132,6 +132,6 @@ separate authority from MembershipEntitlement even when one active Inside subscr
 renews both.
 _Avoid_: MembershipEntitlement, purchase record, permanent member flag
 
-`Assignment`, `Attempt`, `Attempt Evidence`, `Attempt Result` and `Solution Reveal` below describe
+`Assignment`, `Attempt`, `Attempt Evidence`, `Attempt Result` and `Solution Reveal` above describe
 the implemented case-first foundation. They are deferred vocabulary, not the current Kafka
 evaluation contract, until the post-CaseSpec decision explicitly accepts their reuse.
