@@ -26,6 +26,18 @@ application decisions, build/tests/migrations и будущим deploy. Его �
 а delivery — в [Telegram Specification #1](https://github.com/sachkov-inside/inside-telegram/issues/1).
 Workspace не становится runtime или build dependency нового application.
 
+## Локальная редакционная база
+
+Создан 2026-09-05 private repository [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content),
+локально `repositories/inside-content`. Он владеет оригиналами новых материалов, метаданными,
+сериями, редакционным процессом и локальными инструментами распознавания. Его папка открывается
+как Obsidian vault. Видео и модели находятся вне Git; реальные исходные материалы не отправляются
+в remote автоматически. Platform владеет переносом и публикационным представлением.
+
+Первый [пилот на реальных видео](https://github.com/sachkov-inside/inside-content/issues/1)
+связан с общим планом #111. Новый контентный repository использует минимальный public
+`project-foundation` harness; software engineering package приложений ему не устанавливается.
+
 ## Правила границ
 
 - Новые repositories создаются в организации `sachkov-inside` и по умолчанию имеют private
