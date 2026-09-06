@@ -7,6 +7,7 @@
 | [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Общий product context, Developer Pipeline и cross-repo решения |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Публичный landing Inside |
 | [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа и её product/technical docs |
+| [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content) | `sachkov-inside` | `repositories/inside-content` | private | Локальные оригиналы материалов/серий и редакционный процесс |
 | [`sachkov-inside/workshop-cases`](https://github.com/sachkov-inside/workshop-cases) | `sachkov-inside` | `repositories/workshop-cases` | private | Закрытый authoring source для versioned Tracks, Laboratories и Production Cases |
 | [`sachkov-inside/inside-telegram`](https://github.com/sachkov-inside/inside-telegram) | `sachkov-inside` | `repositories/telegram` | private | Telegram BotContact, identity linking и Membership Evidence provider |
 
@@ -17,7 +18,8 @@ author solutions и связанные versioned artifacts. Platform импор�
 не является deployable application или runtime backend. Общая граница описана в
 [Production Workshop V1](docs/specifications/production-workshop-v1.md); прежний Partner Webhooks
 slice из [Platform #261](https://github.com/sachkov-inside/platform/issues/261) сохраняется только
-как завершённый foundation, а не как активный первый Track.
+как завершённый foundation. Отдельная Мастерская и Kafka-first delivery сейчас отложены;
+текущий этап описан в [brief материалов и серий](product/content-series-authoring-brief.md).
 
 Owner decision от 2026-08-30 зафиксировал отдельный private repository и dedicated bot direction
 `Sachkov Inside`. Repository создан и владеет собственными product brief, root Specification,

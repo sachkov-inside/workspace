@@ -12,7 +12,8 @@ product surface or application.
 - For GitHub issue routing, Project fields, or Wayfinder operations, read
   `docs/agents/issue-tracker.md`.
 - For readiness-label triage, read `docs/agents/triage-labels.md`.
-- For product terminology, repository ownership or ADR placement, read `docs/agents/domain.md`.
+- For product terminology, Series/content decisions, editorial handoff, repository ownership
+  or ADR placement, read `docs/agents/domain.md`.
 - For coding and review rules, read `CODING_STANDARDS.md`.
 
 ## Verification

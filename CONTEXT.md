@@ -46,6 +46,36 @@ _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 The single closed Telegram chat whose current roster is the Membership Signal for Inside.
 _Avoid_: Community directory, Tribute roster, audience segment
 
+## Materials and Series
+
+**Material**:
+A self-contained Inside content unit with its own identity, such as a video, guide or note.
+It can be read independently and reused in Series without copying its content.
+_Avoid_: Lesson, Series, Workshop Resource
+
+**Series**:
+An authored collection of Materials with a single explicit mixed reading order and a reader task.
+A Material may belong to zero, one or several Series; the Russian product name is «Серия».
+_Avoid_: Playlist, Course, Workshop Track, Topic
+
+**Series Step Sequence**:
+An explicitly named connection between some Materials within one Series, following that Series's
+order. It is independent of Format and importance, and may differ for the same Material in another
+Series; in Russian, «Последовательность шагов».
+_Avoid_: Main path, optional role, Module, parallel Track
+
+**Topic**:
+The primary subject area used to classify a Material for discovery.
+_Avoid_: Series, learning path, Tag
+
+**Format**:
+The primary way a Material is consumed, such as video, guide or note.
+_Avoid_: File type, step membership, importance
+
+**Tag**:
+A managed label that connects and retrieves Materials across Topics and Formats.
+_Avoid_: Topic, Series, required step
+
 ## Content access
 
 **ContentAccess**:
