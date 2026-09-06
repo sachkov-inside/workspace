@@ -6,12 +6,17 @@
 Identity/Membership track координирует
 [Workspace Specification #65](https://github.com/sachkov-inside/workspace/issues/65).
 
-Дата: 2026-08-30.
+Исходная дата: 2026-08-30. Граница авторства уточнена 2026-09-06.
+Документ сохраняет общую архитектуру и план первоначальной поставки. Для текущей модели материалов,
+серий и подготовки контента читать [действующий brief](../../product/content-series-authoring-brief.md).
+Implementation details и актуальный API contract определяются owning документами Platform;
+этапы ниже не являются live backlog.
 
 ## 1. Результат и authority
 
-Platform v1 становится каноническим домом материалов Inside: автор вручную создаёт и публикует
-материалы, публичный посетитель находит и читает открытый контент, а участник связывает Platform
+Platform — канонический runtime опубликованных материалов Inside. Автор готовит новые оригиналы
+локально в Inside Content; Platform authoring сохраняет и публикует выбранное состояние.
+Публичный посетитель находит и читает открытый контент, а участник связывает Platform
 account с Telegram и получает закрытый контент, пока состоит в одном каноническом закрытом chat.
 
 Эта спецификация фиксирует общую архитектуру, границы `platform` и отдельного `inside-telegram`,
@@ -29,12 +34,11 @@ account с Telegram и получает закрытый контент, пок�
 Exact dependency versions, physical schema, package paths, deploy scripts и runbooks остаются только
 в owning application repository.
 
-При расхождении источников более позднее явное owner decision имеет приоритет, но owning document
-должен быть синхронизирован до feature implementation. Сейчас канонический Platform brief всё ещё
-говорит об автоматическом переносе Telegram-архива и обязательной material-specific discussion
-link. Более поздний [аудит текущей публикации](../research/platform-current-publishing-audit.md)
-подтверждает обратное: материалы создаются вручную без import/migration, а individual discussion
-relation не входит в обязательный v1 scope. Первый Platform ticket устраняет это расхождение.
+При расхождении источников более позднее явное owner decision имеет приоритет; owning документ
+уточняется перед реализацией. Прежнее расхождение о переносе Telegram-архива и обязательной
+ссылке обсуждения описывает [исторический аудит](../research/platform-current-publishing-audit.md).
+Текущий автоматический Git importer не реализован и выделен в Platform #289; authoring API/MCP
+сами по себе не означают синхронизацию оригиналов и публикаций.
 
 ## 2. Scope и границы v1
 
@@ -49,7 +53,7 @@ relation не входит в обязательный v1 scope. Первый Pl
 - MCP поверх тех же application commands и правил, что admin и REST;
 - PostgreSQL full-text search, metadata navigation и related materials;
 - reading state `прочитано / не прочитано` и минимальная history;
-- ручное создание актуальных материалов с опорой на Telegram как visual reference.
+- сохранение публикаций через Platform authoring; новые редакционные оригиналы принадлежат Inside Content.
 
 ### Не входит
 

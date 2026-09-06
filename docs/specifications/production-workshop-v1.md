@@ -10,6 +10,14 @@ decisions из [#108](https://github.com/sachkov-inside/workspace/issues/108).
 созданные технические foundations, если они не противоречат новой продуктовой модели, но не
 обязывает использовать прежний evaluator или managed Assignment flow.
 
+## Текущий статус направления
+
+Отдельная Мастерская и Kafka-first delivery отложены решением владельца 2026-09-05 в
+[плане #111](https://github.com/sachkov-inside/workspace/issues/111). Этот accepted контракт
+сохраняет границы практики и её foundations, но не задаёт ближайший план наполнения Platform.
+Для текущих материалов и серий читать [действующий brief](../../product/content-series-authoring-brief.md).
+Workshop Track и Series остаются разными понятиями.
+
 ## 1. Результат и authority
 
 Inside Workshop, далее **Workshop** или «Мастерская», становится практической частью Inside для
@@ -26,7 +34,8 @@ Workshop не заменяет Библиотеку и не превращает
 - Platform владеет доступом, публикацией, прогрессом и пользовательским интерфейсом;
 - `sachkov-inside/workshop-cases` хранит versioned authoring source для Tracks, Laboratories,
   Production Cases и stack-specific artifacts;
-- Materials остаются Platform-owned content и создаются через редактор Platform либо MCP;
+- опубликованные Materials принадлежат Platform runtime; новые редакционные оригиналы готовятся
+  в Inside Content, а редактор Platform/API/MCP обслуживает публикационное состояние;
 - конкретная проверка Production Case определяется после проектирования первого Kafka-кейса.
 
 ## 2. Проблема и обещание

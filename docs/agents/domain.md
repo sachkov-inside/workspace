@@ -1,21 +1,25 @@
 # Domain docs
 
 Workspace owns shared product language, cross-repository boundaries and shared decisions.
+Choose the local authority for the task:
 
-For product terminology or cross-repository ownership, read the relevant local sources:
+- For Material, Series, Series Step Sequence, Topic, Format, identity or access terminology,
+  read `CONTEXT.md`.
+- For the current content model, equal value of formats, discovery or editorial/publication
+  ownership, read `product/content-series-authoring-brief.md`.
+- For audience, positioning or the subscription promise, read `product/README.md`.
+- For starting an editorial session, read `product/series-planning-handoff.md`; it routes actual
+  preparation to Inside Content's own instructions.
+- For repository ownership, read `REPOSITORIES.md`; for a cross-repository architecture decision,
+  read the relevant `docs/adr/` and shared specification.
+- For an explicitly scoped Workshop task, read `docs/specifications/production-workshop-v1.md`.
+  That direction is deferred; its contracts do not set the current Series delivery scope.
 
-- `product/README.md` for shared product language and the human-facing repository index;
-- `REPOSITORIES.md` for repository ownership;
-- `CONTEXT.md` and relevant `docs/adr/` entries when they exist.
+Repository-specific product briefs, application contracts and ADRs belong to the owning repository.
+External links are navigation to that owner, not runtime dependencies or instructions to copy its
+specification into Workspace. Workspace work remains executable from local shared decisions.
 
-External links in `product/README.md` are navigation for people, not Workspace agent dependencies.
-Route repository-specific product work to the owning repository and its issue; Workspace work must
-remain executable from the local shared context and cross-repository decisions.
-
-Use one `CONTEXT.md` and root `docs/adr/` unless real code or package boundaries later justify a
-multi-context map. Missing context or ADR files are not setup failures; `domain-modeling` creates
-them lazily when durable terminology or a hard-to-reverse trade-off is actually resolved.
-
-Shared product and cross-repository decisions live in Workspace. A repository-specific product
-brief and application ADRs live in the repository that owns the product surface. Temporary
-discussion stays in the issue; the confirmed decision is recorded once in a versioned document.
+The glossary defines terms, the current brief defines product intent, and the issue tracks delivery.
+Historical examples and evidence explain past decisions; follow their status and current-authority
+pointers before treating them as requirements. Record each confirmed rule in its owning document
+and link to it from entrypoints instead of repeating it in every handoff.
