@@ -124,9 +124,14 @@ source links, preview, publish, pause/archive и историю результа
 предыдущего исполнявшегося шага данного участия, даже если после reorder их позиции поменялись.
 Initial entry response имеет нулевую задержку; запланированные шаги идут после его завершения.
 
-Завершение multipart шага — подтверждённая отправка всех его частей либо явный skip оператором.
-Для skip сохраняется причина и отдельный результат; он не считается sent. Unknown/failed часть
-блокирует следующие части и шаги этой воронки до разрешения, не всю систему.
+Завершение multipart шага — подтверждённая отправка всех его частей, явный skip оператором либо
+terminal partial/cancelled после отмены оставшихся частей. Для skip/cancel сохраняется отдельный
+результат, не sent. `previousCompletionAt` — момент фиксации terminal результата; от него начинается
+задержка следующего шага. Partial/cancelled становится terminal только когда нет in-flight/unknown
+частей. Cancel request запрещает новые части, но ждёт результата уже начатых или явного решения
+unknown. Обычный content edit сохраняет snapshot уже начатого шага; отмена частей требует явного
+delete/cancel. Unknown/failed часть без такого разрешения блокирует следующие части и шаги этой
+воронки, не всю систему.
 
 Общего дневного предела и тихих часов нет. Разные воронки и разовая рассылка могут отправляться
 рядом. Транспорт всё равно соблюдает Telegram per-chat/global limits и `retry_after`; задержки от
@@ -153,7 +158,7 @@ Initial entry response имеет нулевую задержку; заплан�
 
 Перед внешним dispatch атомарно проверяются current publication, lifecycle, marketing preference
 и contactability. Уже начатый внешний запрос нельзя отменить задним числом. Он заканчивается с
-сохранённым snapshot; edits/delete могут отменить ещё не начатые части. Доставленные части и
+сохранённым snapshot; явный delete/cancel может отменить ещё не начатые части. Доставленные части и
 неотправленные отменённые части дают явный partial/cancelled исход, а не фиктивный полный sent.
 
 ## Общий stop и возобновление
@@ -253,9 +258,10 @@ communications поставку и не переписывает историч�
    повтор publish, rollback, pause/archive, несколько тем и сохранение history.
 3. Stop между частями/до dispatch, delayed steps во время stop, resume без backlog с сохранением
    будущего срока; blocked/unblock; служебный login не возобновляет маркетинг.
-4. Текст/entities и каждый media type; video_note+text partial delivery; повтор inbound, deleted
+4. Текст/entities и каждый media type; video_note+text partial delivery и cancel оставшегося текста с отсчётом следующего шага
+   от terminal cancellation; повтор inbound, deleted
    original, broken file_id, stale template edit, чужой ID и revoked author permission.
-5. Scheduled broadcast snapshot при launch, union audiences, stop после snapshot, поздний контакт,
+5. Scheduled broadcast snapshot при launch, union audiences, stop после snapshot и resume до delayed retry без восстановления получателя, поздний контакт,
    повтор launch и cancel во время выполнения; pause/resume не расширяет snapshot.
 6. Real PostgreSQL: два workers, crash до/после claim, внешнего эффекта, persisted sent и DB ack;
    429, permanent failure, unknown и явный retry/skip без потери evidence.
