@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "package": "inside-engineering",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "profile": "core",
   "managedSkills": [
     "ask-matt",
@@ -35,7 +35,8 @@
   "managedFiles": [
     "WORKFLOW.md",
     "docs/agents/triage-labels.md",
-    ".github/scripts/close-completed-parents.sh"
+    ".github/scripts/close-completed-parents.sh",
+    ".github/pull_request_template.md"
   ],
   "targets": {
     "portable": ".agents/skills",

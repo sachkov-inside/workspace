@@ -8,7 +8,8 @@ committed, project-local distribution and remains usable without the Workspace b
 - Codex, Kimi Code, and OpenCode discover the shared suite at `.agents/skills/`.
 - Claude Code discovers the same release at `.claude/skills/`.
 - `AGENTS.md` is the common instruction entrypoint. `CLAUDE.md` imports it for Claude Code.
-- `WORKFLOW.md` and `docs/agents/triage-labels.md` are shared managed documents.
+- `WORKFLOW.md`, `.github/pull_request_template.md`, and `docs/agents/triage-labels.md` are shared
+  managed documents.
 - Repository-specific skills stay in the shared snapshot under unique names and are preserved.
 
 The two runtime directories are repository-relative discovery links to one committed snapshot at
@@ -20,10 +21,10 @@ integration owns its native project config and `.inside-harness/integrations.jso
 verifies its path, SHA-256, runtime ownership, verification command, and secret-variable names.
 Credentials remain outside Git and the verification command is run explicitly by the repository.
 
-The package contains the Developer Pipeline, triage labels, the completed-parent lifecycle script,
-and two skill profiles. `core` contains Matt Pocock's complete stable suite plus
-`karpathy-guidelines`; `frontend` adds four browser/UI skills. Exact contents and sources are in
-`packages/inside-engineering/manifest.json` and `SOURCE.md`.
+The package contains the Developer Pipeline, pull request handoff template, triage labels, the
+completed-parent lifecycle script, and two skill profiles. `core` contains Matt Pocock's complete
+stable suite plus `karpathy-guidelines`; `frontend` adds four browser/UI skills. Exact contents and
+sources are in `packages/inside-engineering/manifest.json` and `SOURCE.md`.
 
 ## Commands
 
@@ -37,19 +38,21 @@ harness/bin/inside-harness install repositories/landing --profile frontend --ado
 harness/bin/inside-harness diff repositories/platform
 harness/bin/inside-harness health repositories/platform
 harness/bin/inside-harness update repositories/platform
+harness/bin/inside-harness update repositories/platform --adopt-existing
 harness/bin/inside-harness rollback repositories/platform --to <workspace-git-ref>
 ```
 
 After installation, `update`, `diff`, and `rollback` preserve the stored profile. Pass `--profile`
 only for the initial profile migration or an intentional profile change.
 
-`--adopt-existing` is only for the first install when a repository already contains skills with
-managed names and those directories are deliberately being brought under product-harness ownership.
-Unknown skills are never removed.
+On first install, `--adopt-existing` deliberately brings conflicting skills or files under
+product-harness ownership. On update, use it only after reviewing a repository-owned file at a path
+that the new package release manages for the first time. Unknown skills and files are never removed.
 
-`update` refuses to overwrite changed managed files. A package release that only adds new managed
-content can be adopted safely before the initial installation diff is committed. A no-op update is
-safe and idempotent.
+`update` refuses to overwrite changed managed files. A newly managed file is accepted automatically
+when it is absent or already matches the package; a different existing file requires explicit
+`--adopt-existing`. A package release that only adds absent managed content can be adopted safely
+before the initial installation diff is committed. A no-op update is safe and idempotent.
 
 `rollback --to` reads the package and adapters from a previous Workspace Git ref. It requires that
 the chosen ref already contains this harness layout.

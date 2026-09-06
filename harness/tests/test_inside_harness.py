@@ -69,6 +69,13 @@ class HarnessCliTest(unittest.TestCase):
             (WORKSPACE / "harness/packages/inside-engineering/WORKFLOW.md").read_text(),
         )
         self.assertEqual(
+            (self.repo / ".github/pull_request_template.md").read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/github/pull_request_template.md"
+            ).read_text(),
+        )
+        self.assertEqual(
             (self.repo / "docs/agents/triage-labels.md").read_text(),
             (
                 WORKSPACE
@@ -87,6 +94,7 @@ class HarnessCliTest(unittest.TestCase):
         state = json.loads((self.repo / ".inside-harness/product-harness.json").read_text())
         self.assertEqual(state["profile"], MANIFEST["defaultProfile"])
         self.assertEqual(state["schemaVersion"], 3)
+        self.assertIn(".github/pull_request_template.md", state["managedFiles"])
 
     def test_lifecycle_authority_is_discoverable_from_owning_skills(self) -> None:
         package = WORKSPACE / "harness/packages/inside-engineering"
@@ -97,6 +105,7 @@ class HarnessCliTest(unittest.TestCase):
         for section in (
             "Review closure",
             "Pull request CI closure",
+            "Implementation report",
             "Architecture fitness",
             "Pruning",
         ):
@@ -105,6 +114,30 @@ class HarnessCliTest(unittest.TestCase):
         self.assertIn("repository-root `WORKFLOW.md`", implementation)
         self.assertIn("`Pruning`", adr_format)
         self.assertIn("repository-root `WORKFLOW.md`", adr_format)
+
+        template = (package / "github/pull_request_template.md").read_text()
+        self.assertTrue(template.startswith("## Отчёт о реализации\n"))
+        self.assertIn(
+            "Оформляй весь отчёт по-русски: заголовки, подписи таблиц, статусы и пояснения.",
+            template,
+        )
+        self.assertIn("Укажи «Да» или «Нет»", template)
+        self.assertIn("| Часть системы | Изменена | Что изменилось |", template)
+        for section in (
+            "Результат",
+            "Связанная задача",
+            "Затронутые части системы",
+            "Как это работает",
+            "Изменения бизнес-правил и предметной области",
+            "Архитектура и дальнейшее развитие",
+            "Ключевые файлы и порядок проверки",
+            "Проверки",
+            "Итоги проверки кода и требований",
+            "Изменения документации",
+            "Не проверено и не входит в задачу",
+            "Решения владельца",
+        ):
+            self.assertIn(f"### {section}", template)
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"
@@ -235,6 +268,48 @@ class HarnessCliTest(unittest.TestCase):
         shutil.rmtree(self.repo / ".inside-harness/skills" / name)
 
         self.run_cli("update", str(self.repo))
+        self.run_cli("health", str(self.repo))
+
+    def test_update_requires_adoption_for_a_conflicting_new_managed_file(self) -> None:
+        self.install()
+        state_path = self.repo / ".inside-harness/product-harness.json"
+        state = json.loads(state_path.read_text())
+        state["managedFiles"].remove(".github/pull_request_template.md")
+        state_path.write_text(json.dumps(state, indent=2) + "\n")
+        template = self.repo / ".github/pull_request_template.md"
+        template.write_text("# Repository-specific pull request template\n")
+        subprocess.run(["git", "-C", str(self.repo), "add", "."], check=True)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.repo),
+                "-c",
+                "user.name=Harness Test",
+                "-c",
+                "user.email=harness@example.invalid",
+                "commit",
+                "-qm",
+                "record repository template",
+            ],
+            check=True,
+        )
+
+        result = self.run_cli("update", str(self.repo), expected=2)
+        self.assertIn(".github/pull_request_template.md", result.stderr)
+        self.assertIn("update with --adopt-existing", result.stderr)
+        self.assertEqual(
+            template.read_text(), "# Repository-specific pull request template\n"
+        )
+
+        self.run_cli("update", str(self.repo), "--adopt-existing")
+        self.assertEqual(
+            template.read_text(),
+            (
+                WORKSPACE
+                / "harness/packages/inside-engineering/github/pull_request_template.md"
+            ).read_text(),
+        )
         self.run_cli("health", str(self.repo))
 
     def test_update_refuses_to_restore_a_deleted_managed_skill_in_a_dirty_install(self) -> None:
