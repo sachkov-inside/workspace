@@ -37,7 +37,8 @@ issue or PR because GitHub shares their number space; resolve it before acting.
   `gh api --method POST repos/{owner}/{repo}/issues/{child}/dependencies/blocked_by -F issue_id={blocker-db-id}`.
   If either endpoint is unavailable, record `Part of #<map>` or `Blocked by: #<issue>` in the child
   body instead.
-- Use the assignee as the claim.
-- An open, unblocked and unassigned child is on the frontier. Assignment is the claim.
+- Use the session procedure in `docs/agents/tracker-automation.md` for claims.
+- An open, unblocked child with no active session is a candidate; only a successful start receipt
+  permits writing. Preserve legacy assigned work for owner adoption.
 - Resolve a decision with a comment, close its issue, then add a one-line linked pointer to the
   map's `Decisions so far` section.
