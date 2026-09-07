@@ -128,3 +128,7 @@ used by 0.4.1 clients before checking the fingerprint; all required fields, unkn
 values still fail closed. Existing 0.4.1 clients remain compatible. Projects collection reads can
 lag a successful card write: a failed read-back retains the session but grants no ownership.
 Recover the exact request after the remote projection becomes visible; do not create another claim.
+
+The 0.4.3 controller uses the owning issue/PR projectItems connection with includeArchived:true
+for decisions, concurrency checks and read-back. The full Project.items collection is only a
+discovery index; its delayed membership or archive state cannot authorize restoring a card.
