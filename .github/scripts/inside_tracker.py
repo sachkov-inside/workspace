@@ -312,6 +312,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # Session adapter imports this module; keep one error type when run as a script.
+    sys.modules.setdefault('inside_tracker', sys.modules[__name__])
     try:
         main()
     except (TrackerError, KeyError, ValueError) as error:
