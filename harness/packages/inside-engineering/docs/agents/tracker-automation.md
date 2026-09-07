@@ -70,3 +70,46 @@ PR, missed event, archive and routing. Keep test issues as closed history. Merge
 
 Classification repair preserves shared fields by name. Area belongs to Developer Pipeline; when
 moving to Human Backlog it is recorded in the transition artifact, not mapped to the unrelated Kind.
+
+## Agent sessions
+
+Before writing a task branch, obtain a successful `start` receipt from the central Workspace
+workflow. Assignee is the responsible person; the trusted issue comment holds the writing session.
+Use a unique stable session identifier for the life of that worktree and keep it in the handoff.
+
+```bash
+python3 .github/scripts/tracker_sessions.py start --issue platform#123 \
+  --session unique-session-identifier --branch feat/123-example
+python3 .github/scripts/tracker_sessions.py block --issue platform#123 \
+  --session unique-session-identifier --reason 'Waiting for the named dependency'
+python3 .github/scripts/tracker_sessions.py handoff --issue platform#123 \
+  --session unique-session-identifier --reason 'PR and verification evidence; remaining limits'
+python3 .github/scripts/tracker_sessions.py release --issue platform#123 \
+  --session unique-session-identifier --reason 'Stopping; durable result is linked in the issue'
+```
+
+Start returns only after a successful Actions receipt and live state read-back. A timeout, canceled
+pending run, failed job or unverified result grants no ownership. Recover the same request with
+`--request` from the printed identifier; if it never reached GitHub, retry with a new request and the
+same session identifier after checking the prior run. Never create a second writer to bypass a
+pending/failed request. GitHub may cancel pending commands in the concurrency group; active commands
+are not canceled by the workflow, and the CLI reports cancellations as failures.
+
+The Workspace default-branch `Inside agent sessions` workflow is the only writer of session state.
+Its global concurrency group serializes all repository targets. The issue comment is written by
+`KirillSachkov`, the existing PAT owner. Changing to a GitHub App requires explicit migration of the
+trusted writer and existing comments. Session state contains only the session, task branch, phase,
+request, timestamp and reason. Credentials, local paths and private transcripts do not belong there.
+
+The caller's existing `gh` authorization needs Actions write in Workspace to dispatch and Actions
+read to retrieve the receipt. The workflow PAT needs Issues write and Projects write; it does not
+need Actions write. The workflow checks its repository, main ref and trusted writer before writes.
+Existing assigned/PR work without session metadata is preserved for explicit owner adoption. An
+expired timestamp does not release ownership. A handed-off task keeps its writing owner available
+for fixes; reviewers may inspect it read-only. Release records an explicit stop. A released task
+with an existing PR needs owner handoff before another writer takes over.
+
+Transition requirements and receipts are enforced by `tracker_sessions.py`; concurrency and failure
+scenarios are exercised by `harness/tests/test_tracker_sessions.py`. Tests simulate the serialized
+writer and unknown remote responses. Actual GitHub scheduling/credential acceptance must additionally
+be verified after merge with two competing requests against one bounded verification issue.

@@ -216,7 +216,9 @@ class Reconciler:
         self.refresh()
         if self.cards.get((repo, number), {}) != cards:
             raise TrackerError(f'{repo}#{number}: Project changed during reconciliation; rerun')
-        if fresh != {k: v for k, v in item.items() if k != 'session'}:
+        if 'session' in item:
+            fresh['session'] = read_session(self.api, repo, number)[0]
+        if fresh != item:
             raise TrackerError(f'{repo}#{number} changed during reconciliation; retry from current state')
         if decision.close:
             self.api.call(f'repos/{repo}/issues/{number}', {'state': 'closed', 'state_reason': 'completed'}, 'PATCH')

@@ -109,6 +109,11 @@ index, and files as owner-controlled state: inspect it read-only, and let the ow
 advances after a merge. An explicit owner request concerning that checkout is the only authority to
 change its branch or files.
 
+Before writing a tracked task, follow the Agent sessions procedure in
+`docs/agents/tracker-automation.md` and obtain a successful start receipt. Use the same session
+identifier for block, handoff and release. Assignee records the responsible human, not a session
+lock. Existing work without a receipt is an adoption case, not an available task.
+
 Every tracked task has one writing worktree by default, regardless of how many agents help with it.
 Fetch refs without changing the primary checkout, then create that worktree for the task branch
 from the current `origin/main`. One worktree has one active writing agent, one task branch, and one

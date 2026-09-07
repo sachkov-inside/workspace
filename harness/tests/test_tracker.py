@@ -172,6 +172,8 @@ class ReconciliationTest(unittest.TestCase):
             def __init__(self):
                 self.cards = {('sachkov-inside/workspace', 1): {1: card('old', 'Ready', Priority='Now', Area='Operations')}}
                 self.writes = []
+            def pages(self, endpoint):
+                return []
             def graphql(self, query, **v):
                 self.writes.append((query, v))
                 cards = self.cards[('sachkov-inside/workspace', 1)]
