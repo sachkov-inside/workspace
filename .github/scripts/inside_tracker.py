@@ -116,9 +116,9 @@ def project_items(api, project_id):
     nodes, cursor = [], None
     while True:
         page = api.graphql('''query($id:ID!, $cursor:String) { node(id:$id) { ... on ProjectV2 {
-          items(first:100, after:$cursor, includeArchived:true) { nodes { id isArchived
-            content { __typename ... on Issue { id number repository { nameWithOwner } }
-            ... on PullRequest { id number repository { nameWithOwner } } }
+          items(first:100, after:$cursor) { nodes { id isArchived
+            content { __typename ... on Issue { id number state repository { nameWithOwner } }
+            ... on PullRequest { id number state repository { nameWithOwner } } }
             fieldValues(first:100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue {
               name field { ... on ProjectV2SingleSelectField { name } } } } }
           } pageInfo { hasNextPage endCursor } } } } }''', id=project_id, cursor=cursor)['node']['items']
@@ -169,9 +169,7 @@ class Reconciler:
         cards = self.cards.get((repo, number), {})
         if any(c['isArchived'] for c in cards.values()):
             return report('skip', item, 'preserve intentional archive')
-        if MARKER in str(item):
-            raise TrackerError('Unexpected session marker in snapshot')
-        # The session module is installed by the session-operations release.
+                # The session module is installed by the session-operations release.
         try:
             from tracker_sessions import read_session
         except ImportError:
@@ -251,7 +249,11 @@ class Reconciler:
         return row
 
     def sweep(self, repos):
-        targets = {key for key in self.cards if key[0] in repos}
+        targets = {key for key, cards in self.cards.items() if key[0] in repos and
+                   not any(c['isArchived'] for c in cards.values()) and
+                   any(field_values(c).get('Status') != 'Done' or c['content']['state'] == 'OPEN'
+                       or (c['content']['__typename'] == 'PullRequest' and c['content']['state'] == 'CLOSED')
+                       for c in cards.values())}
         for repo in repos:
             info = self.api.call(f'repos/{repo}')
             endpoint = 'issues' if info['has_issues'] else 'pulls'

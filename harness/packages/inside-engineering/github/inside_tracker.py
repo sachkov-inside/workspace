@@ -11,7 +11,7 @@ import sys
 import time
 from pathlib import Path
 
-from tracker_policy import decide
+from tracker_policy import decide, unfinished
 
 ORG = 'sachkov-inside'
 REPOSITORIES = ('workspace', 'platform', 'inside-telegram', 'inside-landing', 'inside-content', 'workshop-cases')
@@ -172,11 +172,16 @@ class Reconciler:
                 # The session module is installed by the session-operations release.
         try:
             from tracker_sessions import read_session
-        except ImportError:
-            pass
+        except ModuleNotFoundError as error:
+            if error.name != 'tracker_sessions':
+                raise
         else:
             if item['kind'] == 'Issue':
                 item['session'] = read_session(self.api, repo, number)[0]
+        if 'backlog:human' in item['labels'] and repo != CONTROLLER:
+            raise TrackerError('backlog:human is valid only in Workspace')
+        if item['state'] == 'CLOSED' and unfinished(item.get('children', [])):
+            report('warning', item, 'closed aggregate has unfinished children; owner must reopen or replan')
         desired_project = 2 if 'backlog:human' in item['labels'] else 1
         current_card = cards.get(desired_project)
         current = field_values(current_card).get('Status') if current_card else None
