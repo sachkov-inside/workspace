@@ -1,5 +1,5 @@
 name: Inside agent sessions
-run-name: session ${{ inputs.request }}
+run-name: session ${{ inputs.request }} ${{ inputs.fingerprint }}
 
 on:
   workflow_dispatch:
@@ -21,6 +21,9 @@ on:
         type: string
         default: ''
       request:
+        type: string
+        required: true
+      fingerprint:
         type: string
         required: true
 

@@ -90,7 +90,8 @@ python3 .github/scripts/tracker_sessions.py release --issue platform#123 \
 
 Start returns only after a successful Actions receipt and live state read-back. A timeout, canceled
 pending run, failed job or unverified result grants no ownership. Recover the same request with
-`--request` from the printed identifier; if it never reached GitHub, retry with a new request and the
+`--request` from the printed identifier. The operation fingerprint must match; a terminal failed or
+canceled run is explicitly rerun with its original inputs and must produce a new successful attempt; if it never reached GitHub, retry with a new request and the
 same session identifier after checking the prior run. Never create a second writer to bypass a
 pending/failed request. GitHub may cancel pending commands in the concurrency group; active commands
 are not canceled by the workflow, and the CLI reports cancellations as failures.

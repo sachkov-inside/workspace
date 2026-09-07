@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -20,7 +21,7 @@ from tracker_policy import ROLES, unfinished
 SESSION_WORKFLOW = 'inside-agent-sessions.yml'
 # Existing automation credential owner; changing the writer is an explicit migration.
 WRITER = 'KirillSachkov'
-PHASES = {'active', 'blocked', 'review', 'released'}
+PHASES = {'start': 'active', 'block': 'blocked', 'handoff': 'review', 'release': 'released'}
 
 
 def read_session(api, repo, number):
@@ -33,12 +34,29 @@ def read_session(api, repo, number):
     comment = matches[0]
     try:
         state = json.loads(comment['body'][len(MARKER):].strip())
-        if (state['phase'] not in PHASES or not all(isinstance(state[k], str) and state[k]
-                for k in ('session', 'request', 'branch', 'updated_at'))):
-            raise ValueError('invalid session fields')
+        validate_state(state)
     except (ValueError, KeyError, TypeError) as error:
         raise TrackerError('Malformed trusted session state; owner repair required') from error
     return state, comment['id']
+
+
+def validate_state(state):
+    required = {'session', 'request', 'command', 'phase', 'branch', 'reason', 'updated_at'}
+    if not isinstance(state, dict) or set(state) != required or not all(isinstance(v, str) for v in state.values()):
+        raise ValueError('invalid session shape')
+    if state['command'] not in PHASES or PHASES[state['command']] != state['phase']:
+        raise ValueError('command/phase mismatch')
+    if not all(re.fullmatch(r'[A-Za-z0-9_-]{8,100}', state[k]) for k in ('session', 'request')):
+        raise ValueError('invalid session identifiers')
+    if not re.fullmatch(r'(feat|fix|docs|chore|research|prototype)/[A-Za-z0-9][A-Za-z0-9._/-]{0,180}', state['branch']):
+        raise ValueError('invalid task branch')
+    timestamp = datetime.fromisoformat(state['updated_at'])
+    if timestamp.tzinfo is None or state['command'] != 'start' and not state['reason'].strip():
+        raise ValueError('timestamp/reason missing')
+
+
+def fingerprint(values):
+    return hashlib.sha256(json.dumps(values, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
 def transition(item, state, command, session, branch, reason, request):
@@ -124,6 +142,9 @@ def worker():
         raise TrackerError('Unexpected credential owner; migrate trusted state writer explicitly')
     event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
     value = event['inputs']
+    original = {k: v for k, v in value.items() if k != 'fingerprint'}
+    if value.get('fingerprint') != fingerprint(original):
+        raise TrackerError('Dispatch operation fingerprint does not match')
     repo, number = identity(value['issue'])
     result = operate(api, repo, number, value['command'], value['session'], value.get('branch', ''),
                      value.get('reason', ''), value['request'])
@@ -138,28 +159,39 @@ def request_command(args):
     repo, number = identity(args.issue)
     request_id = args.request or uuid.uuid4().hex
     values = dict(command=args.command, issue=f'{repo}#{number}', session=args.session,
-                  branch=args.branch, reason=args.reason, request=request_id)
-    # Validate public input before dispatch; authoritative readiness is checked by the writer.
+                  branch=args.branch, reason=args.reason.strip(), request=request_id)
     if not re.fullmatch(r'[A-Za-z0-9_-]{8,100}', request_id):
         raise TrackerError('invalid request identifier')
-    response = api.call(f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?event=workflow_dispatch&per_page=100')
-    exists = any(x['display_title'] == f'session {request_id}' for x in response['workflow_runs'])
-    if not exists:
+    operation_hash = fingerprint(values)
+    expected_title = f'session {request_id} {operation_hash}'
+    endpoint = f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?event=workflow_dispatch&per_page=100'
+
+    def find_run():
+        matches = [x for x in api.call(endpoint)['workflow_runs']
+                   if x['display_title'].startswith(f'session {request_id} ')]
+        if len(matches) > 1:
+            raise TrackerError('Duplicate dispatch runs; inspect central state before retrying')
+        run = matches[0] if matches else None
+        if run and run['display_title'] != expected_title:
+            raise TrackerError('Request ID already belongs to another operation')
+        return run
+
+    run, minimum_attempt = find_run(), 1
+    if run and run['status'] == 'completed' and run['conclusion'] != 'success':
+        # --request is an explicit retry of these exact inputs, including a partial prior write.
+        minimum_attempt = run['run_attempt'] + 1
+        api.call(f"repos/{CONTROLLER}/actions/runs/{run['id']}/rerun", {}, 'POST')
+    elif not run:
         try:
             api.call(f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/dispatches',
-                     {'ref': 'main', 'inputs': values}, 'POST')
+                     {'ref': 'main', 'inputs': values | {'fingerprint': operation_hash}}, 'POST')
         except TrackerError as error:
-            # Dispatch may have reached GitHub. Poll this same request, never issue a blind duplicate.
             print(f'Dispatch response unavailable ({error}); checking request {request_id}.', flush=True)
     print(f'Request {request_id}: waiting for central confirmation. Do not start work yet.', flush=True)
-    deadline, run = time.monotonic() + args.timeout, None
+    deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
-        response = api.call(f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?event=workflow_dispatch&per_page=100')
-        matches = [x for x in response['workflow_runs'] if x['display_title'] == f'session {request_id}']
-        if len(matches) > 1:
-            raise TrackerError('Duplicate dispatch runs; inspect the central state before retrying')
-        run = matches[0] if matches else None
-        if run and run['status'] == 'completed':
+        run = find_run()
+        if run and run['run_attempt'] >= minimum_attempt and run['status'] == 'completed':
             if run['conclusion'] != 'success':
                 raise TrackerError(f"Command {run['conclusion']}: {run['html_url']}; no grant to start work")
             break
@@ -170,10 +202,17 @@ def request_command(args):
         subprocess.run(['gh', 'run', 'download', str(run['id']), '-R', CONTROLLER,
                         '--name', 'tracker-session-result', '--dir', temp], check=True)
         result = json.loads((Path(temp) / 'tracker-session-result.json').read_text())
-    if not result.get('ok') or result.get('request') != request_id or result.get('session') != args.session:
-        raise TrackerError('Receipt does not match this request')
+    state = {k: v for k, v in result.items() if k not in {'ok', 'issue'}}
+    try:
+        validate_state(state)
+    except (ValueError, TypeError, KeyError) as error:
+        raise TrackerError('Invalid receipt state') from error
+    if (result.get('ok') is not True or result.get('issue') != values['issue'] or
+            any(state[k] != values[k] for k in ('command', 'session', 'request', 'reason')) or
+            args.command == 'start' and state['branch'] != args.branch):
+        raise TrackerError('Receipt does not match this operation')
     actual, _ = read_session(api, repo, number)
-    if not actual or actual['request'] != request_id or actual['session'] != args.session:
+    if actual != state:
         raise TrackerError('Receipt has been superseded; reread state before starting')
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
