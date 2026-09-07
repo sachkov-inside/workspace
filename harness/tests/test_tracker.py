@@ -70,6 +70,11 @@ class EventBoundaryTest(unittest.TestCase):
         with self.assertRaises(TrackerError):
             arguments('pull_request', {}, 'sachkov-inside/platform', True)
 
+    def test_replayed_opened_event_cannot_restore_deferred_or_closed_work(self):
+        args = arguments('issues', {'action': 'opened', 'issue': {'number': 1}},
+                         'sachkov-inside/platform', True)
+        self.assertNotIn('--allow-add', args)
+
     def test_default_is_report_only(self):
         self.assertEqual(arguments('issues', {'issue': {'number': 42}}, 'sachkov-inside/platform', False),
                          ['--issue', 'sachkov-inside/platform#42'])
