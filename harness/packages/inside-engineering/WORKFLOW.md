@@ -56,14 +56,11 @@ for blocking. A Wayfinder map carries `wayfinder:map`; Specifications and Ticket
 issue contracts and readiness labels. Do not mirror these distinctions in a Project field. The
 `Current` view contains issues only and shows pull requests through `Linked pull requests`.
 
-Repository automation closes an open native parent after its last sub-issue closes as `completed`,
-and repeats this up the parent chain. A child closed as `not_planned` does not complete its parent.
-The normal issue-close workflow then moves each automatically closed parent to `Done`.
-
-Repository workflows add new and reopened delivery issues and pull requests to Developer Pipeline.
-The Workspace workflow routes `backlog:human` issues only to Human Backlog. Set `Area` and
-`Priority` during delivery triage, move `Status` with the work, and treat the repository issue or
-pull request state as authoritative when it conflicts with a Project.
+Tracker automation is defined in `docs/agents/tracker-automation.md`. Its shared policy and
+workflow are managed harness files. GitHub issue and PR facts remain authoritative over Project
+fields. Automatic parent completion is opt-in and never accepts Human Backlog outcomes.
+Use the documented dry-run, bounded apply and recovery procedure when changing automation.
+Set `Area` and `Priority` during triage; the controller does not infer product priorities.
 
 ## Issue contract
 
