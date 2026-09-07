@@ -167,8 +167,14 @@ def request_command(args):
     endpoint = f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?event=workflow_dispatch&per_page=100'
 
     def find_run():
-        matches = [x for x in api.call(endpoint)['workflow_runs']
-                   if x['display_title'].startswith(f'session {request_id} ')]
+        matches = []
+        for page in range(1, 10001):
+            runs = api.call(f'{endpoint}&page={page}')['workflow_runs']
+            matches.extend(x for x in runs if x['display_title'].startswith(f'session {request_id} '))
+            if len(runs) < 100:
+                break
+        else:
+            raise TrackerError('Incomplete request history; refusing a duplicate dispatch')
         if len(matches) > 1:
             raise TrackerError('Duplicate dispatch runs; inspect central state before retrying')
         run = matches[0] if matches else None

@@ -233,3 +233,23 @@ class ClientReceiptTest(unittest.TestCase):
             broken = {k:v for k,v in state.items() if k != change}
             with self.assertRaises(TrackerError):
                 read_session(self.API([[]], broken), 'sachkov-inside/platform', 123)
+
+
+class RequestHistoryTest(unittest.TestCase):
+    setup_request = ClientReceiptTest.setup_request
+    invoke = ClientReceiptTest.invoke
+    API = ClientReceiptTest.API
+    def test_previous_request_on_second_page_is_recovered_without_dispatch(self):
+        args, run, state, result = self.setup_request()
+        unrelated = [run | {'display_title': 'session different-operation'} for _ in range(100)]
+        api = self.API([unrelated, [run], unrelated, [run]], state)
+        self.invoke(args, api, result)
+        self.assertEqual(api.writes, [])
+
+    def test_different_operation_on_second_page_is_rejected_before_dispatch(self):
+        args, run, state, result = self.setup_request()
+        unrelated = [run | {'display_title': 'session different-operation'} for _ in range(100)]
+        args.branch = 'feat/changed'
+        api = self.API([unrelated, [run]], state)
+        with self.assertRaises(TrackerError):self.invoke(args, api, result)
+        self.assertEqual(api.writes, [])
