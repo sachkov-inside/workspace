@@ -32,7 +32,8 @@ class GitHub:
             command += ['--input', '-']
         if method:
             command += ['--method', method]
-        safe = method in (None, 'GET', 'PATCH') or endpoint == 'graphql' and not payload['query'].lstrip().startswith('mutation')
+        safe = (not payload['query'].lstrip().startswith('mutation') if endpoint == 'graphql'
+                else method in (None, 'GET', 'PATCH'))
         for attempt in range(3 if safe else 1):
             result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None,
                                     text=True, capture_output=True)
@@ -95,7 +96,7 @@ def snapshot(api, repo, number):
         return result
     result['children'] = connection(api, result['id'], kind, 'subIssues', 'id state stateReason')
     result['blockers'] = connection(api, result['id'], kind, 'blockedBy', 'id state stateReason')
-    result['prs'] = connection(api, result['id'], kind, 'closedByPullRequestsReferences', 'id state isDraft')
+    result['prs'] = connection(api, result['id'], kind, 'closedByPullRequestsReferences', 'id state isDraft headRefName repository { nameWithOwner }')
     return result
 
 
@@ -212,28 +213,41 @@ class Reconciler:
             return row
         # Fresh facts before the mutation; a concurrent edit invalidates this plan.
         fresh = snapshot(self.api, repo, number)
+        self.refresh()
+        if self.cards.get((repo, number), {}) != cards:
+            raise TrackerError(f'{repo}#{number}: Project changed during reconciliation; rerun')
         if fresh != {k: v for k, v in item.items() if k != 'session'}:
             raise TrackerError(f'{repo}#{number} changed during reconciliation; retry from current state')
         if decision.close:
             self.api.call(f'repos/{repo}/issues/{number}', {'state': 'closed', 'state_reason': 'completed'}, 'PATCH')
         project = self.projects[decision.project]
+        # Area describes engineering ownership; Human Backlog has no Area. Keep it
+        # in the transition journal instead of inventing a Human field or failing mid-route.
+        for p, card in cards.items():
+            if p != decision.project:
+                report('route-fields', item, 'source fields before classification repair',
+                       fields=field_values(card))
         if decision.archive:
             for p, card in cards.items():
                 self.api.graphql('''mutation($project:ID!,$item:ID!) {
                   archiveProjectV2Item(input:{projectId:$project,itemId:$item}) { item { id } } }''',
                   project=self.projects[p]['id'], item=card['id'])
         else:
+            expected_fields = field_values(current_card) if current_card else {}
+            for p, card in cards.items():
+                if p != decision.project:
+                    for name, value in field_values(card).items():
+                        if name in {'Priority', 'Area'} and name in project['fields']:
+                            expected_fields.setdefault(name, value)
             if not current_card:
                 # addProjectV2ItemById converges on the existing content item on retry.
                 value = self.api.graphql('''mutation($project:ID!,$content:ID!) {
                   addProjectV2ItemById(input:{projectId:$project,contentId:$content}) { item { id } } }''',
                   project=project['id'], content=item['id'])
                 current_card = {'id': value['addProjectV2ItemById']['item']['id']}
-            for p, card in cards.items():
-                if p != decision.project:
-                    for name, value in field_values(card).items():
-                        if name in {'Priority', 'Area'}:
-                            set_field(self.api, project, current_card['id'], name, value)
+            for name, value in expected_fields.items():
+                if name in {'Priority', 'Area'}:
+                    set_field(self.api, project, current_card['id'], name, value)
             set_field(self.api, project, current_card['id'], 'Status', decision.status)
             for p, card in cards.items():
                 if p != decision.project:
@@ -243,10 +257,13 @@ class Reconciler:
         self.refresh()
         after = self.cards.get((repo, number), {})
         if decision.archive:
-            verified = all(c['isArchived'] for c in after.values())
+            verified = set(after) == set(cards) and all(c['isArchived'] for c in after.values())
         else:
             verified = (set(after) == {decision.project} and
-                        field_values(after[decision.project]).get('Status') == decision.status)
+                        not after[decision.project]['isArchived'] and
+                        field_values(after[decision.project]).get('Status') == decision.status and
+                        all(field_values(after[decision.project]).get(k) == v for k, v in expected_fields.items()
+                            if k in {'Priority', 'Area'}))
         if decision.close:
             verified = verified and self.api.call(f'repos/{repo}/issues/{number}')['state'] == 'closed'
         if not verified:
@@ -278,6 +295,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--issue', help='repository#number, also accepts a PR number')
     parser.add_argument('--repository', choices=REPOSITORIES)
+    parser.add_argument('--allow-add', action='store_true', help='Explicit intake; never inferred from ordinary events')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--close-parents', action='store_true')
     args = parser.parse_args()
@@ -285,7 +303,7 @@ def main():
         raise TrackerError('Automatic parent closure runs only in the central Workspace workflow')
     runner = Reconciler(GitHub(), args.apply, args.close_parents)
     if args.issue:
-        runner.one(*identity(args.issue), allow_add=True)
+        runner.one(*identity(args.issue), allow_add=args.allow_add)
     else:
         repos = [f'{ORG}/{args.repository}'] if args.repository else [f'{ORG}/{r}' for r in REPOSITORIES]
         runner.sweep(repos)

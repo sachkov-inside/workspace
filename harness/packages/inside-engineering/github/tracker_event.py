@@ -18,7 +18,7 @@ def arguments(event_name, event, repository, enabled, requested_apply=False, req
             target_repo, _ = identity(requested_issue)
             if repository != CONTROLLER and target_repo != repository:
                 raise TrackerError('Only Workspace can reconcile another repository')
-            args += ['--issue', requested_issue]
+            args += ['--issue', requested_issue, '--allow-add']
         elif repository != CONTROLLER:
             args += ['--repository', repository.split('/')[1]]
         if requested_apply:
@@ -31,6 +31,8 @@ def arguments(event_name, event, repository, enabled, requested_apply=False, req
     elif event_name in {'issues', 'pull_request_target'}:
         item = event['issue' if event_name == 'issues' else 'pull_request']
         args += ['--issue', f"{repository}#{int(item['number'])}"]
+        if event.get('action') == 'opened':
+            args += ['--allow-add']
         if enabled:
             args += ['--apply']
     else:

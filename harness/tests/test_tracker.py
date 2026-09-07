@@ -155,3 +155,81 @@ class GitHubBoundaryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class ReconciliationTest(unittest.TestCase):
+    def fixture(self, human=False):
+        import copy
+        from inside_tracker import Reconciler
+        def card(identifier, status, **fields):
+            return {'id': identifier, 'isArchived': False, 'fieldValues': {'nodes': [
+                {'field': {'name': k}, 'name': v} for k, v in {'Status': status, **fields}.items()]}}
+        class API:
+            def __init__(self):
+                self.cards = {('sachkov-inside/workspace', 1): {1: card('old', 'Ready', Priority='Now', Area='Operations')}}
+                self.writes = []
+            def graphql(self, query, **v):
+                self.writes.append((query, v))
+                cards = self.cards[('sachkov-inside/workspace', 1)]
+                project = int(v['project'])
+                if 'addProjectV2ItemById' in query:
+                    cards[project] = card('new', '')
+                    return {'addProjectV2ItemById': {'item': {'id': 'new'}}}
+                if 'updateProjectV2ItemFieldValue' in query:
+                    fields = cards[project]['fieldValues']['nodes']
+                    fields[:] = [x for x in fields if x['field']['name'] != v['field']]
+                    fields.append({'field': {'name': v['field']}, 'name': v['option']})
+                    return {}
+                if 'deleteProjectV2Item' in query:
+                    del cards[project]
+                    return {}
+                if 'archiveProjectV2Item' in query:
+                    cards[project]['isArchived'] = True
+                    return {}
+                raise AssertionError(query)
+        api = API()
+        runner = Reconciler.__new__(Reconciler)
+        runner.api, runner.apply, runner.close_parents = api, True, False
+        runner.projects = {n: {'id': str(n), 'fields': {
+            name: {'id': name, 'options': [{'id': v, 'name': v} for v in values]}
+            for name, values in {'Status': ['Ready', 'Todo', 'Done', 'In progress'],
+                                 'Priority': ['Now'], **({'Area': ['Operations']} if n == 1 else {})}.items()}}
+            for n in (1, 2)}
+        runner.refresh = lambda: setattr(runner, 'cards', copy.deepcopy(api.cards))
+        runner.refresh()
+        item = dict(id='issue', repo='sachkov-inside/workspace', number=1, kind='Issue', state='OPEN',
+                    labels=['backlog:human'] if human else ['ready-for-agent'], children=[], blockers=[], prs=[])
+        return runner, api, item
+
+    def test_route_to_human_and_retry_converge_without_area_field(self):
+        from inside_tracker import field_values
+        runner, api, item = self.fixture(human=True)
+        with patch('inside_tracker.snapshot', return_value=item):
+            runner.one(item['repo'], 1)
+            count = len(api.writes)
+            runner.one(item['repo'], 1)
+        cards = api.cards[(item['repo'], 1)]
+        self.assertEqual(set(cards), {2})
+        self.assertEqual(field_values(cards[2]), {'Status': 'Todo', 'Priority': 'Now'})
+        self.assertEqual(len(api.writes), count)
+
+    def test_concurrent_project_edit_aborts_before_any_write(self):
+        runner, api, item = self.fixture(human=True)
+        api.cards[(item['repo'], 1)][1]['isArchived'] = True
+        with patch('inside_tracker.snapshot', return_value=item), self.assertRaises(TrackerError):
+            runner.one(item['repo'], 1)
+        self.assertEqual(api.writes, [])
+
+    def test_deferred_issue_does_not_return_on_ordinary_event(self):
+        runner, api, item = self.fixture()
+        api.cards = {}; runner.refresh(); item['labels'] = ['needs-info']
+        with patch('inside_tracker.snapshot', return_value=item):
+            row = runner.one(item['repo'], 1)
+        self.assertEqual(row['action'], 'skip')
+        self.assertEqual(api.writes, [])
+
+    @patch('inside_tracker.subprocess.run')
+    def test_graphql_unknown_mutation_not_retried(self, run):
+        run.return_value = subprocess.CompletedProcess([], 1, '', 'connection reset')
+        with self.assertRaises(TrackerError):
+            GitHub().graphql('mutation { example }')
+        self.assertEqual(run.call_count, 1)
