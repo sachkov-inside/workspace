@@ -148,3 +148,88 @@ class SessionRemoteTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class ClientReceiptTest(unittest.TestCase):
+    def setup_request(self, **changes):
+        from argparse import Namespace
+        from tracker_sessions import fingerprint
+        args = Namespace(command='start', issue='platform#123', session='session-one', branch='feat/123-test',
+                         reason='', request='request-one', timeout=5)
+        for k, v in changes.items():setattr(args, k, v)
+        values = dict(command=args.command, issue='sachkov-inside/platform#123', session=args.session,
+                      branch=args.branch, reason=args.reason, request=args.request)
+        run = dict(id=42, display_title=f"session {args.request} {fingerprint(values)}",
+                   status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
+        state = start()
+        result = dict(ok=True, issue=values['issue'], **state)
+        return args, run, state, result
+
+    class API:
+        def __init__(self, runs, state):
+            self.runs, self.state, self.writes = runs, state, []
+        def call(self, endpoint, payload=None, method=None):
+            if method == 'POST':
+                self.writes.append(endpoint)
+                return None
+            value = self.runs.pop(0) if len(self.runs) > 1 else self.runs[0]
+            return {'workflow_runs': value}
+        def pages(self, endpoint):
+            return [dict(id=1, user={'login':WRITER}, body=MARKER+'\n'+json.dumps(self.state))]
+
+    def invoke(self, args, api, result):
+        from tracker_sessions import request_command
+        def download(command, **kw):
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(json.dumps(result))
+        with patch('tracker_sessions.GitHub', return_value=api), patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+
+    def test_correct_start_receipt_and_live_state_are_required(self):
+        args, run, state, result = self.setup_request()
+        self.invoke(args, self.API([[run]], state), result)
+
+    def test_release_receipt_cannot_authorize_start(self):
+        args, run, state, result = self.setup_request()
+        state |= {'command':'release', 'phase':'released', 'reason':'stop'}
+        result |= state
+        with self.assertRaises(TrackerError):
+            self.invoke(args, self.API([[run]], state), result)
+
+    def test_wrong_issue_branch_or_superseded_state_is_rejected(self):
+        for change in [{'issue':'sachkov-inside/platform#999'}, {'branch':'feat/other'}, {'request':'request-else'}]:
+            args, run, state, result = self.setup_request()
+            with self.subTest(change=change), self.assertRaises(TrackerError):
+                self.invoke(args, self.API([[run]], state), result | change)
+        args, run, state, result = self.setup_request()
+        with self.assertRaises(TrackerError):
+            self.invoke(args, self.API([[run]], state | {'request':'request-new'}), result)
+
+    def test_reusing_request_for_different_inputs_fails_before_write(self):
+        args, run, state, result = self.setup_request()
+        args.branch = 'feat/another'
+        api = self.API([[run]], state)
+        with self.assertRaises(TrackerError):self.invoke(args, api, result)
+        self.assertEqual(api.writes, [])
+
+    def test_newly_cancelled_run_does_not_grant_ownership(self):
+        args, run, state, result = self.setup_request()
+        run |= {'conclusion':'cancelled'}
+        with self.assertRaisesRegex(TrackerError, 'cancelled'):
+            self.invoke(args, self.API([[], [run]], state), result)
+
+    def test_timeout_does_not_grant_ownership(self):
+        args, run, state, result = self.setup_request(timeout=0)
+        with self.assertRaisesRegex(TrackerError, 'timed out'):
+            self.invoke(args, self.API([[]], state), result)
+
+    def test_explicit_retry_of_failed_projection_reruns_same_operation(self):
+        args, run, state, result = self.setup_request()
+        api = self.API([[run | {'conclusion':'failure'}], [run | {'run_attempt':2}]], state)
+        self.invoke(args, api, result)
+        self.assertEqual(api.writes, ['repos/sachkov-inside/workspace/actions/runs/42/rerun'])
+
+    def test_partial_trusted_state_is_invalid(self):
+        args, run, state, result = self.setup_request()
+        for change in ['command', 'reason', 'updated_at']:
+            broken = {k:v for k,v in state.items() if k != change}
+            with self.assertRaises(TrackerError):
+                read_session(self.API([[]], broken), 'sachkov-inside/platform', 123)
