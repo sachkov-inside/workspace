@@ -175,6 +175,11 @@ class ReconciliationTest(unittest.TestCase):
             def pages(self, endpoint):
                 return []
             def graphql(self, query, **v):
+                if 'projectItems(' in query:
+                    nodes = [copy.deepcopy(c) | {'project': {'id': str(n)}}
+                             for n, c in self.cards.get(('sachkov-inside/workspace', 1), {}).items()]
+                    return {'node': {'projectItems': {'nodes': nodes,
+                            'pageInfo': {'hasNextPage': False, 'endCursor': None}}}}
                 self.writes.append((query, v))
                 cards = self.cards[('sachkov-inside/workspace', 1)]
                 project = int(v['project'])
@@ -221,8 +226,14 @@ class ReconciliationTest(unittest.TestCase):
 
     def test_concurrent_project_edit_aborts_before_any_write(self):
         runner, api, item = self.fixture(human=True)
-        api.cards[(item['repo'], 1)][1]['isArchived'] = True
-        with patch('inside_tracker.snapshot', return_value=item), self.assertRaises(TrackerError):
+        reads = 0
+        def concurrent_snapshot(*args):
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                api.cards[(item['repo'], 1)][1]['isArchived'] = True
+            return item
+        with patch('inside_tracker.snapshot', side_effect=concurrent_snapshot), self.assertRaises(TrackerError):
             runner.one(item['repo'], 1)
         self.assertEqual(api.writes, [])
 
@@ -240,3 +251,58 @@ class ReconciliationTest(unittest.TestCase):
         with self.assertRaises(TrackerError):
             GitHub().graphql('mutation { example }')
         self.assertEqual(run.call_count, 1)
+
+    def test_new_card_readback_ignores_stale_project_collection(self):
+        runner, api, item = self.fixture()
+        api.cards[(item['repo'], 1)] = {}
+        runner.refresh = lambda: setattr(runner, 'cards', {})
+        runner.refresh()
+        with patch('inside_tracker.snapshot', return_value=item):
+            runner.one(item['repo'], 1, allow_add=True)
+            count = len(api.writes)
+            row = runner.one(item['repo'], 1, allow_add=True)
+        self.assertEqual(row['action'], 'unchanged')
+        self.assertEqual(len(api.writes), count)
+
+    def test_archived_card_missing_from_collection_is_not_restored(self):
+        runner, api, item = self.fixture()
+        api.cards[(item['repo'], 1)][1]['isArchived'] = True
+        runner.refresh = lambda: setattr(runner, 'cards', {})
+        runner.refresh()
+        with patch('inside_tracker.snapshot', return_value=item):
+            row = runner.one(item['repo'], 1, allow_add=True)
+        self.assertEqual(row['action'], 'skip')
+        self.assertEqual(api.writes, [])
+
+    def test_archive_readback_ignores_stale_collection(self):
+        runner, api, item = self.fixture()
+        item.update(kind='PullRequest', state='CLOSED', draft=False)
+        # The old collection still says active after the direct mutation succeeds.
+        import copy
+        cached = copy.deepcopy(runner.cards)
+        runner.refresh = lambda: setattr(runner, 'cards', copy.deepcopy(cached))
+        with patch('inside_tracker.snapshot', return_value=item):
+            runner.one(item['repo'], 1)
+        self.assertTrue(api.cards[(item['repo'], 1)][1]['isArchived'])
+
+    def test_direct_cards_include_archived_paginate_and_filter_projects(self):
+        from inside_tracker import Reconciler
+        class API:
+            def __init__(self): self.cursors = []
+            def graphql(self, query, **values):
+                self.cursors.append(values['cursor'])
+                self.assert_query = query
+                more = values['cursor'] is None
+                nodes = ([{'id':'outside', 'project':{'id':'other-org-project'}},
+                          {'id':'hidden', 'project':None}] if more else
+                         [{'id':'archived', 'project':{'id':'our-project'}, 'isArchived':True}])
+                return {'node': {'projectItems': {'nodes':nodes,
+                    'pageInfo':{'hasNextPage':more, 'endCursor':'next'}}}}
+        runner = Reconciler.__new__(Reconciler)
+        runner.api = API()
+        runner.projects = {1:{'id':'our-project'}}
+        cards = runner.item_cards({'id':'issue', 'kind':'Issue'})
+        self.assertEqual(set(cards), {1})
+        self.assertTrue(cards[1]['isArchived'])
+        self.assertEqual(runner.api.cursors, [None, 'next'])
+        self.assertIn('includeArchived:true', runner.api.assert_query)
