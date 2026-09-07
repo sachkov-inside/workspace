@@ -172,7 +172,7 @@ class ClientReceiptTest(unittest.TestCase):
                 self.writes.append(endpoint)
                 return None
             value = self.runs.pop(0) if len(self.runs) > 1 else self.runs[0]
-            return {'workflow_runs': value}
+            return {'workflow_runs': value, 'total_count': len(value)}
         def pages(self, endpoint):
             return [dict(id=1, user={'login':WRITER}, body=MARKER+'\n'+json.dumps(self.state))]
 
@@ -253,3 +253,18 @@ class RequestHistoryTest(unittest.TestCase):
         api = self.API([unrelated, [run]], state)
         with self.assertRaises(TrackerError):self.invoke(args, api, result)
         self.assertEqual(api.writes, [])
+
+
+class CompleteHistoryTest(unittest.TestCase):
+    def test_workflow_specific_history_has_no_filtered_api_cap(self):
+        source = (SOURCE/'tracker_sessions.py').read_text()
+        self.assertNotIn('event=workflow_dispatch', source)
+
+    def test_truncated_history_refuses_dispatch(self):
+        args, run, state, result = ClientReceiptTest().setup_request()
+        class TruncatedAPI(ClientReceiptTest.API):
+            def call(self, endpoint, payload=None, method=None):
+                if method == 'POST':raise AssertionError('must not dispatch')
+                return {'workflow_runs': [], 'total_count': 1001}
+        with self.assertRaisesRegex(TrackerError, 'Incomplete request history'):
+            ClientReceiptTest().invoke(args, TruncatedAPI([[]], state), result)
