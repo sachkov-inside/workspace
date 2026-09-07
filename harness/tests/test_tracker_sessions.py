@@ -287,3 +287,47 @@ class RepositoryOwnershipTest(unittest.TestCase):
         validate_state(state, item['repo'])
         with self.assertRaises(TrackerError):
             transition(issue(), None, 'start', 'session-one', 'main', '', 'request-one')
+
+class DispatchBoundaryTest(unittest.TestCase):
+    def invoke(self, wire, expected):
+        import tracker_sessions as sessions
+        from unittest.mock import MagicMock
+        value = wire | {'fingerprint': sessions.fingerprint(expected)}
+        api = MagicMock()
+        api.call.return_value = {'login': WRITER}
+        with patch.dict('os.environ', {'GITHUB_REPOSITORY': sessions.CONTROLLER,
+                'GITHUB_WORKFLOW': 'Inside agent sessions', 'GITHUB_REF': 'refs/heads/main',
+                'GITHUB_EVENT_PATH': '/event.json'}), patch.object(sessions, 'GitHub', return_value=api), \
+                patch.object(sessions.Path, 'read_text', return_value=json.dumps({'inputs': value})), \
+                patch.object(sessions.Path, 'write_text'), patch.object(sessions, 'Reconciler'), \
+                patch.object(sessions, 'operate', return_value={}) as operation:
+            sessions.worker()
+            operation.assert_called_once_with(api, 'sachkov-inside/platform', 123,
+                expected['command'], expected['session'], expected['branch'],
+                expected['reason'], expected['request'])
+
+    def values(self, **changes):
+        return dict(command='start', issue='sachkov-inside/platform#123', session='session-one',
+                    branch='feat/123-test', reason='', request='request-one') | changes
+
+    def test_empty_optional_reason_survives_github_delivery(self):
+        expected = self.values()
+        for wire in [{k:v for k,v in expected.items() if k != 'reason'}, expected | {'reason': None}]:
+            with self.subTest(wire=wire): self.invoke(wire, expected)
+
+    def test_empty_optional_branch_survives_non_start_delivery(self):
+        expected = self.values(command='release', branch='', reason='Acceptance completed')
+        for wire in [{k:v for k,v in expected.items() if k != 'branch'}, expected | {'branch': None}]:
+            with self.subTest(wire=wire): self.invoke(wire, expected)
+
+    def test_changed_command_fields_remain_rejected(self):
+        expected = self.values()
+        with self.assertRaises(TrackerError): self.invoke(expected | {'branch':'feat/123-other'}, expected)
+
+    def test_unknown_inputs_remain_rejected(self):
+        expected = self.values()
+        with self.assertRaises(TrackerError): self.invoke(expected | {'unexpected':'value'}, expected)
+
+    def test_invalid_optional_input_type_is_rejected(self):
+        expected = self.values()
+        with self.assertRaises(TrackerError): self.invoke(expected | {'reason':False}, expected)
