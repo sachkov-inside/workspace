@@ -20,7 +20,7 @@ Priority, Area and product decisions are not inferred from prose.
   session metadata remain unchanged and are reported for adoption; do not take over another session.
 - Aggregate progress is not inferred from one blocked child. Preserve its manual open status.
 - Archived items and `tracker:paused` work are never restored automatically. Untracked closed or
-  needs-info work is skipped by the sweep; an explicit bounded request may add an untracked issue.
+  needs-info work is skipped by the sweep; an explicit bounded request with `--allow-add` may add an untracked issue.
 
 ## Parent completion
 
@@ -67,3 +67,6 @@ Before enabling, inspect the Workflows page of both Projects. Disable competing 
 rules and auto-add rules that bypass `backlog:human` routing. Validate a completed child/parent in
 one repository and across repositories, pending gate, not_planned, draft/ready/reopen, closed unmerged
 PR, missed event, archive and routing. Keep test issues as closed history. Merge remains owner-gated.
+
+Classification repair preserves shared fields by name. Area belongs to Developer Pipeline; when
+moving to Human Backlog it is recorded in the transition artifact, not mapped to the unrelated Kind.
