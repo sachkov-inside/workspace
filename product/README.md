@@ -1,6 +1,6 @@
 # Sachkov Inside — продуктовый brief
 
-Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-09-06. Документ
+Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-09-07. Документ
 отделяет ядро Membership от гипотез и открытых решений и служит общей исходной точкой для
 позиционирования, визуального стиля, лендинга, Telegram-запуска и контентного портфеля.
 
@@ -11,6 +11,10 @@
 
 Этот документ определяет аудиторию и обещание подписки. Детали Series и Reader не дублируются
 здесь; актуальные понятия находятся в [CONTEXT.md](../CONTEXT.md).
+
+[Модель подписки и оплаты](subscription-billing-v1.md) — источник согласованных в #128 правил
+тарифов, продления, скидок, возвратов и перехода участников. Её согласование не означает запуск
+нового billing: исследование банка и отдельные поставки остаются в #127.
 
 ## Короткое определение
 
@@ -75,6 +79,9 @@ Inside не рассчитан на человека, которому снач�
 
 ## Что входит в Membership
 
+Ниже описаны составляющие продукта. Их распределение между уровнями «Материалы» и
+«Материалы + сообщество» определяется [моделью подписки](subscription-billing-v1.md).
+
 ### Инженерная библиотека
 
 - небольшие посты, наблюдения и практические находки;
@@ -110,8 +117,9 @@ MembershipEntitlement.
 
 Первая продуктовая граница приложения зафиксирована в каноническом Platform-документе
 [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md).
-Billing, stack, архитектура и design system не определяются заранее. Они становятся настоящими
-решениями Кирилла внутри серии.
+Решения о billing, stack, архитектуре и design system принимаются по мере развития продукта.
+Выбранные правила подписки зафиксированы в [отдельной модели](subscription-billing-v1.md);
+архитектура и реализация принадлежат следующим repository-local поставкам.
 Участники видят не только реализацию, но и то, как формируется сам продукт.
 
 Build-series — флагманская линия, но не всё обещание Inside. Membership не должна превращаться в
@@ -220,10 +228,11 @@ production-инциденты внутрь материалов не попад�
 - финальный logo, palette, typography, illustration style и design system;
 - композиция лендинга и финальный marketing copy;
 - финальная one-sentence promise и CTA;
-- launch price, скидки и точные commercial terms;
+- публичные названия и окончательные цены запуска; выбранные правила оплаты и скидок принадлежат
+  [модели подписки](subscription-billing-v1.md);
 - гарантированная cadence материалов, эфиров или разборов;
-- Tribute или другой payment/Telegram-roster provider до закрытия operational blockers; Platform
-  access authority уже выбрана отдельно;
+- готовность и настройки выбранного Т-Бизнес, перенос с Tribute и прекращение старого bridge;
+  это проверяется отдельно от продуктового решения о новом billing;
 - детали функций за границей подтверждённого platform MVP; архитектура и визуальный контракт
   приложения принадлежат Platform.
 
@@ -239,7 +248,8 @@ production-инциденты внутрь материалов не попад�
 2. Выбрать главное действие посетителя и честную формулировку CTA.
 3. Зафиксировать точный kickoff pack и границу готовности каждого материала.
 4. Утвердить charter и первые milestones build-series.
-5. Определить launch price и terms на основании исследования и реального provider lifecycle.
+5. Подготовить публичные названия и цены по [согласованной модели](subscription-billing-v1.md)
+   и подтвердить реальный provider lifecycle.
 6. Зафиксировать Telegram operating contract: onboarding, roles, moderation, support boundary,
    cancellation/removal и fallback.
 7. Подтвердить payment/Telegram-roster provider bounded pilot; до этого открытый paid launch
@@ -247,6 +257,9 @@ production-инциденты внутрь материалов не попад�
 
 ## Источники решений
 
+- [Модель подписки и оплаты](subscription-billing-v1.md), Workspace
+  [#128](https://github.com/sachkov-inside/workspace/issues/128) — согласованные правила нового
+  billing и перехода участников от 2026-09-07.
 - Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)
   — продуктовая граница и текущий application scope.
 - GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions

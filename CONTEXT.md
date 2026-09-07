@@ -6,9 +6,29 @@ Repository-specific glossaries refine local concepts without renaming these shar
 ## Identity and Membership
 
 **Inside Subscription**:
-The current commercial bundle that, while active, grants both Membership-scoped access and
-Workshop access through two separate finite entitlements. It is not itself a Platform permission.
-_Avoid_: MembershipEntitlement, WorkshopEntitlement, permanent purchase
+A recurring commercial arrangement for one Account's chosen Subscription Tier and Subscription
+Option. It is distinct from a payment, an Access Grant and a Platform permission.
+_Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
+
+**Subscription Tier**:
+A named Inside offer with a defined set of benefits, such as materials or materials with community
+participation. It is independent of the duration and price used to purchase it.
+_Avoid_: Subscription Option, payment period, permission
+
+**Subscription Option**:
+A purchasable combination of a Subscription Tier, a duration in calendar months and a full price
+for that duration.
+_Avoid_: Subscription Tier, monthly instalment, payment attempt
+
+**Access Grant**:
+An Account's right to a defined set of Inside benefits for a stated interval or without an end date,
+supported by an identifiable basis such as a payment or an owner's decision.
+_Avoid_: Payment, Inside Subscription, Telegram chat presence
+
+**Lifetime Access Grant**:
+An Access Grant without a scheduled end date, for a defined set of Inside benefits. It does not
+promise every future separate paid offer.
+_Avoid_: Never-expiring subscription, future all-access purchase, permanent Telegram membership
 
 **Account**:
 Platform's stable private identity for one authenticated human. It owns Platform permissions and
@@ -94,12 +114,12 @@ _Avoid_: URL, provider object, storage key
 The allow or deny outcome for one Subject, Action, and Resource, including its reason and validity.
 _Avoid_: Boolean Membership check, provider response
 
-## Production Workshop
+## Production Workshop (deferred direction)
 
 **Workshop**:
-Inside's practical learning area in which an Account follows Workshop Tracks, experiments in
-Laboratories and solves Production Cases. An active Inside subscription currently grants access
-to it through a distinct Workshop Entitlement.
+Inside's deferred practical learning area in which an Account follows Workshop Tracks, experiments
+in Laboratories and solves Production Cases. Its historical offer links access to a distinct
+Workshop Entitlement; it is not part of the current subscription launch promise.
 _Avoid_: Course, Material Series, separate current subscription
 
 **Workshop Track**:
