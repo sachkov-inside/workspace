@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.3.13",
+  "version": "0.4.0",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",
@@ -46,6 +46,26 @@
     {
       "source": "github/pull_request_template.md",
       "target": ".github/pull_request_template.md"
+    },
+    {
+      "source": "github/tracker_policy.py",
+      "target": ".github/scripts/tracker_policy.py"
+    },
+    {
+      "source": "github/inside_tracker.py",
+      "target": ".github/scripts/inside_tracker.py"
+    },
+    {
+      "source": "github/tracker_event.py",
+      "target": ".github/scripts/tracker_event.py"
+    },
+    {
+      "source": "github/add-to-inside-project.yml",
+      "target": ".github/workflows/add-to-inside-project.yml"
+    },
+    {
+      "source": "docs/agents/tracker-automation.md",
+      "target": "docs/agents/tracker-automation.md"
     }
   ],
   "skills": [

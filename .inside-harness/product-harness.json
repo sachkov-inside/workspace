@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "package": "inside-engineering",
-  "version": "0.3.13",
+  "version": "0.4.0",
   "profile": "core",
   "managedSkills": [
     "ask-matt",
@@ -36,7 +36,12 @@
     "WORKFLOW.md",
     "docs/agents/triage-labels.md",
     ".github/scripts/close-completed-parents.sh",
-    ".github/pull_request_template.md"
+    ".github/pull_request_template.md",
+    ".github/scripts/tracker_policy.py",
+    ".github/scripts/inside_tracker.py",
+    ".github/scripts/tracker_event.py",
+    ".github/workflows/add-to-inside-project.yml",
+    "docs/agents/tracker-automation.md"
   ],
   "targets": {
     "portable": ".agents/skills",
