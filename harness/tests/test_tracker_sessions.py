@@ -268,3 +268,22 @@ class CompleteHistoryTest(unittest.TestCase):
                 return {'workflow_runs': [], 'total_count': 1001}
         with self.assertRaisesRegex(TrackerError, 'Incomplete request history'):
             ClientReceiptTest().invoke(args, TruncatedAPI([[]], state), result)
+
+
+class RepositoryOwnershipTest(unittest.TestCase):
+    def test_workshop_pr_can_handoff_its_platform_tracker_issue(self):
+        pr = dict(state='OPEN', isDraft=False, headRefName='feat/123-test',
+                  repository={'nameWithOwner':'sachkov-inside/workshop-cases'})
+        state = transition(issue(prs=[pr]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+        self.assertEqual(state['phase'], 'review')
+        pr['repository']['nameWithOwner'] = 'outside/unknown'
+        with self.assertRaises(TrackerError):
+            transition(issue(prs=[pr]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+
+    def test_main_exception_is_scoped_to_inside_content(self):
+        item = issue(repo='sachkov-inside/inside-content')
+        state = transition(item, None, 'start', 'session-one', 'main', '', 'request-one')
+        from tracker_sessions import validate_state
+        validate_state(state, item['repo'])
+        with self.assertRaises(TrackerError):
+            transition(issue(), None, 'start', 'session-one', 'main', '', 'request-one')
