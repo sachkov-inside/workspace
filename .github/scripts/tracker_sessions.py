@@ -164,14 +164,20 @@ def request_command(args):
         raise TrackerError('invalid request identifier')
     operation_hash = fingerprint(values)
     expected_title = f'session {request_id} {operation_hash}'
-    endpoint = f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?event=workflow_dispatch&per_page=100'
+    endpoint = f'repos/{CONTROLLER}/actions/workflows/{SESSION_WORKFLOW}/runs?per_page=100'
 
     def find_run():
-        matches = []
+        matches, scanned, total = [], 0, None
         for page in range(1, 10001):
-            runs = api.call(f'{endpoint}&page={page}')['workflow_runs']
+            response = api.call(f'{endpoint}&page={page}')
+            runs = response['workflow_runs']
+            if total is None:
+                total = response['total_count']
+            scanned += len(runs)
             matches.extend(x for x in runs if x['display_title'].startswith(f'session {request_id} '))
             if len(runs) < 100:
+                if scanned < total:
+                    raise TrackerError('Incomplete request history; refusing a duplicate dispatch')
                 break
         else:
             raise TrackerError('Incomplete request history; refusing a duplicate dispatch')
