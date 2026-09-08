@@ -166,3 +166,15 @@ _Avoid_: Material Resource, URL, Track Item, Git source file
 Platform's authority for deciding a Subject's Workshop Action on a Workshop Resource. It consumes
 public access mode or Workshop Entitlement without weakening ContentAccess for referenced Materials.
 _Avoid_: ContentAccess, UI lock state, route-local entitlement check
+
+## Уведомления
+
+**Notification**:
+Сообщение для одного Account по определённому событию продукта. Оно имеет назначение и может
+доставляться по нескольким каналам независимо.
+_Avoid_: Событие продукта, рассылка, попытка отправки
+
+**Notification Delivery**:
+Доставка одного Notification по выбранному каналу подтверждённому получателю. Результат одного
+канала не определяет результат другого и не означает прочтения.
+_Avoid_: Notification, broker acknowledgement, прочтение
