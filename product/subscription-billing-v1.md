@@ -299,3 +299,9 @@ Read-only наблюдения 2026-09-07; production, терминал и кл�
   `backend/AccessService/src/AccessService.Domain/Entitlements/EntitlementGrant.cs`.
   Общий `hasPaidOrder` не доказывает полный тариф. Готовый перенос в Inside не найден и по
   окончательному решению владельца не требуется в этой версии.
+
+## Общая доставка уведомлений
+
+Служебные сообщения реализуются через [Notifications v1](../docs/specifications/notifications-v1.md),
+общую систему с уведомлениями о новых материалах. Billing сохраняет коммерческие факты и
+проверяет актуальность; Notifications владеет каналами и доставкой. Правила платежей выше не меняются.

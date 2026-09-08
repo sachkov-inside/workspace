@@ -116,3 +116,10 @@ manual grant/Telegram join доказательством выручки.
 Application code, реальные настройки банка/кассы, контактные данные, пользовательские сообщения,
 выдача прав, миграция и production в подготовку не входят. Принятие плана не утверждает новую
 архитектуру хранения/transport за owning repositories и не считается bank/legal launch proof.
+
+## Расширение Notifications от 2026-09-08
+
+[План общей системы](notifications-delivery-v1.md) добавляет RabbitMQ, Notifications и первый
+сценарий нового материала. Telegram #54 включает новый corpus из Platform #434 наряду с
+неизменённым community corpus #403. Platform #410 и Telegram #56 используют общий контракт,
+а не прежний billing-only sender. Их native dependencies включают новые необходимые шаги.
