@@ -32,7 +32,7 @@
 ## 3. Сохранить план и подготовить материал
 
 Использовать текущие шаблоны и процесс Inside Content. До выполнения
-[Content #8](https://github.com/sachkov-inside/inside-content/issues/8) действующие имена
+[platform #448](https://github.com/sachkov-inside/platform/issues/448) действующие имена
 `series.yaml` и полей сохраняются; не переименовывать их вручную по одному новому термину. Он определяет единый смешанный порядок,
 явные связи шагов, описание пользы видео, работу с источниками и карту обратных связей.
 Обсуждение сохраняется в редакционном плане; существующие материалы связываются без копирования.
@@ -58,7 +58,7 @@
 
 Эти поставки отражают прежнюю Series-модель. Переход на руководства выполняется по
 [общему плану](guides-delivery-plan.md), полноценный перенос — в
-[Platform #451](https://github.com/sachkov-inside/platform/issues/451).
+[platform #449](https://github.com/sachkov-inside/platform/issues/449).
 Это не готовый автоматический импорт: проверка переноса остаётся
 [Platform #289](https://github.com/sachkov-inside/platform/issues/289). Текущее состояние реального
 [пилота Content #1](https://github.com/sachkov-inside/inside-content/issues/1) восстанавливается из
