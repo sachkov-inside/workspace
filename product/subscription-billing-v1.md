@@ -12,8 +12,10 @@
 Это согласованное целевое поведение, а не отчёт о запущенной оплате. Действующий
 [Identity and Membership contract v1](../docs/contracts/identity-membership-v1.md) продолжает
 описывать прежний bridge по Telegram evidence до отдельной поставки нового контракта и миграции.
-Новые repo-local specifications, wire schemas, архитектурные решения и реализация — следующий
-этап #127 после [технического исследования #341](https://github.com/sachkov-inside/platform/issues/341).
+Техническое исследование [#341](https://github.com/sachkov-inside/platform/issues/341) завершено.
+Следующий этап — [предложенный общий контракт](../docs/contracts/subscription-access-v1.md) и
+[план repo-owned specifications и реализации](../docs/specifications/subscription-billing-delivery-v1.md)
+в Workspace #147. Их наличие не означает запуск нового поведения.
 
 ## Предложение участнику
 
@@ -240,13 +242,13 @@ Tribute в Inside не переносятся: новое автопродлен
 
 | Открытый факт / артефакт | Ответственный следующий этап | Влияние |
 |---|---|---|
-| Точный API/терминал, DEMO/production recurring, поддерживаемые карта/СБП и смена привязки | Platform #341 | Блокирует готовность новой оплаты; наличие счёта Т-Бизнес недостаточно |
-| Чеки, применимая фискальная интеграция, возвраты/споры и обязательные требования | Platform #341 | Блокирует коммерческий запуск; модель не является юридическим заключением |
-| Исторические сроки Tribute, значение отмены, получение старого списка и остановка именно channel recurring | Platform #341 в рамках Workspace #127 | Блокирует перенос соответствующих участников и удаление старого bridge, но не самостоятельный запуск новых покупок |
-| Реальные адреса уведомлений, их подтверждение и работа email/Telegram каналов | Platform #341 | Блокирует обещание работающих платёжных уведомлений |
-| Новый общий договор о правах, Telegram delivery и переходе с v1 evidence | Workspace #127 после #341 | Блокирует объявление новой cross-repo интеграции готовой |
-| Billing, права/админка, запросы и массовая ручная выдача | Будущие Platform specifications из #127 | Platform владеет реализацией и её проверками |
-| Применение прав к сообществу и прекращение старого evidence bridge | Будущая Telegram specification из #127 | Telegram владеет реализацией и её проверками |
+| Точный API/терминал, recurring, касса и смена привязки | [platform #402](https://github.com/sachkov-inside/platform/issues/402), [platform #413](https://github.com/sachkov-inside/platform/issues/413) | Блокирует доказательство банковской интеграции и приёмку новой оплаты |
+| Юридические условия, возвраты/споры, реквизиты и публичные страницы | [workspace #149](https://github.com/sachkov-inside/workspace/issues/149), [platform #412](https://github.com/sachkov-inside/platform/issues/412) | Блокирует коммерческий запуск; модель не является юридическим заключением |
+| Исторические сроки Tribute, полный источник и остановка старых списаний | [workspace #150](https://github.com/sachkov-inside/workspace/issues/150) | Блокирует перенос соответствующих участников и удаление bridge; новые продажи требуют безопасной классификации |
+| Контакты, email и Telegram уведомления | [platform #406](https://github.com/sachkov-inside/platform/issues/406), [platform #410](https://github.com/sachkov-inside/platform/issues/410) | Реальная доставка проверяется отдельно от кода |
+| Новый общий договор о правах и переходе | [Workspace #147](https://github.com/sachkov-inside/workspace/issues/147) | Подготовлен к согласованию, не заменяет действующий runtime сам по себе |
+| Billing, права, админка/API/MCP и массовая ручная выдача | [platform #401](https://github.com/sachkov-inside/platform/issues/401) | Platform владеет реализацией и её проверками |
+| Применение прав к сообществу и адресная доставка | [inside-telegram #53](https://github.com/sachkov-inside/inside-telegram/issues/53) | Telegram владеет provider реализацией; удаление bridge — отдельная граница миграции |
 
 Связь с [Platform #337](https://github.com/sachkov-inside/platform/issues/337): подтверждённые
 покупки, продления, возвраты и основания доступа должны стать источниками аналитики; ручное
