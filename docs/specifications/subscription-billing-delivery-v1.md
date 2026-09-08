@@ -11,7 +11,7 @@ backlog; наличие карточки или `ready-for-agent` не озна�
 
 ## Начало работы
 
-1. Принять общий контракт и этот порядок поставки в PR #147-задачи. Это не разрешение включить
+1. Принять общий контракт и этот порядок поставки в pull request задачи #147. Это не разрешение включить
    оплату или переносить аудиторию. Исследование #341 и правила #128 уже завершены.
 2. Platform фиксирует локальную specification и wire schemas; Telegram принимает те же schemas
    в самостоятельный repository. После их review уточняются downstream acceptance и readiness.
@@ -28,8 +28,9 @@ backlog; наличие карточки или `ready-for-agent` не озна�
 ## Дерево задач
 
 Общая поставка: [workspace #148](https://github.com/sachkov-inside/workspace/issues/148). Platform: [platform #401](https://github.com/sachkov-inside/platform/issues/401). Telegram: [inside-telegram #53](https://github.com/sachkov-inside/inside-telegram/issues/53).
-Эти specifications связаны с человеческой целью Workspace #126; design map #127 завершается
-подготовкой контрактов и плана, а не ждёт исполнения всех production работ.
+Эти specifications связаны с человеческой целью Workspace #126; design map #127 остаётся открытой до завершения #147, Platform #403 и Telegram #54.
+Контрактные задачи — её native children, реализация — дети delivery specifications.
+Map не ждёт исполнения всех production работ и не закроется от одного merge #147.
 
 | Шаг | Задача и результат | Нужные входы |
 |---|---|---|
@@ -47,10 +48,11 @@ backlog; наличие карточки или `ready-for-agent` не озна�
 | [inside-telegram #56](https://github.com/sachkov-inside/inside-telegram/issues/56) | Связанный участник получает сообщения о своей подписке как дополнительный к email канал. | [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54) |
 | [platform #410](https://github.com/sachkov-inside/platform/issues/410) | Покупатель узнаёт об изменении подписки и предстоящем списании; ошибка доставки видна владельцу. | [platform #408](https://github.com/sachkov-inside/platform/issues/408), [platform #406](https://github.com/sachkov-inside/platform/issues/406), [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54) |
 | [platform #411](https://github.com/sachkov-inside/platform/issues/411) | Покупатель выбирает вариант, видит точную сумму и управляет подпиской; владелец работает с платежами и правами через сайт. | [platform #409](https://github.com/sachkov-inside/platform/issues/409), [platform #410](https://github.com/sachkov-inside/platform/issues/410) |
-| [platform #412](https://github.com/sachkov-inside/platform/issues/412) | Посетитель может без входа прочитать юридические условия; нужные ссылки и отдельные согласия доступны в соответствующих формах. | [workspace #149](https://github.com/sachkov-inside/workspace/issues/149), [platform #406](https://github.com/sachkov-inside/platform/issues/406) |
-| [platform #413](https://github.com/sachkov-inside/platform/issues/413) | На разрешённом тестовом контуре доказан полный сценарий покупки и продления, а не только локальные тесты. | [platform #402](https://github.com/sachkov-inside/platform/issues/402), [platform #411](https://github.com/sachkov-inside/platform/issues/411), [platform #412](https://github.com/sachkov-inside/platform/issues/412), [inside-telegram #55](https://github.com/sachkov-inside/inside-telegram/issues/55), [inside-telegram #56](https://github.com/sachkov-inside/inside-telegram/issues/56) |
+| [platform #412](https://github.com/sachkov-inside/platform/issues/412) | Посетитель может без входа прочитать юридические условия; нужные ссылки и отдельные согласия доступны в соответствующих формах. | [workspace #149](https://github.com/sachkov-inside/workspace/issues/149) |
+| [platform #413](https://github.com/sachkov-inside/platform/issues/413) | На разрешённом тестовом контуре доказан полный сценарий покупки и продления, а не только локальные тесты. | [platform #402](https://github.com/sachkov-inside/platform/issues/402), [platform #411](https://github.com/sachkov-inside/platform/issues/411), [platform #412](https://github.com/sachkov-inside/platform/issues/412), [inside-telegram #55](https://github.com/sachkov-inside/inside-telegram/issues/55), [inside-telegram #56](https://github.com/sachkov-inside/inside-telegram/issues/56), [platform #415](https://github.com/sachkov-inside/platform/issues/415) |
 | [platform #414](https://github.com/sachkov-inside/platform/issues/414) | Новые покупатели могут безопасно оплатить Inside в рабочем окружении после отдельного разрешения владельца. | [platform #413](https://github.com/sachkov-inside/platform/issues/413) |
 | [workspace #150](https://github.com/sachkov-inside/workspace/issues/150) | Старые участники сохраняют права и переходят на Inside без второго автосписания за уже оплаченный срок. | [workspace #147](https://github.com/sachkov-inside/workspace/issues/147) |
+| [platform #415](https://github.com/sachkov-inside/platform/issues/415) | Изменение прав Account надёжно изменяет желаемое участие в сообществе и даёт владельцу видимый результат применения. | [platform #404](https://github.com/sachkov-inside/platform/issues/404), [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54) |
 
 Задачи прикреплены native Parent/sub-issues; блокировка задаётся native dependencies.
 Ссылки на specification не заменяют зависимости. Один writing worktree и один основной
@@ -96,7 +98,7 @@ backlog; наличие карточки или `ready-for-agent` не озна�
 | Ручные/бессрочные и batch права, права за курс | [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #409](https://github.com/sachkov-inside/platform/issues/409), [platform #411](https://github.com/sachkov-inside/platform/issues/411) |
 | Support, partial/full refund, решение об access, история/MCP | [platform #409](https://github.com/sachkov-inside/platform/issues/409), [platform #411](https://github.com/sachkov-inside/platform/issues/411), [platform #413](https://github.com/sachkov-inside/platform/issues/413) |
 | Email + Telegram, напоминание за три дня | [platform #406](https://github.com/sachkov-inside/platform/issues/406), [platform #410](https://github.com/sachkov-inside/platform/issues/410), [inside-telegram #56](https://github.com/sachkov-inside/inside-telegram/issues/56), [platform #413](https://github.com/sachkov-inside/platform/issues/413) |
-| Community, identity, async применение и сверка | [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54), [inside-telegram #55](https://github.com/sachkov-inside/inside-telegram/issues/55), [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #413](https://github.com/sachkov-inside/platform/issues/413) |
+| Community, identity, async применение и сверка | [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54), [inside-telegram #55](https://github.com/sachkov-inside/inside-telegram/issues/55), [platform #415](https://github.com/sachkov-inside/platform/issues/415), [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #413](https://github.com/sachkov-inside/platform/issues/413) |
 | Публичные документы, футер, реквизиты и нужные формы | [workspace #149](https://github.com/sachkov-inside/workspace/issues/149), [platform #412](https://github.com/sachkov-inside/platform/issues/412), [platform #414](https://github.com/sachkov-inside/platform/issues/414) |
 | Старые сроки, отсутствие двойных списаний, удаление bridge | [workspace #150](https://github.com/sachkov-inside/workspace/issues/150), [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #414](https://github.com/sachkov-inside/platform/issues/414) |
 
