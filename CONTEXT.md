@@ -32,9 +32,8 @@ _Avoid_: Subscription Tier, monthly instalment, payment attempt
 
 **Access Grant**:
 An Account's right to a defined set of Inside benefits for a stated interval or without an end date,
-supported by an identifiable basis such as a payment or an owner's decision. Each grant has its
-own scope, source, state and history; ending one does not invalidate another. Its duration need
-not equal a billing period.
+supported by an identifiable basis such as a payment or an owner's decision. Its scope, source,
+state and history are independent of other grants and of the billing period.
 _Avoid_: Payment, Inside Subscription, Telegram chat presence
 
 **Lifetime Access Grant**:
