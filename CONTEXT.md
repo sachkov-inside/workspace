@@ -10,9 +10,19 @@ A recurring commercial arrangement for one Account's chosen Subscription Tier an
 Option. It is distinct from a payment, an Access Grant and a Platform permission.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
+**Offer**:
+A versioned commercial description of a set of benefits, independent of a Guide, payment and
+Access Grant. Its payment option states the price, period and sale mode.
+_Avoid_: Guide, Order, Payment, Access Grant
+
+**Access Scope**:
+The benefit or resource an Access Grant covers: the published library, a particular Guide, support
+or the single shared community chat.
+_Avoid_: Price, tier name, Telegram presence
+
 **Subscription Tier**:
-A named Inside offer with a defined set of benefits, such as materials or materials with community
-participation. It is independent of the duration and price used to purchase it.
+A subscription Offer with a defined set of benefits, such as library access or library access with
+support and community participation. It is independent of the duration and price used to purchase it.
 _Avoid_: Subscription Option, payment period, permission
 
 **Subscription Option**:
@@ -22,7 +32,9 @@ _Avoid_: Subscription Tier, monthly instalment, payment attempt
 
 **Access Grant**:
 An Account's right to a defined set of Inside benefits for a stated interval or without an end date,
-supported by an identifiable basis such as a payment or an owner's decision.
+supported by an identifiable basis such as a payment or an owner's decision. Each grant has its
+own scope, source, state and history; ending one does not invalidate another. Its duration need
+not equal a billing period.
 _Avoid_: Payment, Inside Subscription, Telegram chat presence
 
 **Lifetime Access Grant**:
