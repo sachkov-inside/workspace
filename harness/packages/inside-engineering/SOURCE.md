@@ -31,6 +31,9 @@ their recurring branches are already covered by this smaller set.
 
 ## Inside adaptations to the Matt base
 
+- Shared conversation rules use the user's language, plain wording, and decision-focused choices;
+  `grilling` keeps each question to one decision and groups independent questions into readable
+  rounds, and `wait-what` re-explains in the user's language instead of forcing English.
 - `implement` closes every review finding, repeats review after fixes, owns current-head pull
   request CI through a terminal result, publishes a final Implementation Report for owner review,
   and promotes only reusable learning to a durable authority.

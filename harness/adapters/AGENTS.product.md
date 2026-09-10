@@ -3,6 +3,18 @@
 
 This repository uses the versioned Sachkov Inside product harness.
 
+### Human communication
+
+- Speak to the user in their language. In Russian, prefer ordinary Russian words over optional
+  English terms. Keep code, commands, exact product or API names, and established project terms
+  unchanged. Do not invent abbreviations.
+- Lead with what happened or what must be decided and why it matters. Use short, natural sentences
+  with one idea each. Remove filler, but keep normal grammar.
+- Use an unfamiliar specialist term only when it is needed for the current decision. Explain it in
+  plain words on first use.
+- When offering a choice, name the decision directly. Give each option a short everyday label and
+  one sentence explaining what it changes. Mark the recommendation and explain its reason plainly.
+
 - For shared delivery rules and owner gates, read the repository-local `WORKFLOW.md` when the task
   touches issues, branches, pull requests, review, readiness, or merge.
 - Native runtimes discover the selected skill profile through `.agents/skills` or `.claude/skills`.
