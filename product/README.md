@@ -1,6 +1,6 @@
 # Sachkov Inside — продуктовый brief
 
-Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-09-07. Документ
+Статус: master-документ о продукте. Подтверждённые owner decisions обновлены 2026-09-11. Документ
 отделяет ядро Membership от гипотез и открытых решений и служит общей исходной точкой для
 позиционирования, визуального стиля, лендинга, Telegram-запуска и контентного портфеля.
 
@@ -95,7 +95,7 @@ Inside не рассчитан на человека, которому снач�
 
 ## Что входит в Membership
 
-Ниже описаны составляющие продукта. Их распределение между уровнями «Материалы» и
+Ниже описаны составляющие продукта. Их распределение между тарифами «Материалы» и
 «Материалы + сопровождение» определяется [моделью подписки](subscription-billing-v1.md).
 
 ### Инженерная библиотека
@@ -276,6 +276,8 @@ production-инциденты внутрь материалов не попад�
 - [Модель подписки и оплаты](subscription-billing-v1.md), Workspace
   [#128](https://github.com/sachkov-inside/workspace/issues/128) — согласованные правила нового
   billing и перехода участников от 2026-09-07.
+- Workspace [#165](https://github.com/sachkov-inside/workspace/issues/165) — рамка продаж от
+  2026-09-11: основной продукт — отдельные руководства, подписка стала включаемой опцией.
 - Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)
   — продуктовая граница и текущий application scope.
 - GitHub task [#10](https://github.com/sachkov-inside/workspace/issues/10) — owner decisions
