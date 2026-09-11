@@ -57,4 +57,14 @@ This repository uses the versioned Sachkov Inside product harness.
   lifecycle. Repository-specific skills stay local under unique names.
 - Keep build, test, run, deploy, and agent work repository-local. Project-owned integrations may
   use native config; record them in `.inside-harness/integrations.json` without credentials.
+
+### Pipeline stages
+
+- The developer pipeline runs in owner-driven stages: sharpen the idea, then Specification, then
+  Ticket breakdown, then Implementation. The owner starts each stage explicitly.
+- Do not chain stages. Finish a stage with its outcome, the next stage you recommend, and any
+  decision needed, then stop and wait. Start the next stage only after the owner asks for it. This
+  holds even when a runtime does not honor a skill's user-only invocation marker.
+- Start a development session in the repository that owns the outcome so its rules and skills load;
+  a parent navigation directory does not carry the project pipeline.
 <!-- inside-product-harness:end -->
