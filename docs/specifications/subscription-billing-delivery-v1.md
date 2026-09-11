@@ -1,5 +1,11 @@
 # Поставка собственной подписки Inside
 
+Текущий объём #407 уточнён в [модели подписки](../../product/subscription-billing-v1.md)
+и [плане руководств](../../product/guides-delivery-plan.md) по решению Workspace #156.
+Закрытые #404/#405 остаются историей; их расширение выполняется в #407 после #448.
+Разовая продажа не входит в текущий DEMO; проверка guide-scoped прав использует контролируемую
+ручную/API-выдачу. Эта foundation сама по себе не завершает пользовательский путь #411/#413/#414.
+
 Статус: **план к согласованию** в Workspace #147. Созданные задачи являются подготовленным
 backlog; наличие карточки или `ready-for-agent` не означает отсутствия native blockers или
 готовности рабочего терминала. Приоритет направления — Next.
@@ -40,7 +46,7 @@ Map не ждёт исполнения всех production работ и не з
 | [platform #404](https://github.com/sachkov-inside/platform/issues/404) | Материалы открываются по действующим основаниям Account; сбой/выход из Telegram не лишает оплаченного или бессрочного доступа. | [platform #403](https://github.com/sachkov-inside/platform/issues/403) |
 | [platform #405](https://github.com/sachkov-inside/platform/issues/405) | Владелец задаёт предложения; покупатель получает серверную цену и узнаваемые сохранённые условия. | [platform #403](https://github.com/sachkov-inside/platform/issues/403) |
 | [platform #406](https://github.com/sachkov-inside/platform/issues/406) | Вошедший через Telegram покупатель подтверждает адрес для чеков и уведомлений; принятые условия можно восстановить. | [platform #403](https://github.com/sachkov-inside/platform/issues/403) |
-| [platform #407](https://github.com/sachkov-inside/platform/issues/407) | Покупка завершается одним подтверждённым платежом и одним периодом доступа, даже если браузер закрыт или webhook задержан. | [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #405](https://github.com/sachkov-inside/platform/issues/405), [platform #406](https://github.com/sachkov-inside/platform/issues/406) |
+| [platform #407](https://github.com/sachkov-inside/platform/issues/407) | Оплата подписки восстанавливается без дублей; предложение и версия отделены от независимых прав, включая контролируемую выдачу права на руководство. One-off checkout исключён. | [platform #404](https://github.com/sachkov-inside/platform/issues/404), [platform #405](https://github.com/sachkov-inside/platform/issues/405), [platform #406](https://github.com/sachkov-inside/platform/issues/406) |
 | [platform #408](https://github.com/sachkov-inside/platform/issues/408) | Покупатель управляет жизнью подписки без двойных списаний и потери оплаченного срока. | [platform #407](https://github.com/sachkov-inside/platform/issues/407) |
 | [platform #409](https://github.com/sachkov-inside/platform/issues/409) | Владелец видит неопределённые операции и исправляет результат через проверенные действия, без правки базы. | [platform #408](https://github.com/sachkov-inside/platform/issues/408) |
 | [inside-telegram #54](https://github.com/sachkov-inside/inside-telegram/issues/54) | Telegram получает однозначный provider contract, совместимый с Platform. | [platform #403](https://github.com/sachkov-inside/platform/issues/403) |
@@ -116,3 +122,10 @@ manual grant/Telegram join доказательством выручки.
 Application code, реальные настройки банка/кассы, контактные данные, пользовательские сообщения,
 выдача прав, миграция и production в подготовку не входят. Принятие плана не утверждает новую
 архитектуру хранения/transport за owning repositories и не считается bank/legal launch proof.
+
+## Расширение Notifications от 2026-09-08
+
+[План общей системы](notifications-delivery-v1.md) добавляет RabbitMQ, Notifications и первый
+сценарий нового материала. Telegram #54 включает новый corpus из Platform #434 наряду с
+неизменённым community corpus #403. Platform #410 и Telegram #56 используют общий контракт,
+а не прежний billing-only sender. Их native dependencies включают новые необходимые шаги.

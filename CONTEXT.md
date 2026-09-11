@@ -10,9 +10,19 @@ A recurring commercial arrangement for one Account's chosen Subscription Tier an
 Option. It is distinct from a payment, an Access Grant and a Platform permission.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
+**Offer**:
+A versioned commercial description of a set of benefits, independent of a Guide, payment and
+Access Grant. Its payment option states the price, period and sale mode.
+_Avoid_: Guide, Order, Payment, Access Grant
+
+**Access Scope**:
+The benefit or resource an Access Grant covers: the published library, a particular Guide, support
+or the single shared community chat.
+_Avoid_: Price, tier name, Telegram presence
+
 **Subscription Tier**:
-A named Inside offer with a defined set of benefits, such as materials or materials with community
-participation. It is independent of the duration and price used to purchase it.
+A subscription Offer with a defined set of benefits, such as library access or library access with
+support and community participation. It is independent of the duration and price used to purchase it.
 _Avoid_: Subscription Option, payment period, permission
 
 **Subscription Option**:
@@ -22,7 +32,8 @@ _Avoid_: Subscription Tier, monthly instalment, payment attempt
 
 **Access Grant**:
 An Account's right to a defined set of Inside benefits for a stated interval or without an end date,
-supported by an identifiable basis such as a payment or an owner's decision.
+supported by an identifiable basis such as a payment or an owner's decision. Its scope, source,
+state and history are independent of other grants and of the billing period.
 _Avoid_: Payment, Inside Subscription, Telegram chat presence
 
 **Lifetime Access Grant**:
@@ -66,35 +77,55 @@ _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 The single closed Telegram chat whose current roster is the Membership Signal for Inside.
 _Avoid_: Community directory, Tribute roster, audience segment
 
-## Materials and Series
+## Materials and Guides
 
 **Material**:
-A self-contained Inside content unit with its own identity, such as a video, guide or note.
-It can be read independently and reused in Series without copying its content.
-_Avoid_: Lesson, Series, Workshop Resource
+A self-contained Inside content unit with its own identity, such as a video, how-to guide or note.
+It can be read independently and reused in Guides without copying its content.
+_Avoid_: Lesson, Guide product, Workshop Resource
 
-**Series**:
-An authored collection of Materials with a single explicit mixed reading order and a reader task.
-A Material may belong to zero, one or several Series; the Russian product name is «Серия».
-_Avoid_: Playlist, Course, Workshop Track, Topic
+**Guide**:
+A standalone practical Inside product for a defined reader task, with an authored learning path,
+optional Chapters, supplementary Materials and Artifacts; the Russian product name is «Руководство».
+_Avoid_: Series, Material Format guide, Workshop Track, Topic
 
-**Series Step Sequence**:
-An explicitly named connection between some Materials within one Series, following that Series's
-order. It is independent of Format and importance, and may differ for the same Material in another
-Series; in Russian, «Последовательность шагов».
-_Avoid_: Main path, optional role, Module, parallel Track
+**Guide Chapter**:
+An optional named group within a Guide's main reading path. It organizes Materials without owning
+copies of them or implying an access gate.
+_Avoid_: Video chapter, Material, separately purchased Guide
+
+**Supplementary Material**:
+A Material associated with a Guide outside its main reading path, for reference or additional study.
+Its role is specific to that Guide and does not change the Material's Format.
+_Avoid_: Guide Chapter, copied Material, automatically free content
+
+**Guide Artifact**:
+A reusable resource included in a Guide, such as a prompt, template, file, example or external link,
+with its own identity and purpose, discoverable separately from the reading path.
+_Avoid_: Material, video chapter, ungoverned public download
+
+**Guide Step Sequence**:
+An explicitly named connection between some Materials within one Guide, following that Guide's
+order, independent of Format; in Russian, «Последовательность шагов».
+_Avoid_: Guide Chapter, main or supplementary role, video chapter
+
+**Guide Purchase**:
+A one-time commercial purchase of access to a specified Guide under the accepted offer's terms.
+It is distinct from its payment and the resulting Access Grant and does not create recurring charges.
+_Avoid_: Inside Subscription, perpetual subscription period, Access Grant
 
 **Topic**:
 The primary subject area used to classify a Material for discovery.
-_Avoid_: Series, learning path, Tag
+_Avoid_: Guide, learning path, Tag
 
 **Format**:
-The primary way a Material is consumed, such as video, guide or note.
-_Avoid_: File type, step membership, importance
+The primary way a Material is consumed, such as video, guide or note. The Material format «Гайд»
+is distinct from the standalone Guide product «Руководство».
+_Avoid_: File type, Guide product, step membership, importance
 
 **Tag**:
 A managed label that connects and retrieves Materials across Topics and Formats.
-_Avoid_: Topic, Series, required step
+_Avoid_: Topic, Guide, required step
 
 ## Content access
 
@@ -166,3 +197,15 @@ _Avoid_: Material Resource, URL, Track Item, Git source file
 Platform's authority for deciding a Subject's Workshop Action on a Workshop Resource. It consumes
 public access mode or Workshop Entitlement without weakening ContentAccess for referenced Materials.
 _Avoid_: ContentAccess, UI lock state, route-local entitlement check
+
+## Уведомления
+
+**Notification**:
+Сообщение для одного Account по определённому событию продукта. Оно имеет назначение и может
+доставляться по нескольким каналам независимо.
+_Avoid_: Событие продукта, рассылка, попытка отправки
+
+**Notification Delivery**:
+Доставка одного Notification по выбранному каналу подтверждённому получателю. Результат одного
+канала не определяет результат другого и не означает прочтения.
+_Avoid_: Notification, broker acknowledgement, прочтение

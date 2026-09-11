@@ -1,4 +1,4 @@
-# inside-engineering 0.3.13
+# inside-engineering 0.4.4
 
 This package contains 30 skills selected through repository profiles:
 
@@ -31,12 +31,18 @@ their recurring branches are already covered by this smaller set.
 
 ## Inside adaptations to the Matt base
 
+- Shared conversation rules use the user's language, plain wording, and decision-focused choices;
+  `grilling` keeps each question to one decision and groups independent questions into readable
+  rounds, and `wait-what` re-explains in the user's language instead of forcing English.
 - `implement` closes every review finding, repeats review after fixes, owns current-head pull
   request CI through a terminal result, publishes a final Implementation Report for owner review,
   and promotes only reusable learning to a durable authority.
 - `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
   deprecation or supersession.
 - Shared delivery routing includes the autonomous `inside-telegram` application repository.
+- The shared entrypoint and `WORKFLOW.md` make the pipeline stages owner-driven: an agent does not
+  chain Specification, Ticket breakdown, or Implementation without an explicit owner request, and a
+  development session starts in the repository that owns the outcome.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

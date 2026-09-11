@@ -59,6 +59,20 @@ class PolicyTest(unittest.TestCase):
     def test_one_blocked_child_does_not_block_entire_aggregate(self):
         self.assertEqual(decide(self.issue(children=[{'state': 'OPEN'}]), 'In progress').status, 'In progress')
 
+    def test_completed_children_release_the_aggregate(self):
+        done = [{'state': 'CLOSED', 'stateReason': 'COMPLETED'}]
+        self.assertEqual(decide(self.issue(children=done), 'In progress').status, 'Ready')
+        gated = self.issue(children=done, labels=['ready-for-agent', 'tracker:gate'])
+        self.assertEqual(decide(gated, 'In progress').status, 'Blocked')
+        self.assertEqual(decide(self.issue(children=done, labels=['tracker:auto-complete'])).status, 'Done')
+
+    def test_open_child_with_live_work_keeps_the_aggregate_active(self):
+        children = [{'state': 'OPEN', 'stateReason': None}]
+        self.assertEqual(decide(self.issue(children=children), None).status, 'In progress')
+        self.assertEqual(decide(self.issue(children=children), 'In progress').status, 'In progress')
+        drafted = self.issue(children=children, prs=[{'state': 'OPEN', 'isDraft': True}])
+        self.assertEqual(decide(drafted, None).status, 'In progress')
+
     def test_repeated_decision_converges(self):
         item = self.issue(prs=[{'state': 'OPEN', 'isDraft': False}])
         first = decide(item, 'In progress')

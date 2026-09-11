@@ -81,6 +81,17 @@ harness/bin/inside-harness health <repository>
 profile хранится в state. Installer останавливается на dirty managed path и сохраняет неизвестные
 local files/skills.
 
+## Стадии пайплайна
+
+Пайплайн идёт по стадиям: заострение идеи, Specification, нарезка на Tickets, Implementation;
+`triage` и `wayfinder` — входы сбоку. Стадии запускает владелец: агент заканчивает стадию итогом и
+рекомендацией следующей, но не начинает её сам. Правило действует в любом рантайме, в том числе
+если рантайм не соблюдает признак user-only у skill.
+
+Сессию разработки начинай из repository, который владеет результатом: project skills и правила
+подтягиваются из его корня. Запуск из родительской директории (`Work` или Workspace) не даёт пайплайн
+конкретного repository.
+
 ## Delivery и GitHub
 
 Human Backlog и Developer Pipeline имеют разные роли; точная routing/state model находится в
