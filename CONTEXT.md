@@ -28,7 +28,7 @@ _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 **Offer**:
 A versioned commercial description of a set of benefits, independent of a Guide, payment and
 Access Grant. Its payment option states the price, period and sale mode. Being for sale, being
-assignable and being archived are independent states that never change access already granted.
+assignable and being archived are its independent states.
 _Avoid_: Guide, Order, Payment, Access Grant
 
 **Access Scope**:
@@ -42,18 +42,16 @@ participation, assigned or sold independently of the duration and price used to 
 _Avoid_: Subscription Option, payment period, permission
 
 **Content Scope**:
-The explicit set of Products and individual Materials promised by a Subscription Tier. It includes
-new Materials of an included Product, but no new Product or separate Material automatically.
+The explicit set of Products and individual Materials promised by a Subscription Tier.
 _Avoid_: Published library, catalogue, global Materials access
 
 **Subscription Enrollment**:
-An Account's assignment to a fixed version of a Subscription Tier, with its own origin (course,
-Tribute, owner decision or Platform payment) and term. It is neither a payment nor renewal consent.
+An Account's assignment to a fixed version of a Subscription Tier, with its own origin and term.
+It is neither a payment nor renewal consent.
 _Avoid_: Inside Subscription, payment, Telegram membership
 
 **Support**:
-The right to ask a Product's author for help within a stated term; in Russian, «Сопровождение».
-It opens neither Materials nor the community chat.
+The right to ask the author for help within a stated term; in Russian, «Сопровождение».
 _Avoid_: Personal mentoring, guaranteed answer, community participation
 
 **Community Entitlement**:
@@ -62,8 +60,8 @@ Grants that cover the chat or any Product. It is distinct from actual presence i
 _Avoid_: Chat membership, Membership Signal, tier name
 
 **Admission Restriction**:
-A moderation or externally reported restriction on joining the shared community chat. It does not
-close content rights and is not lifted by a new right or purchase.
+A moderator's or unexplained external restriction on joining the shared community chat,
+independent of content rights.
 _Avoid_: Expired right, revoked access, failed payment
 
 **Subscription Option**:
@@ -111,8 +109,8 @@ _Avoid_: Raw Telegram status, permanent member flag, MembershipEntitlement
 
 **MembershipEntitlement**:
 Platform's finite grant that an Account may access Membership-scoped Platform surfaces, including
-protected Materials within its Content Scope and Member Profiles. It does not authorize protected
-Workshop content.
+protected Materials allowed by its Access Grants and Member Profiles. It does not authorize
+protected Workshop content.
 _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 
 **Canonical Membership Chat**:
