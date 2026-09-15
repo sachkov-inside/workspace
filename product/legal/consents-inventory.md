@@ -39,22 +39,23 @@
 | Вход по почте | Logto: код подтверждения, без пароля; Platform `apps/backend/src/modules/accounts/features/establish-account/establish-account.ts` | Отпечаток почты, идентификатор Logto, время; вход и защита доступа | Договор | `privacy` v2, строка «Учётная запись» | 152-ФЗ ст. 6 ч. 1 п. 5; ст. 18.1 |
 | Вход через Telegram | Logto connector `inside-telegram` (выключен в production, `TELEGRAM_SIGN_IN_ENABLED=false`); Platform `establish-telegram-account.ts` создаёт аккаунт без почты; бот подтверждает личность (`telegram`: `src/modules/bot-sign-in/`) | Числовые `telegram_user_id`, `private_chat_id`, непрозрачная ссылка аккаунта; вход | Договор | `privacy` v2 | 152-ФЗ ст. 6 ч. 1 п. 5; ст. 12 и 18 ч. 5 — отдельная проверка иностранного сервиса |
 | Связка аккаунта с Telegram | Platform `features/account-access/ui/account-telegram-onboarding.client.tsx` — окно открывается само после входа, ссылок на документы нет | Идентификаторы Telegram и история связки; проверка членства | Договор | `privacy` v2, строки «Учётная запись», «Подтверждение права» | 152-ФЗ ст. 6 ч. 1 п. 5 |
-| Показ профиля участникам | **Не собирается.** Форма `apps/web/src/_pages/account/ui/account-page.client.tsx` показывает только пояснение и ссылку на политику; `create-profile.ts` согласие не хранит; удалить профиль нельзя | Имя, описание, аватар (webp 160/320/640); показ участникам с действующим доступом | Политика называет «отдельное согласие», продукт его не собирает | `consent-profile` v1 — проект Workspace; ключа в каталоге Platform нет | 152-ФЗ ст. 9 (форма и отдельность), ст. 10.1 при распространении; ГК РФ ст. 152.1 (изображение) |
+| Профиль участника | Форма `apps/web/src/_pages/account/ui/account-page.client.tsx`; согласие не собирается, и по решению владельца 15.09.2026 оно не нужно. **Расхождение:** страница `/members/<publicProfileId>` показывает профиль другим участникам с доступом (см. раздел ниже) | Имя, описание, аватар (webp 160/320/640); по решению владельца видит только сам пользователь | Договор (функция аккаунта) | `privacy` v2 называет «отдельное согласие» — в кандидате v3 заменено договором | 152-ФЗ ст. 6 ч. 1 п. 5 |
 | Сообщения о новых материалах | Platform `features/notification-preferences/ui/notification-channels-form.client.tsx`; `notifications.preferences`, по умолчанию выключено, история изменений хранится | Каналы почта и Telegram; уведомления о материалах | Выбор пользователя в функции аккаунта | Документа нет | 38-ФЗ ст. 18 ч. 1, если сообщение содержит рекламу; иначе — функция договора |
 | Сервисные сообщения о покупке и продлении | Platform, модуль notifications; бот | Почта, идентификатор Telegram, содержание сообщения; исполнение договора | Договор | `privacy` v2, `subscription` v1 | 152-ФЗ ст. 6 ч. 1 п. 5; не реклама при отсутствии рекламного содержания |
-| Рассылки и воронки бота | **Согласие не собирается.** `telegram`: любой личный `/start` создаёт контакт (`src/modules/bot-contacts/bot-contacts.ts`), `marketing_enabled` по умолчанию `true` (`src/database/migrations/011-communication-funnels.ts`); отказ — только `/stop`. В общую рассылку попадают и те, кто лишь входил через бота (`src/modules/communications/broadcasts.ts`). В production выключено (`TELEGRAM_MARKETING_ENABLED=false`) | Идентификаторы Telegram, источник входа, воронка, доставки; продвижение | Нет | Нет | 38-ФЗ ст. 18 ч. 1 (предварительное согласие); 152-ФЗ ст. 15 |
+| Рассылки и воронки бота | **Согласие не собирается.** `telegram`: любой личный `/start` создаёт контакт (`src/modules/bot-contacts/bot-contacts.ts`), `marketing_enabled` по умолчанию `true` (`src/database/migrations/011-communication-funnels.ts`); отказ — только `/stop`. В общую рассылку попадают и те, кто лишь входил через бота (`src/modules/communications/broadcasts.ts`). В production выключено (`TELEGRAM_MARKETING_ENABLED=false`) | Идентификаторы Telegram, источник входа, воронка, доставки; продвижение | Разрешение запуском бота `/start` — решение владельца 15.09.2026, риск описан в [едином пути](consents-unified-path.md) | `privacy` v3 (кандидат) | 38-ФЗ ст. 18 ч. 1 (предварительное согласие); 152-ФЗ ст. 15 |
 | Переходы по ссылкам рассылок | Platform `apps/web/app/communications/visit/route.ts` пишет `communications.tracking_hits`; бот связывает токен с доставкой конкретному контакту (`src/modules/communications/communication-tracking.ts`) | Токен, время, тип трафика; статистика рассылок; фактически по контакту | Не указано | `privacy` v2 не описывает | 152-ФЗ ст. 6; политика ст. 18.1 |
 | Cookie сессии | `logto_<appId>`, HttpOnly | Сессия входа | Договор | `cookies` v1 | Специальной нормы нет; 152-ФЗ, если идентификатор связан с аккаунтом |
 | Режим чтения гостя | Cookies `inside.guide-mode` и `inside.guide-mode-hint` на год (`apps/web/src/shared/guide-mode/guide-mode.ts`) | Выбранный режим и признак показанной подсказки | Функция по запросу | **Не описаны** в `cookies` v1 | Полнота сведений политики, ст. 18.1 152-ФЗ |
 | Хранилище браузера | localStorage `inside.video-progress.v1:…`, `inside.video-upload.v1:…`, `inside:communications:sample:…`; sessionStorage `inside.telegram-onboarding.dismissed`, `inside.billing.purchase` (**не описан**), ключ Tribute у владельца (**не описан**) | Прогресс и продолжение операций | Функция по запросу | `cookies` v1, частично | То же |
 | Аналитика | Сторонних счётчиков нет, баннера нет. Спецификация `docs/specifications/author-analytics-measurement-v1.md` планирует собственный идентификатор браузера | — | — | `cookies` v1 обещает выбор до включения | 152-ФЗ ст. 6 и 9 при включении; см. требования |
-| Возраст 14+ | Условия `terms` v1 говорят «от 14 лет», но условия нигде не принимаются и возраст не подтверждается | — | — | `terms` v1 | ГК РФ ст. 26, 28; 152-ФЗ ст. 9 ч. 6 |
+| Возраст 14+ | Пункт «от 14 лет» в `terms` v1; условия нигде не принимаются, отдельной отметки возраста нет и по решению владельца не будет | — | — | `terms` v1 | ГК РФ ст. 26, 28; 152-ФЗ ст. 9 ч. 6 |
 
 ## Расхождения документов и продукта
 
 1. **Политика ссылается на несобираемое согласие.** `privacy` v2 называет основанием данных
    профиля «отдельное согласие», говорит о сроке его действия и отзыве. Продукт согласия не
-   собирает, текста в каталоге нет, удалить профиль пользователь не может.
+   собирает. По решению владельца оно и не нужно: профиль виден только пользователю, основание —
+   договор (кандидат `privacy` v3).
 2. **Условия использования не принимаются.** Акцепт `terms` v1 не фиксируется ни при регистрации
    по почте, ни при входе через Telegram. Ссылки на документы есть лишь в одной из семи форм входа.
 3. **Бот считает `/start` разрешением на рекламу.** Это расходится с `privacy` v2 («реклама …
@@ -77,11 +78,44 @@
    «Разрешаю автопродление на показанных условиях», форма показывает «Принимаю Согласие на
    автопродление». Это задача оферт и оформления [#183](https://github.com/sachkov-inside/workspace/issues/183), здесь только отмечено.
 
+## Профиль виден другим участникам: что убрать
+
+Проверено на Platform `origin/main` `ee4e1a87326c2671d823ea82f514bae595607181` и Telegram `origin/main`
+`1aaefd5a5cea42f65463b6edf092e41a477f9114`. По решению владельца от 15.09.2026 профиль виден только
+самому пользователю. Сейчас это не так в одном месте: участник с действующим доступом открывает
+`/members/<publicProfileId>` по ссылке, которую владелец профиля копирует в кабинете, и видит имя,
+описание и аватар. Анонимные посетители и не участники получают 404, страница не индексируется,
+каталога профилей нет. Больше нигде, включая Telegram-бота, чужие профили и аватары не показываются.
+
+Что убрать при реализации (отдельной задачей в Platform, после принятия пути):
+
+1. **Страница и её интерфейс:** маршрут `apps/web/app/(public)/members/[publicProfileId]/`,
+   `apps/web/src/_pages/member-profile/`, `entities/member-profile/ui/member-profile-projection*`.
+2. **Серверный доступ для других:** `GET member-profiles/:publicProfileId` (`view-member-profile`),
+   ветка выдачи аватара другим участникам в `deliver-profile-avatar.ts` и
+   `ProfileAvatarDeliveryController`. **Зависимость:** кабинет загружает собственный аватар через тот
+   же адрес `/api/member-profiles/<id>/avatar/...`, поэтому нужен адрес только для владельца, а не
+   простое удаление.
+3. **Тексты кабинета:** «видят участники с действующим доступом», «увидят участники», блок «Ссылка
+   для участников» и описание раздела «…и ссылка для участников»
+   (`account-page.client.tsx`, `widgets/account-cabinet/model/account-sections.ts`).
+4. **Тесты и истории**, которые ждут страницу участника: `apps/web/test/fullstack/member-profile.spec.ts`,
+   `apps/backend/test/integration/accounts-api.test.ts`, `member-profiles.test.ts`,
+   `profile-avatar-http.test.ts`, `profile-projection.test.ts`, `apps/web/test/module/member-profile.test.ts`,
+   `account-page.stories.tsx`.
+5. **Документы Platform:** `CONTEXT.md` (Member Profile), `docs/product/platform-mvp-brief.md`,
+   `docs/specifications/platform-v1.md`, `apps/web/DESIGN.md`, `.impeccable/surfaces/route-account.md`
+   и связанные записи дизайна.
+
+Решения при реализации, которые здесь не принимаются: оставить ли `public_profile_id` внутренним
+идентификатором (меньшее изменение) и нужна ли модерация профиля, который никто, кроме владельца,
+не видит.
+
 ## Номера кандидатных редакций
 
 Каталог Platform на коммите выше содержит: `contacts` v1, `terms` v1, `privacy` v2, `cookies` v1,
 `purchase` v1, `subscription` v1, `recurring-consent` v1, `tribute` v1. Ключа `consent-profile`
-нет. Кандидаты #185 используют свободные номера: `privacy` v3, `cookies` v2, `consent-profile` v1
-(переработанный проект, ни разу не введённый), новый ключ `consent-marketing` v1. Номера
+нет. Кандидаты #185 используют свободные номера: `privacy` v3 и `cookies` v2. Отдельных согласий на
+профиль и на новости нет по решению владельца от 15.09.2026. Номера
 `terms` v2, `purchase` v2 и `subscription` v2 заняты кандидатами
 [#176](fixed-term-guide-access.md) и здесь не используются.
