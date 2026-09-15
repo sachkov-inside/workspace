@@ -26,9 +26,9 @@ a tier does not itself create this billing arrangement.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
 **Offer**:
-A versioned commercial description of a set of benefits, independent of a Guide, payment and
-Access Grant. Its payment option states the price, period and sale mode. Being for sale, being
-assignable and being archived are its independent states.
+A versioned commercial description of a set of benefits with independent for-sale, assignable and
+archived states, separate from a Guide, payment and Access Grant. Its payment option states the
+price, period and sale mode.
 _Avoid_: Guide, Order, Payment, Access Grant
 
 **Access Scope**:
