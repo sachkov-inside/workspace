@@ -5,6 +5,8 @@ Choose the local authority for the task:
 
 - For Material, Series, Series Step Sequence, Topic, Format, identity or access terminology,
   read `CONTEXT.md`.
+- For what content is open to whom and why, tiers, sale states or access transitions, read
+  `product/access-model.md`.
 - For the current content model, equal value of formats, discovery or editorial/publication
   ownership, read `product/content-series-authoring-brief.md`.
 - For audience, positioning or the subscription promise, read `product/README.md`.

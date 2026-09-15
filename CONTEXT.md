@@ -27,18 +27,44 @@ _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
 **Offer**:
 A versioned commercial description of a set of benefits, independent of a Guide, payment and
-Access Grant. Its payment option states the price, period and sale mode.
+Access Grant. Its payment option states the price, period and sale mode. Being for sale, being
+assignable and being archived are independent states that never change access already granted.
 _Avoid_: Guide, Order, Payment, Access Grant
 
 **Access Scope**:
-The benefit or resource an Access Grant covers: the published library, a particular Guide, support
-or the single shared community chat.
-_Avoid_: Price, tier name, Telegram presence
+The benefit or resource an Access Grant covers: Materials within a Content Scope, a particular
+Product, Support or the single shared community chat.
+_Avoid_: Price, tier name, Telegram presence, whole library
 
 **Subscription Tier**:
-A subscription Offer with a defined set of benefits, such as library access or library access with
-support and community participation. It is independent of the duration and price used to purchase it.
+An Offer with an explicit Content Scope and benefits, such as Materials and community
+participation, assigned or sold independently of the duration and price used to obtain it.
 _Avoid_: Subscription Option, payment period, permission
+
+**Content Scope**:
+The explicit set of Products and individual Materials promised by a Subscription Tier. It includes
+new Materials of an included Product, but no new Product or separate Material automatically.
+_Avoid_: Published library, catalogue, global Materials access
+
+**Subscription Enrollment**:
+An Account's assignment to a fixed version of a Subscription Tier, with its own origin (course,
+Tribute, owner decision or Platform payment) and term. It is neither a payment nor renewal consent.
+_Avoid_: Inside Subscription, payment, Telegram membership
+
+**Support**:
+The right to ask a Product's author for help within a stated term; in Russian, «Сопровождение».
+It opens neither Materials nor the community chat.
+_Avoid_: Personal mentoring, guaranteed answer, community participation
+
+**Community Entitlement**:
+An Account's effective right to participate in the shared community chat, derived from live Access
+Grants that cover the chat or any Product. It is distinct from actual presence in the chat.
+_Avoid_: Chat membership, Membership Signal, tier name
+
+**Admission Restriction**:
+A moderation or externally reported restriction on joining the shared community chat. It does not
+close content rights and is not lifted by a new right or purchase.
+_Avoid_: Expired right, revoked access, failed payment
 
 **Subscription Option**:
 A purchasable combination of a Subscription Tier, a duration in calendar months and a full price
@@ -85,7 +111,8 @@ _Avoid_: Raw Telegram status, permanent member flag, MembershipEntitlement
 
 **MembershipEntitlement**:
 Platform's finite grant that an Account may access Membership-scoped Platform surfaces, including
-protected Library content and Member Profiles. It does not authorize protected Workshop content.
+protected Materials within its Content Scope and Member Profiles. It does not authorize protected
+Workshop content.
 _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 
 **Canonical Membership Chat**:
