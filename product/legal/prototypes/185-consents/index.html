@@ -65,10 +65,6 @@
   .btn.sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
   .btn.wide { width: 100%; }
 
-  /* Отметка — как ConsentChecklist в Platform */
-  .check { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.55; }
-  .check input { margin-top: 2px; width: 20px; height: 20px; flex: none; accent-color: var(--primary); }
-  .check .hint { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
   .terms-line { font-size: 13px; color: var(--muted-foreground); margin: 12px 0 0; }
   .price { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
   .kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 14px; }
@@ -151,7 +147,7 @@ const DOCS = {
   cookies: { title: "cookies и локальное хранение", v: 2, href: "/legal/cookies" },
   purchase: { title: "оферту покупки руководства", v: 1, href: "/legal/purchase" },
   subscription: { title: "оферту подписки", v: 1, href: "/legal/subscription" },
-  recurring: { title: "условия автопродления", v: 2, href: "/legal/recurring-consent" },
+  recurring: { title: "условия автопродления", v: 1, href: "/legal/recurring-consent" },
 };
 const doc = (k, label) => `<a href="${DOCS[k].href}" target="_blank" rel="noreferrer">${label ?? DOCS[k].title}</a>`;
 
