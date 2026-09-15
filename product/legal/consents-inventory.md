@@ -56,9 +56,11 @@
 3. **Бот считает `/start` разрешением на рекламу.** Это расходится с `privacy` v2 («реклама …
    требует отдельного согласия») и с 38-ФЗ ст. 18. Рассылка в production выключена, поэтому это
    ограничение для включения, а не текущий сбор.
-4. **`cookies` v1 неполон.** Не названы две годовые cookies режима чтения и два ключа
-   sessionStorage. Утверждение об отключении отслеживания плеером Kinescope в параметрах плеера
-   не видно: задано только `behavior.localStorage: false`.
+4. **`cookies` v1 неполон.** Не названы две годовые cookies режима чтения
+   (`apps/web/src/shared/guide-mode/guide-mode.ts`, `max-age` 365 дней) и два ключа
+   sessionStorage. Настройки плеера Kinescope описаны верно: адрес плеера получает `dnt=1`,
+   а в параметрах задано `behavior.localStorage: false`
+   (`apps/web/src/features/material-video/ui/material-primary-video.client.tsx`).
 5. **Статистика переходов не описана в политике**, хотя хиты связываются с конкретной доставкой.
 6. **Каталог Platform не знает черновиков.** Добавленная редакция сразу становится действующей
    (`packages/legal/src/catalog.ts`, `currentLegalEdition` берёт старший номер). Кандидаты
