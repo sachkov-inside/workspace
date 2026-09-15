@@ -3,9 +3,8 @@
 > **Отклонено и заменено 15.09.2026. Не применять.**
 > Модель «шесть календарных месяцев доступа к руководству и общему чату» отклонена владельцем
 > ([Workspace #178](https://github.com/sachkov-inside/workspace/issues/178),
-> [#183](https://github.com/sachkov-inside/workspace/issues/183)): материалы продукта и общий чат
-> по разовой покупке бессрочны, сопровождение автора — 6 месяцев с покупки. Не задавайте
-> `benefitPeriods` с `months: 6` для продукта или чата и не вводите кандидатные редакции 2.
+> [#183](https://github.com/sachkov-inside/workspace/issues/183)). Не задавайте `benefitPeriods`
+> с `months: 6` для продукта или чата и не вводите кандидатные редакции 2.
 > Текущая подготовка — [оферта разовой покупки, редакция 3](purchase-v3.md) и
 > [её обоснование](purchase-v3-preparation.md). Текст ниже сохранён без изменений как история
 > [#176](https://github.com/sachkov-inside/workspace/issues/176).
