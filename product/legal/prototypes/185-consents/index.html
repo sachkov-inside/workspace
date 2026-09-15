@@ -149,8 +149,8 @@ const DOCS = {
   privacy: { title: "политика персональных данных", v: 3, href: "/legal/privacy" },
   pdConsent: { title: "согласие на обработку персональных данных", v: 1, href: "/legal/personal-data-consent" },
   cookies: { title: "cookies и локальное хранение", v: 2, href: "/legal/cookies" },
-  purchase: { title: "оферта покупки руководства", v: 1, href: "/legal/purchase" },
-  subscription: { title: "оферта подписки", v: 1, href: "/legal/subscription" },
+  purchase: { title: "оферту покупки руководства", v: 1, href: "/legal/purchase" },
+  subscription: { title: "оферту подписки", v: 1, href: "/legal/subscription" },
   recurring: { title: "согласие на автопродление", v: 1, href: "/legal/recurring-consent" },
 };
 const doc = (k, label) => `<a href="${DOCS[k].href}" target="_blank" rel="noreferrer">${label ?? DOCS[k].title}</a>`;
@@ -245,7 +245,7 @@ function welcomeScreen() {
   let body, ready = true;
   if (x.signIn === "button") {
     body = `<button class="btn wide" style="margin-top:4px">Принять условия и продолжить</button>
-      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("terms")} и подтверждаете, что вам есть 14 лет.
+      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("terms")}; пользоваться Inside можно с 14 лет.
         Данные аккаунта обрабатываются по ${doc("privacy", "политике персональных данных")}.</p>`;
   } else if (x.signIn === "separate") {
     ready = state.signIn;
