@@ -81,6 +81,11 @@ An Access Grant without a scheduled end date, for a defined set of Inside benefi
 promise every future separate paid offer.
 _Avoid_: Never-expiring subscription, future all-access purchase, permanent Telegram membership
 
+**Direct Right**:
+A right an Account holds without a Subscription Enrollment or Product Purchase: an owner's or
+carried-over Access Grant, or the legacy member bridge; in Russian, «Прямое право».
+_Avoid_: Manual tier assignment, gift subscription, purchase
+
 **Account**:
 Platform's stable private identity for one authenticated human. It owns Platform permissions and
 is independent of profile presentation and Membership.
@@ -110,7 +115,7 @@ _Avoid_: Raw Telegram status, permanent member flag, MembershipEntitlement
 
 **MembershipEntitlement**:
 Platform's finite grant that an Account may access Membership-scoped Platform surfaces, including
-protected Materials allowed by its Access Grants and Member Profiles. It does not authorize
+protected Materials allowed by its live rights and Member Profiles. It does not authorize
 protected Workshop content.
 _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 
