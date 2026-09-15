@@ -43,7 +43,7 @@ _Avoid_: Subscription Option, payment period, permission
 
 **Content Scope**:
 The set of Products promised by a Subscription Tier or recorded in an Access Grant: every Product
-for an Inside Subscription, otherwise an explicit set. A Material is covered only through a Product
+for an Inside Subscription and the starter Subscription Tier, otherwise an explicit set. A Material is covered only through a Product
 that contains it; no right opens an individual Material.
 _Avoid_: Individual Material access, published library, catalogue, global Materials access
 
