@@ -1,4 +1,4 @@
-# inside-engineering 0.4.4
+# inside-engineering 0.4.5
 
 This package contains 30 skills selected through repository profiles:
 
@@ -43,6 +43,9 @@ their recurring branches are already covered by this smaller set.
 - The shared entrypoint and `WORKFLOW.md` make the pipeline stages owner-driven: an agent does not
   chain Specification, Ticket breakdown, or Implementation without an explicit owner request, and a
   development session starts in the repository that owns the outcome.
+- `WORKFLOW.md` gives every issue one native GitHub issue type (`Epic`, `Feature`, `Improvement`,
+  `Bug`, `Task`) instead of category labels; `to-spec`, `to-tickets`, `triage`, and the GitHub
+  tracker template set that type.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

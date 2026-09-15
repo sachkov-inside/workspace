@@ -51,6 +51,24 @@ promotion never removes the label or moves the human item.
 `Operations`. Triage and Wayfinder labels describe readiness and work shape; they do not duplicate
 delivery state or priority.
 
+Every issue in either Project has exactly one native GitHub issue type, set when the issue is
+created:
+
+- `Epic`: a large outcome delivered by several issues, such as a Human Backlog goal, a parent
+  Specification with children, or a Wayfinder map;
+- `Feature`: a new capability for a user, an author, or the owner;
+- `Improvement`: a better version of something that already works: UX, performance, reliability,
+  technical debt, tests, process, or harness;
+- `Bug`: behaviour that differs from what was intended, including a check that fails because of a
+  defect;
+- `Task`: work that adds no capability: release, acceptance, infrastructure, dependency updates, or
+  an owner decision.
+
+Type is the issue's native field, not a label or a Project field; do not use `bug` or `enhancement`
+labels. Set or correct it with `gh api -X PATCH repos/{owner}/{repo}/issues/{number} -f type=<Type>`.
+Type is independent of readiness, Wayfinder labels, Status, and Priority; correct it whenever triage
+shows the work is of another kind.
+
 Use native `Parent issue` and sub-issues as the only delivery hierarchy. Use native dependencies
 for blocking. A Wayfinder map carries `wayfinder:map`; Specifications and Tickets keep their own
 issue contracts and readiness labels. Do not mirror these distinctions in a Project field. The

@@ -1,10 +1,10 @@
 <!doctype html>
 <!--
-  PROTOTYPE — throwaway. Workspace #185: путь согласий с минимумом галочек (решения владельца 15.09.2026).
-  Вопрос: сколько галочек поставит человек за весь путь «первый вход → покупка» и как это выглядит.
-  Четыре варианта (?variant=A|B|C|D) на общих экранах (?screen=...): вход, первый вход, покупка руководства,
-  подписка, первое посещение, Telegram, профиль, кабинет. Профиль виден только владельцу; согласий
-  на профиль и на новости нет. Не встраивается в Platform; тексты и версии кандидатные.
+  PROTOTYPE — throwaway. Workspace #185: путь согласий, принятый владельцем 15.09.2026 (вариант A).
+  Условия, оферта и автопродление принимаются кнопками со строкой рядом; галочек за весь путь нет.
+  Экраны (?screen=...): вход, первый вход, покупка руководства, подписка, первое посещение, Telegram,
+  профиль, кабинет. Профиль виден только владельцу; согласий на профиль и на новости нет.
+  Не встраивается в Platform; тексты и версии кандидатные.
   Визуальный язык повторяет Platform apps/web (public shell, Manrope, карточки rounded-2xl).
   Запуск: открыть файл в браузере. &bar=0 скрывает панель прототипа.
 -->
@@ -147,21 +147,14 @@
 const DOCS = {
   terms: { title: "условия использования", v: 1, href: "/legal/terms" },
   privacy: { title: "политика персональных данных", v: 3, href: "/legal/privacy" },
-  pdConsent: { title: "согласие на обработку персональных данных", v: 1, href: "/legal/personal-data-consent" },
   cookies: { title: "cookies и локальное хранение", v: 2, href: "/legal/cookies" },
   purchase: { title: "оферту покупки руководства", v: 1, href: "/legal/purchase" },
   subscription: { title: "оферту подписки", v: 1, href: "/legal/subscription" },
-  recurring: { title: "согласие на автопродление", v: 1, href: "/legal/recurring-consent" },
+  recurring: { title: "условия автопродления", v: 2, href: "/legal/recurring-consent" },
 };
 const doc = (k, label) => `<a href="${DOCS[k].href}" target="_blank" rel="noreferrer">${label ?? DOCS[k].title}</a>`;
 
-// Варианты отличаются только тем, как принимаются документы. Число галочек на весь путь — в панели «Итого».
-const VARIANTS = {
-  A: { name: "Кнопки и одна галочка", signIn: "button", purchase: "button" },
-  B: { name: "Плюс отдельное согласие на данные", signIn: "separate", purchase: "button" },
-  C: { name: "Общая галочка — не рекомендуется", signIn: "combined", purchase: "button" },
-  D: { name: "Галочка на каждый документ", signIn: "checkbox", purchase: "checkbox" },
-};
+// Принятый вариант A: все документы принимаются кнопками. Панель «Итого» показывает, что галочек нет.
 const SCREENS = [
   ["signin", "Вход"], ["welcome", "Первый вход"], ["guide", "Покупка руководства"], ["subscription", "Подписка"],
   ["cookies", "Первое посещение"], ["telegram", "Telegram"], ["profile", "Профиль"], ["account", "Кабинет"],
@@ -169,62 +162,33 @@ const SCREENS = [
 
 const params = new URLSearchParams(location.search);
 let screen = params.get("screen") ?? "welcome";
-let variant = VARIANTS[params.get("variant")] ? params.get("variant") : "A";
 if (params.get("bar") === "0") document.body.classList.add("hide-bar");
-const state = { signIn: false, purchase: false, subOffer: false, recurring: false, cookieSeen: false };
-
-function checkboxesFor(v) {
-  const x = VARIANTS[v];
-  const signIn = x.signIn === "button" ? 0 : 1;
-  const purchase = x.purchase === "button" ? 0 : 1;
-  const sub = (x.purchase === "button" ? 0 : 1) + 1; // оферта подписки + обязательная отдельная отметка автопродления
-  return { signIn, purchase, sub, guidePath: signIn + purchase, subPath: signIn + sub, all: signIn + purchase + sub };
-}
+const state = { cookieSeen: false };
 
 function tally() {
-  const c = checkboxesFor(variant);
-  const x = VARIANTS[variant];
-  const how = (m) => m === "button" ? "кнопка с текстом" : m === "combined" ? "1 общая галочка" : m === "separate" ? "кнопка + 1 галочка согласия" : "1 галочка";
-  return `<div class="tally"><b>Прототип — итого галочек, вариант ${variant}</b>
+  return `<div class="tally"><b>Прототип — итого галочек за весь путь: 0</b>
     <table>
-      <tr><td>Первый вход (условия${["combined", "separate"].includes(x.signIn) ? " + согласие на обработку данных" : ""}; возраст — пунктом в условиях)</td><td>${how(x.signIn)} → ${c.signIn}</td></tr>
-      <tr><td>Покупка руководства (оферта)</td><td>${how(x.purchase)} → ${c.purchase}</td></tr>
-      <tr><td>Подписка (оферта + автопродление отдельной отметкой)</td><td>${c.sub}</td></tr>
-      <tr><td>Путь «вход → руководство»</td><td>${c.guidePath}</td></tr>
-      <tr><td>Путь «вход → подписка»</td><td>${c.subPath}</td></tr>
+      <tr><td>Первый вход: условия использования (возраст — пункт условий)</td><td>кнопка → 0</td></tr>
+      <tr><td>Покупка руководства: оферта</td><td>кнопка «Оплатить» → 0</td></tr>
+      <tr><td>Подписка: оферта и автопродление</td><td>кнопка со строкой об автопродлении → 0</td></tr>
     </table>
-    <p style="margin:8px 0 0">В журнал пишется одно и то же при любом варианте: документ, версия, контрольная сумма, время, экран и способ — кнопка или галочка.</p></div>`;
+    <p style="margin:8px 0 0">В журнал пишется: документ, версия, контрольная сумма, подпись кнопки, экран и время.</p></div>`;
 }
 
 function setUrl() {
   const p = new URLSearchParams(location.search);
-  p.set("screen", screen); p.set("variant", variant);
+  p.set("screen", screen); p.delete("variant");
   history.replaceState(null, "", `?${p.toString()}`);
 }
 function renderBar() {
-  const keys = Object.keys(VARIANTS);
   document.getElementById("proto-bar").innerHTML =
-    `<span class="proto-label">ПРОТОТИП #185</span><span class="sep"></span>` +
-    SCREENS.map(([id, l]) => `<button data-screen="${id}" class="${id === screen ? "on" : ""}">${l}</button>`).join("") +
-    `<span class="sep"></span><button data-cycle="-1" aria-label="Предыдущий вариант">←</button>
-     <span class="proto-label">${variant} (${VARIANTS[variant].name})</span>
-     <button data-cycle="1" aria-label="Следующий вариант">→</button>`;
-  void keys;
-}
-function cycle(d) {
-  const keys = Object.keys(VARIANTS); variant = keys[(keys.indexOf(variant) + d + keys.length) % keys.length];
-  Object.assign(state, { signIn: false, purchase: false, subOffer: false, recurring: false }); render();
+    `<span class="proto-label">ПРОТОТИП #185 · вариант A</span><span class="sep"></span>` +
+    SCREENS.map(([id, l]) => `<button data-screen="${id}" class="${id === screen ? "on" : ""}">${l}</button>`).join("");
 }
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-screen],[data-cycle],[data-act]"); if (!t) return;
+  const t = e.target.closest("[data-screen],[data-act]"); if (!t) return;
   if (t.dataset.screen) { screen = t.dataset.screen; render(); }
-  if (t.dataset.cycle) cycle(Number(t.dataset.cycle));
   if (t.dataset.act === "cookie-ok") { state.cookieSeen = true; render(); }
-});
-document.addEventListener("change", (e) => { const k = e.target.dataset?.field; if (k) { state[k] = e.target.checked; render(); } });
-document.addEventListener("keydown", (e) => {
-  if (e.target.closest("input,textarea")) return;
-  if (e.key === "ArrowLeft") cycle(-1); if (e.key === "ArrowRight") cycle(1);
 });
 
 // ---------------------------------------------------------------- экраны
@@ -241,49 +205,19 @@ function signinScreen() {
 }
 
 function welcomeScreen() {
-  const x = VARIANTS[variant];
-  let body, ready = true;
-  if (x.signIn === "button") {
-    body = `<button class="btn wide" style="margin-top:4px">Принять условия и продолжить</button>
-      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("terms")}; пользоваться Inside можно с 14 лет.
-        Данные аккаунта обрабатываются по ${doc("privacy", "политике персональных данных")}.</p>`;
-  } else if (x.signIn === "separate") {
-    ready = state.signIn;
-    body = `<label class="check"><input type="checkbox" data-field="signIn" ${state.signIn ? "checked" : ""}>
-        <span>Даю ${doc("pdConsent", "согласие на обработку персональных данных")}</span></label>
-      <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Принять условия и продолжить</button>
-      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("terms")}; пользоваться Inside можно с 14 лет.
-        Как обрабатываются данные — ${doc("privacy", "политика персональных данных")}.</p>`;
-  } else if (x.signIn === "combined") {
-    ready = state.signIn;
-    body = `<label class="check"><input type="checkbox" data-field="signIn" ${state.signIn ? "checked" : ""}>
-        <span>Принимаю ${doc("terms")} и даю ${doc("pdConsent", "согласие на обработку персональных данных")}
-        <span class="hint">Пользоваться Inside можно с 14 лет.</span></span></label>
-      <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Продолжить</button>
-      <p class="terms-line">Как обрабатываются данные — ${doc("privacy", "политика персональных данных")}.</p>`;
-  } else {
-    ready = state.signIn;
-    body = `<label class="check"><input type="checkbox" data-field="signIn" ${state.signIn ? "checked" : ""}>
-        <span>Принимаю ${doc("terms")}
-        <span class="hint">Пользоваться Inside можно с 14 лет.</span></span></label>
-      <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Продолжить</button>
-      <p class="terms-line">Данные аккаунта обрабатываются по ${doc("privacy", "политике персональных данных")}; согласие на это не нужно.</p>`;
-  }
   return `<div class="narrow" style="max-width:30rem">
     <p class="eyebrow">Аккаунт создан</p>
     <h1 style="margin-top:6px">Добро пожаловать в Inside</h1>
     <p class="lead">Вы вошли как anna@example.com. Осталось одно действие.</p>
-    <div class="card" style="margin-top:24px">${body}</div>
+    <div class="card" style="margin-top:24px">
+      <button class="btn wide" style="margin-top:4px">Принять условия и продолжить</button>
+      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("terms")}; пользоваться Inside можно с 14 лет.
+        Данные аккаунта обрабатываются по ${doc("privacy", "политике персональных данных")}.</p>
+    </div>
     ${tally()}</div>`;
 }
 
 function guideScreen() {
-  const x = VARIANTS[variant];
-  const pay = x.purchase === "button"
-    ? `<button class="btn wide">Оплатить 2 500 ₽</button>
-       <p class="terms-line">Нажимая «Оплатить», вы принимаете ${doc("purchase")}. Доступ на 6 месяцев, без автопродления.</p>`
-    : `<label class="check"><input type="checkbox" data-field="purchase" ${state.purchase ? "checked" : ""}><span>Принимаю ${doc("purchase")}</span></label>
-       <button class="btn wide" style="margin-top:16px" ${state.purchase ? "" : "disabled"}>Оплатить 2 500 ₽</button>`;
   return `<div class="narrow">
     <h1>Создание Platform Inside</h1>
     <p class="lead">Руководство: материалы, практика и общий чат.</p>
@@ -291,16 +225,13 @@ function guideScreen() {
       <div class="kv"><span>Доступ</span><span>6 месяцев</span><span>Автопродление</span><span>нет</span><span>Чек придёт на</span><span>anna@example.com ✓</span></div>
       <div class="divider"></div>
       <p class="price" style="margin:0 0 16px">2 500 ₽</p>
-      ${pay}
+      <button class="btn wide">Оплатить 2 500 ₽</button>
+      <p class="terms-line">Нажимая «Оплатить», вы принимаете ${doc("purchase")}. Доступ на 6 месяцев, без автопродления.</p>
       <p class="terms-line">До 18 лет покупку оформляйте с согласия законного представителя.</p>
     </section>${tally()}</div>`;
 }
 
 function subscriptionScreen() {
-  const x = VARIANTS[variant];
-  const offer = x.purchase === "button" ? "" :
-    `<label class="check"><input type="checkbox" data-field="subOffer" ${state.subOffer ? "checked" : ""}><span>Принимаю ${doc("subscription")}</span></label>`;
-  const ready = state.recurring && (x.purchase === "button" || state.subOffer);
   return `<div class="narrow">
     <h1>Подписка Inside</h1>
     <p class="lead">Все материалы и руководства, пока действует подписка.</p>
@@ -308,12 +239,10 @@ function subscriptionScreen() {
       <div class="kv"><span>Первый платёж сегодня</span><span>2 000 ₽</span><span>Следующее списание</span><span>15 октября 2026 · 3 500 ₽</span>
         <span>Период</span><span>1 месяц</span><span>Чек придёт на</span><span>anna@example.com ✓</span></div>
       <div class="divider"></div>
-      <div class="stack">${offer}
-        <label class="check"><input type="checkbox" data-field="recurring" ${state.recurring ? "checked" : ""}>
-          <span>Разрешаю автопродление на показанных условиях — ${doc("recurring", "текст согласия")}
-          <span class="hint">Отключить можно в любой момент в кабинете, раздел «Подписка».</span></span></label></div>
-      <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Оплатить 2 000 ₽</button>
-      ${x.purchase === "button" ? `<p class="terms-line">Нажимая «Оплатить», вы принимаете ${doc("subscription")}.</p>` : ""}
+      <button class="btn wide">Оформить подписку и оплатить 2 000 ₽</button>
+      <p class="terms-line">Нажимая кнопку, вы принимаете ${doc("subscription")} и разрешаете автопродление:
+        3 500 ₽ каждый месяц, начиная с 15 октября 2026, пока вы его не отключите — ${doc("recurring", "условия автопродления")}.
+        Отключить можно в любой момент в кабинете, раздел «Подписка».</p>
       <p class="terms-line">До 18 лет подписку оформляйте с согласия законного представителя.</p>
     </section>${tally()}</div>`;
 }
@@ -364,16 +293,12 @@ function profileScreen() {
 }
 
 function accountScreen() {
-  const x = VARIANTS[variant];
-  const way = (m) => ["button", "separate"].includes(m) ? "нажатием кнопки" : "отметкой";
   return `<div class="cabinet">${cabinetNav("account")}<div>
     <header class="section-header"><h1>Аккаунт</h1><p class="lead" style="margin-top:6px">Связь с Telegram, принятые документы и выход</p></header>
     <section class="card"><h2>Принятые документы</h2><div style="margin-top:10px">
-      <div class="doc-row"><div><h3>Условия использования</h3><p class="note" style="margin:2px 0 0">15 сентября 2026, 12:04 · ${way(x.signIn)} · ${doc("terms", "редакция 1")}</p></div></div>
-      ${["combined", "separate"].includes(x.signIn) ? `<div class="doc-row"><div><h3>Согласие на обработку персональных данных</h3><p class="note" style="margin:2px 0 0">15 сентября 2026, 12:04 · ${x.signIn === "combined" ? "общей отметкой" : "отдельной отметкой"} · ${doc("pdConsent", "редакция 1")}</p></div>
-        <div><button class="btn outline sm">Отозвать</button></div></div>` : ""}
-      <div class="doc-row"><div><h3>Оферта покупки руководства</h3><p class="note" style="margin:2px 0 0">«Создание Platform Inside» · 20 сентября 2026 · ${way(x.purchase)} · редакция 1</p></div></div>
-      <div class="doc-row"><div><h3>Автопродление подписки</h3><p class="note" style="margin:2px 0 0"><span class="status-on">Действует</span> · отметкой · управление — раздел «Подписка»</p></div></div>
+      <div class="doc-row"><div><h3>Условия использования</h3><p class="note" style="margin:2px 0 0">15 сентября 2026, 12:04 · кнопка «Принять условия и продолжить» · ${doc("terms", "редакция 1")}</p></div></div>
+      <div class="doc-row"><div><h3>Оферта покупки руководства</h3><p class="note" style="margin:2px 0 0">«Создание Platform Inside» · 20 сентября 2026 · кнопка «Оплатить» · редакция 1</p></div></div>
+      <div class="doc-row"><div><h3>Оферта подписки и автопродление</h3><p class="note" style="margin:2px 0 0"><span class="status-on">Действует</span> · 1 октября 2026 · кнопка «Оформить подписку и оплатить» · управление — раздел «Подписка»</p></div></div>
     </div><p class="note" style="margin:14px 0 0">Как обрабатываются данные: ${doc("privacy", "политика, редакция 3")} · ${doc("cookies", "cookies, редакция 2")}</p></section>
     <section class="card" style="margin-top:18px"><h2>Telegram</h2><p class="note" style="margin:8px 0 0">Бот привязан. Сообщения бота отключаются командой /stop.</p></section>
     ${tally()}</div></div>`;
@@ -383,9 +308,7 @@ function render() {
   setUrl(); renderBar();
   const views = { signin: signinScreen, welcome: welcomeScreen, guide: guideScreen, subscription: subscriptionScreen,
     cookies: cookiesScreen, telegram: telegramScreen, profile: profileScreen, account: accountScreen };
-  const focus = document.activeElement?.dataset?.field;
   document.getElementById("app").innerHTML = (views[screen] ?? welcomeScreen)();
-  if (focus) document.querySelector(`[data-field="${focus}"]`)?.focus();
 }
 render();
 </script>
