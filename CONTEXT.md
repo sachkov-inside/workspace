@@ -3,11 +3,26 @@
 This glossary names shared Inside product concepts that cross application or repository boundaries.
 Repository-specific glossaries refine local concepts without renaming these shared terms.
 
+## Products
+
+**Product**:
+A standalone Inside learning programme built from an authored set of Materials; in generic Russian
+interfaces and descriptions: «Продукт». A particular Product may be named a course, practicum or
+guide without becoming a different kind of programme or purchase.
+_Avoid_: Руководство or практикум as the universal category name, Material, Subscription
+
+**Product Purchase**:
+A one-time purchase of a specified Product under the accepted offer, distinct from the payment and
+the resulting access rights; it does not create recurring charges.
+_Avoid_: Subscription, payment, Access Grant
+
 ## Identity and Membership
 
 **Inside Subscription**:
 A recurring commercial arrangement for one Account's chosen Subscription Tier and Subscription
-Option. It is distinct from a payment, an Access Grant and a Platform permission.
+Option, covering its declared set of Products and Materials rather than naming a learning programme.
+It is distinct from a payment, an Access Grant and a Platform permission; a no-charge assignment of
+a tier does not itself create this billing arrangement.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
 **Offer**:
@@ -85,8 +100,9 @@ It can be read independently and reused in Guides without copying its content.
 _Avoid_: Lesson, Guide product, Workshop Resource
 
 **Guide**:
-A standalone practical Inside product for a defined reader task, with an authored learning path,
-optional Chapters, supplementary Materials and Artifacts; the Russian product name is «Руководство».
+The existing content model for a Product, with an authored learning path, optional Chapters,
+supplementary Materials and Artifacts; its generic Russian name is «Продукт», while technical
+Guide/Series identities and compatibility names remain stable.
 _Avoid_: Series, Material Format guide, Workshop Track, Topic
 
 **Guide Chapter**:
@@ -110,8 +126,7 @@ order, independent of Format; in Russian, «Последовательность
 _Avoid_: Guide Chapter, main or supplementary role, video chapter
 
 **Guide Purchase**:
-A one-time commercial purchase of access to a specified Guide under the accepted offer's terms.
-It is distinct from its payment and the resulting Access Grant and does not create recurring charges.
+The compatibility name for a Product Purchase represented by the existing Guide model.
 _Avoid_: Inside Subscription, perpetual subscription period, Access Grant
 
 **Topic**:
@@ -120,7 +135,7 @@ _Avoid_: Guide, learning path, Tag
 
 **Format**:
 The primary way a Material is consumed, such as video, guide or note. The Material format «Гайд»
-is distinct from the standalone Guide product «Руководство».
+is distinct from a standalone Product represented by Guide.
 _Avoid_: File type, Guide product, step membership, importance
 
 **Tag**:
