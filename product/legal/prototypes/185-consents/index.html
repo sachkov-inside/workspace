@@ -198,12 +198,13 @@ const DOCS = {
   terms: { title: "условия использования", version: 1, href: "/legal/terms" },
   privacy: { title: "политика персональных данных", version: 3, href: "/legal/privacy" },
   cookies: { title: "cookies и локальное хранение", version: 2, href: "/legal/cookies" },
-  profile: { title: "согласие на данные профиля", version: 1, href: "/legal/consent-profile" },
+  profile: { title: "согласие на показ данных профиля", version: 1, href: "/legal/consent-profile" },
   marketing: { title: "согласие на новости и предложения", version: 1, href: "/legal/consent-marketing" },
 };
 
 const params = new URLSearchParams(location.search);
 const SCREENS = [
+  ["signin", "Экран входа"],
   ["welcome", "Первый вход"],
   ["cookies", "Первое посещение"],
   ["telegram", "Вход через Telegram"],
@@ -222,18 +223,20 @@ if (params.get("bar") === "0") document.body.classList.add("hide-bar");
 // Состояние прототипа в памяти: какие отметки стоят и какие события будут записаны.
 const state = {
   terms: false, age: false, profile: false, marketingTelegram: false, marketingEmail: false,
-  showBio: true, showAvatar: true,
+  showBio: false, showAvatar: false,
   step: 0, events: [], cookieSeen: false, analytics: params.get("analytics") === "1",
+  // Экран «Профиль» открывается формой создания профиля (согласия ещё нет); остальные экраны — с данным согласием.
   granted: { profile: params.get("screen") !== "profile", marketingTelegram: false, marketingEmail: false },
   tgChoice: null,
 };
 
+const viaTelegram = params.get("account") === "telegram";
+if (viaTelegram) { state.granted.marketingTelegram = true; }
 const now = () => "2026-09-15T12:04:11+03:00";
 function event(action, key, channel, surface) {
   const doc = DOCS[key];
   return `${action.padEnd(9)} ${key}@v${doc ? doc.version : "—"}  канал=${channel}  экран=${surface}  время=${now()}`;
 }
-const esc = (s) => s;
 const doc = (key, label) => `<a href="${DOCS[key].href}" target="_blank" rel="noreferrer">${label ?? DOCS[key].title}</a>`;
 
 function setUrl() {
@@ -323,10 +326,14 @@ function optionalBlock({ withProfile = true } = {}) {
         <span>Разрешаю показывать участникам с доступом имя, описание и изображение, которые я заполню в профиле —
         ${doc("profile", "текст согласия")}
         <span class="hint">Без этого профиль не создаётся, а материалы и покупки работают так же.</span></span></label>` : ""}
-      <label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
-        <span>Присылать новости и предложения Inside в Telegram — ${doc("marketing", "текст согласия")}</span></label>
-      <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
-        <span>Присылать новости и предложения Inside на почту anna@example.com</span></label>
+      ${viaTelegram
+        ? `<p class="check" style="margin:0"><span>Новости и предложения в Telegram: <b class="status on">дано в боте 15 сентября 2026, 12:02</b> ·
+            <a href="javascript:void 0" data-screen="consents">изменить</a></span></p>`
+        : `<label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
+        <span>Присылать новости и предложения Inside в Telegram — ${doc("marketing", "текст согласия")}</span></label>`}
+      ${viaTelegram ? `<p class="note" style="margin:0">Новости на почту можно будет включить после добавления почты в кабинете.</p>`
+        : `<label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
+        <span>Присылать новости и предложения Inside на почту anna@example.com — ${doc("marketing", "текст согласия")}</span></label>`}
     </div>
     <p class="note" style="margin:14px 0 0">Письма о покупках, продлении и доступе приходят без этой отметки: это часть договора, а не реклама.</p>`;
 }
@@ -334,7 +341,7 @@ function optionalBlock({ withProfile = true } = {}) {
 function welcomeEvents(includeOptional = true) {
   const ev = [];
   if (state.terms) ev.push(event("accept", "terms", "web", "first-sign-in"));
-  if (state.age) ev.push(`confirm   age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
+  if (state.age) ev.push(`accept    age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
   if (includeOptional) {
     if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in") + `  данные=[${profileFields()}]`);
     if (state.marketingTelegram) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
@@ -344,9 +351,10 @@ function welcomeEvents(includeOptional = true) {
 }
 
 function welcomeHeader(sub) {
+  const text = viaTelegram ? sub.replace("Вы вошли как anna@example.com.", "Вы вошли через Telegram.") : sub;
   return `<p class="eyebrow">Аккаунт создан</p>
     <h1 style="margin-top:6px">Добро пожаловать в Inside</h1>
-    <p class="lead">${sub}</p>`;
+    <p class="lead">${text}</p>`;
 }
 
 function welcomeA() {
@@ -400,7 +408,7 @@ function welcomeSteps() {
       <label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
         <span>В Telegram — ${doc("marketing", "текст согласия")}</span></label>
       <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
-        <span>На почту anna@example.com</span></label></div>
+        <span>На почту anna@example.com — ${doc("marketing", "текст согласия")}</span></label></div>
       <div class="divider"></div>
       <div class="row"><button class="btn" data-act="next">Дальше</button><button class="btn ghost" data-act="skip-marketing">Пропустить</button>
       <span class="note">Шаг 2 из 3</span></div>`;
@@ -421,6 +429,24 @@ function welcomeSteps() {
     <div class="steps">${bar}</div>
     <form class="card" onsubmit="return false">${body}</form>
     ${stateBlock("будет записано в конце", welcomeEvents())}
+  </div>`;
+}
+
+function signinScreen() {
+  return `<div class="narrow" style="max-width:26rem">
+    <div class="card" style="margin-top:24px;text-align:center">
+      <div class="logo">Sachkov <span>Inside</span></div>
+      <h2 style="margin-top:18px">Войти или создать аккаунт</h2>
+      <input placeholder="Почта" style="margin-top:18px;width:100%;min-height:48px;border-radius:.7rem;border:1px solid var(--input);padding:0 14px;font:500 15px var(--font-body)">
+      <button class="btn" style="width:100%;margin-top:10px">Получить код</button>
+      <div class="divider"></div>
+      <button class="btn outline" style="width:100%" data-act="to-telegram">Войти через Telegram</button>
+      <p class="note" style="margin:10px 0 0">Telegram передаст Inside только числовой идентификатор аккаунта.</p>
+      <p class="note" style="margin:16px 0 0">Как мы используем данные — ${doc("privacy", "политика")}. Условия использования
+        (${doc("terms", "текст")}) вы примете после входа.</p>
+    </div>
+    ${stateBlock("что происходит", ["на экране входа согласия не собираются: только ссылки на документы до передачи данных",
+      "после входа по почте или через Telegram открывается экран «Добро пожаловать»"])}
   </div>`;
 }
 
@@ -598,7 +624,8 @@ function act(name, el) {
   if (name === "toggle-analytics") { state.analytics = !state.analytics; state.cookieSeen = false; render(); }
   if (name === "tg-yes") { state.tgChoice = "yes"; render(); }
   if (name === "tg-no") { state.tgChoice = "no"; render(); }
-  if (name === "to-welcome") { screen = "welcome"; resetWelcome(); render(); }
+  if (name === "to-welcome") { location.search = "?screen=welcome&variant=A&account=telegram"; }
+  if (name === "to-telegram") { screen = "telegram"; render(); }
   if (name === "toggle-profile-consent") { state.granted.profile = !state.granted.profile; state.profile = false; render(); }
   if (name === "grant") {
     const f = el.dataset.field; state.granted[f] = true;
@@ -631,7 +658,7 @@ function render() {
   const app = document.getElementById("app");
   const views = {
     welcome: { A: welcomeA, B: welcomeSteps, C: welcomeOnlyRequired }[variant] ?? welcomeA,
-    cookies: cookiesScreen, telegram: telegramScreen, consents: consentsScreen, profile: profileScreen,
+    signin: signinScreen, cookies: cookiesScreen, telegram: telegramScreen, consents: consentsScreen, profile: profileScreen,
   };
   const focusField = document.activeElement?.dataset?.field;
   app.innerHTML = (views[screen] ?? welcomeA)();
