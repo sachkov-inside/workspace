@@ -42,7 +42,8 @@ participation, assigned or sold independently of the duration and price used to 
 _Avoid_: Subscription Option, payment period, permission
 
 **Content Scope**:
-The explicit set of Products and individual Materials promised by a Subscription Tier.
+The explicit set of Products and individual Materials promised by a Subscription Tier or recorded
+in an Access Grant.
 _Avoid_: Published library, catalogue, global Materials access
 
 **Subscription Enrollment**:
@@ -55,8 +56,8 @@ The right to ask the author for help within a stated term; in Russian, «Соп�
 _Avoid_: Personal mentoring, guaranteed answer, community participation
 
 **Community Entitlement**:
-An Account's effective right to participate in the shared community chat, derived from live Access
-Grants that cover the chat or any Product. It is distinct from actual presence in the chat.
+An Account's effective right to participate in the shared community chat, derived from its live
+rights that cover the chat or any Product. It is distinct from actual presence in the chat.
 _Avoid_: Chat membership, Membership Signal, tier name
 
 **Admission Restriction**:
