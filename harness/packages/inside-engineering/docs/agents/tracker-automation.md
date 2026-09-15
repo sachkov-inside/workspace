@@ -69,7 +69,8 @@ one repository and across repositories, pending gate, not_planned, draft/ready/r
 PR, missed event, archive and routing. Keep test issues as closed history. Merge remains owner-gated.
 
 Classification repair preserves shared fields by name. Area belongs to Developer Pipeline; when
-moving to Human Backlog it is recorded in the transition artifact, not mapped to the unrelated Kind.
+moving to Human Backlog it is recorded in the transition artifact. The native issue type moves with
+the issue and is not a Project field.
 
 ## Agent sessions
 
