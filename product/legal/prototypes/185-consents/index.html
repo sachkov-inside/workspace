@@ -258,14 +258,14 @@ function welcomeScreen() {
     ready = state.signIn;
     body = `<label class="check"><input type="checkbox" data-field="signIn" ${state.signIn ? "checked" : ""}>
         <span>Принимаю ${doc("terms")} и даю ${doc("pdConsent", "согласие на обработку персональных данных")}
-        <span class="hint">Пользоваться Inside можно с 14 лет — это пункт условий, отдельная отметка не нужна.</span></span></label>
+        <span class="hint">Пользоваться Inside можно с 14 лет.</span></span></label>
       <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Продолжить</button>
       <p class="terms-line">Как обрабатываются данные — ${doc("privacy", "политика персональных данных")}.</p>`;
   } else {
     ready = state.signIn;
     body = `<label class="check"><input type="checkbox" data-field="signIn" ${state.signIn ? "checked" : ""}>
         <span>Принимаю ${doc("terms")}
-        <span class="hint">Пользоваться Inside можно с 14 лет — это пункт условий, отдельная отметка не нужна.</span></span></label>
+        <span class="hint">Пользоваться Inside можно с 14 лет.</span></span></label>
       <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Продолжить</button>
       <p class="terms-line">Данные аккаунта обрабатываются по ${doc("privacy", "политике персональных данных")}; согласие на это не нужно.</p>`;
   }
@@ -292,6 +292,7 @@ function guideScreen() {
       <div class="divider"></div>
       <p class="price" style="margin:0 0 16px">2 500 ₽</p>
       ${pay}
+      <p class="terms-line">До 18 лет покупку оформляйте с согласия законного представителя.</p>
     </section>${tally()}</div>`;
 }
 
@@ -313,6 +314,7 @@ function subscriptionScreen() {
           <span class="hint">Отключить можно в любой момент в кабинете, раздел «Подписка».</span></span></label></div>
       <button class="btn wide" style="margin-top:16px" ${ready ? "" : "disabled"}>Оплатить 2 000 ₽</button>
       ${x.purchase === "button" ? `<p class="terms-line">Нажимая «Оплатить», вы принимаете ${doc("subscription")}.</p>` : ""}
+      <p class="terms-line">До 18 лет подписку оформляйте с согласия законного представителя.</p>
     </section>${tally()}</div>`;
 }
 

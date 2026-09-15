@@ -52,70 +52,77 @@
 
 ## Расхождения документов и продукта
 
-1. **Политика ссылается на несобираемое согласие.** `privacy` v2 называет основанием данных
-   профиля «отдельное согласие», говорит о сроке его действия и отзыве. Продукт согласия не
-   собирает. По решению владельца оно и не нужно: профиль виден только пользователю, основание —
-   договор (кандидат `privacy` v3).
-2. **Условия использования не принимаются.** Акцепт `terms` v1 не фиксируется ни при регистрации
-   по почте, ни при входе через Telegram. Ссылки на документы есть лишь в одной из семи форм входа.
-3. **Бот считает `/start` разрешением на рекламу.** Это расходится с `privacy` v2 («реклама …
-   требует отдельного согласия») и с 38-ФЗ ст. 18. Рассылка в production выключена, поэтому это
-   ограничение для включения, а не текущий сбор.
+1. **Политика ссылается на несобираемое согласие.** `privacy` v2 называет основанием данных профиля
+   «отдельное согласие», говорит о сроке его действия и отзыве. Продукт согласия не собирает. По
+   решению владельца оно и не нужно: профиль виден только пользователю, основание — договор
+   (кандидат `privacy` v3).
+2. **Условия использования не принимаются.** Акцепт `terms` v1 не фиксируется ни при регистрации по
+   почте, ни при входе через Telegram. Ссылки на документы есть лишь в одной из семи форм входа.
+3. **Бот считает `/start` разрешением на сообщения, включая новости.** По решению владельца от
+   15.09.2026 так и остаётся; риск записан в
+   [решении владельца 4](consents-unified-path.md#решения-владельца-от-15092026). Рассылка в
+   production выключена.
 4. **`cookies` v1 неполон.** Не названы две годовые cookies режима чтения
-   (`apps/web/src/shared/guide-mode/guide-mode.ts`, `max-age` 365 дней) и два ключа
-   sessionStorage. Настройки плеера Kinescope описаны верно: адрес плеера получает `dnt=1`,
-   а в параметрах задано `behavior.localStorage: false`
+   (`apps/web/src/shared/guide-mode/guide-mode.ts`, `max-age` 365 дней) и два ключа sessionStorage.
+   Настройки плеера Kinescope описаны верно: адрес плеера получает `dnt=1`, а в параметрах задано
+   `behavior.localStorage: false`
    (`apps/web/src/features/material-video/ui/material-primary-video.client.tsx`).
 5. **Статистика переходов не описана в политике**, хотя хиты связываются с конкретной доставкой.
 6. **Каталог Platform не знает черновиков.** Добавленная редакция сразу становится действующей
-   (`packages/legal/src/catalog.ts`, `currentLegalEdition` берёт старший номер). Кандидаты
-   поэтому живут в Workspace и не попадают в каталог до решения владельца.
-7. **Доказательство согласия хранит адрес текущей редакции** `/legal/<ключ>`, а не постоянный
-   адрес `/legal/<ключ>/v<номер>`. Текст и digest при этом сохраняются, поэтому версия
-   восстановима. Таблица доказательств допускает запись только при подтверждённой почте
-   покупателя и знает четыре вида: `terms`, `recurring`, `personal_data`, `marketing`.
+   (`packages/legal/src/catalog.ts`, `currentLegalEdition` берёт старший номер). Кандидаты поэтому
+   живут в Workspace и не попадают в каталог до решения владельца.
+7. **Доказательство согласия хранит адрес текущей редакции** `/legal/<ключ>`, а не постоянный адрес
+   `/legal/<ключ>/v<номер>`. Текст и digest при этом сохраняются, поэтому версия восстановима.
+   Таблица доказательств допускает запись только при подтверждённой почте покупателя и знает четыре
+   вида: `terms`, `recurring`, `personal_data`, `marketing`.
 8. **Формулировка автопродления в интерфейсе отличается от документа.** Документ задаёт действие
    «Разрешаю автопродление на показанных условиях», форма показывает «Принимаю Согласие на
-   автопродление». Это задача оферт и оформления [#183](https://github.com/sachkov-inside/workspace/issues/183), здесь только отмечено.
+   автопродление». Это задача оферт и оформления
+   [#183](https://github.com/sachkov-inside/workspace/issues/183), здесь только отмечено.
 
 ## Профиль виден другим участникам: что убрать
 
-Проверено на Platform `origin/main` `ee4e1a87326c2671d823ea82f514bae595607181` и Telegram `origin/main`
-`1aaefd5a5cea42f65463b6edf092e41a477f9114`. По решению владельца от 15.09.2026 профиль виден только
-самому пользователю. Сейчас это не так в одном месте: участник с действующим доступом открывает
-`/members/<publicProfileId>` по ссылке, которую владелец профиля копирует в кабинете, и видит имя,
-описание и аватар. Анонимные посетители и не участники получают 404, страница не индексируется,
-каталога профилей нет. Больше нигде, включая Telegram-бота, чужие профили и аватары не показываются.
+Проверено позже основной описи, на Platform `origin/main` `ee4e1a87326c2671d823ea82f514bae595607181`
+и Telegram `origin/main` `1aaefd5a5cea42f65463b6edf092e41a477f9114`: main успел продвинуться. По
+решению владельца от 15.09.2026 профиль виден только самому пользователю. Сейчас это не так в одном
+месте: участник с действующим доступом открывает `/members/<publicProfileId>` по ссылке, которую
+владелец профиля копирует в кабинете, и видит имя, описание и аватар. Анонимные посетители и не
+участники получают 404, страница не индексируется, каталога профилей нет. Больше нигде, включая
+Telegram-бота, чужие профили и аватары не показываются.
 
 Что убрать при реализации (отдельной задачей в Platform, после принятия пути):
 
 1. **Страница и её интерфейс:** маршрут `apps/web/app/(public)/members/[publicProfileId]/`,
-   `apps/web/src/_pages/member-profile/`, `entities/member-profile/ui/member-profile-projection*`.
+   `apps/web/src/_pages/member-profile/` и `apps/web/src/_pages/member-profile.server.ts`,
+   `entities/member-profile/ui/member-profile-projection*`, запрос `requestMemberProfileProjection`
+   в `shared/api/backend/member-profiles.server.ts`.
 2. **Серверный доступ для других:** `GET member-profiles/:publicProfileId` (`view-member-profile`),
    ветка выдачи аватара другим участникам в `deliver-profile-avatar.ts` и
-   `ProfileAvatarDeliveryController`. **Зависимость:** кабинет загружает собственный аватар через тот
-   же адрес `/api/member-profiles/<id>/avatar/...`, поэтому нужен адрес только для владельца, а не
-   простое удаление.
+   `ProfileAvatarDeliveryController`, операция `viewMemberProfile` в
+   `apps/backend/openapi/platform-api.json` и сгенерированном клиенте. **Зависимость:** кабинет
+   загружает собственный аватар через тот же адрес `/api/member-profiles/<id>/avatar/...`, поэтому
+   нужен адрес только для владельца, а не простое удаление.
 3. **Тексты кабинета:** «видят участники с действующим доступом», «увидят участники», блок «Ссылка
-   для участников» и описание раздела «…и ссылка для участников»
-   (`account-page.client.tsx`, `widgets/account-cabinet/model/account-sections.ts`).
-4. **Тесты и истории**, которые ждут страницу участника: `apps/web/test/fullstack/member-profile.spec.ts`,
+   для участников» и описание раздела «…и ссылка для участников» (`account-page.client.tsx`,
+   `widgets/account-cabinet/model/account-sections.ts`).
+4. **Тесты и истории**, которые ждут страницу участника:
+   `apps/web/test/fullstack/member-profile.spec.ts`,
    `apps/backend/test/integration/accounts-api.test.ts`, `member-profiles.test.ts`,
-   `profile-avatar-http.test.ts`, `profile-projection.test.ts`, `apps/web/test/module/member-profile.test.ts`,
-   `account-page.stories.tsx`.
+   `profile-avatar-http.test.ts`, `profile-projection.test.ts`,
+   `apps/web/test/module/member-profile.test.ts`, `account-page.stories.tsx`.
 5. **Документы Platform:** `CONTEXT.md` (Member Profile), `docs/product/platform-mvp-brief.md`,
-   `docs/specifications/platform-v1.md`, `apps/web/DESIGN.md`, `.impeccable/surfaces/route-account.md`
-   и связанные записи дизайна.
+   `docs/specifications/platform-v1.md`, `apps/web/DESIGN.md`,
+   `.impeccable/surfaces/route-account.md` и связанные записи дизайна.
 
 Решения при реализации, которые здесь не принимаются: оставить ли `public_profile_id` внутренним
-идентификатором (меньшее изменение) и нужна ли модерация профиля, который никто, кроме владельца,
-не видит.
+идентификатором (меньшее изменение) и нужна ли модерация профиля, который никто, кроме владельца, не
+видит.
 
 ## Номера кандидатных редакций
 
-Каталог Platform на коммите выше содержит: `contacts` v1, `terms` v1, `privacy` v2, `cookies` v1,
-`purchase` v1, `subscription` v1, `recurring-consent` v1, `tribute` v1. Ключа `consent-profile`
-нет. Кандидаты #185 используют свободные номера: `privacy` v3 и `cookies` v2. Отдельных согласий на
-профиль и на новости нет по решению владельца от 15.09.2026. Номера
-`terms` v2, `purchase` v2 и `subscription` v2 заняты кандидатами
-[#176](fixed-term-guide-access.md) и здесь не используются.
+Каталог Platform на коммите `9803853a` (см. начало описи) содержит: `contacts` v1, `terms` v1,
+`privacy` v2, `cookies` v1, `purchase` v1, `subscription` v1, `recurring-consent` v1, `tribute` v1.
+Ключа `consent-profile` нет. Кандидаты #185 используют свободные номера: `privacy` v3 и `cookies`
+v2. Отдельных согласий на профиль и на новости нет по решению владельца от 15.09.2026. Номера
+`terms` v2, `purchase` v2 и `subscription` v2 заняты кандидатами [#176](fixed-term-guide-access.md)
+и здесь не используются.
