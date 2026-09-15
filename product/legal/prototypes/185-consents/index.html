@@ -231,7 +231,9 @@ const state = {
 };
 
 const viaTelegram = params.get("account") === "telegram";
-if (viaTelegram) { state.granted.marketingTelegram = true; }
+// Ответ в боте до входа: yes | no | none. Экран первого входа показывает его и даёт изменить на месте.
+const botAnswer = params.get("bot") ?? "yes";
+if (viaTelegram && botAnswer === "yes") { state.marketingTelegram = true; }
 const now = () => "2026-09-15T12:04:11+03:00";
 function event(action, key, channel, surface) {
   const doc = DOCS[key];
@@ -326,11 +328,17 @@ function optionalBlock({ withProfile = true } = {}) {
         <span>Разрешаю показывать участникам с доступом имя, описание и изображение, которые я заполню в профиле —
         ${doc("profile", "текст согласия")}
         <span class="hint">Без этого профиль не создаётся, а материалы и покупки работают так же.</span></span></label>` : ""}
-      ${viaTelegram
-        ? `<p class="check" style="margin:0"><span>Новости и предложения в Telegram: <b class="status on">дано в боте 15 сентября 2026, 12:02</b> ·
-            <a href="javascript:void 0" data-screen="consents">изменить</a></span></p>`
-        : `<label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
-        <span>Присылать новости и предложения Inside в Telegram — ${doc("marketing", "текст согласия")}</span></label>`}
+      ${viaTelegram && botAnswer !== "none"
+        ? `<div class="check"><span>Новости и предложения в Telegram:
+            <b class="status ${state.marketingTelegram ? "on" : "off"}">${state.marketingTelegram
+              ? (botAnswer === "yes" ? "разрешено в боте 15 сентября 2026, 12:02" : "разрешено сейчас")
+              : (botAnswer === "no" ? "отказ в боте 15 сентября 2026, 12:02" : "отключено сейчас")}</b>
+            <span class="hint">${doc("marketing", "Текст согласия")}</span></span>
+            <button class="btn outline sm" style="margin-left:auto" data-act="toggle-bot-answer">${state.marketingTelegram ? "Отключить" : "Разрешить"}</button></div>`
+        : viaTelegram
+        ? `<label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
+        <span>Присылать новости и предложения Inside в Telegram — ${doc("marketing", "текст согласия")}</span></label>`
+        : `<p class="note" style="margin:0">Новости в Telegram бот спросит сам, когда вы подключите его в кабинете.</p>`}
       ${viaTelegram ? `<p class="note" style="margin:0">Новости на почту можно будет включить после добавления почты в кабинете.</p>`
         : `<label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
         <span>Присылать новости и предложения Inside на почту anna@example.com — ${doc("marketing", "текст согласия")}</span></label>`}
@@ -343,8 +351,14 @@ function welcomeEvents(includeOptional = true) {
   if (state.terms) ev.push(event("accept", "terms", "web", "first-sign-in"));
   if (state.age) ev.push(`accept    age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
   if (includeOptional) {
+    if (viaTelegram && botAnswer !== "none") {
+      const changed = (botAnswer === "yes") !== state.marketingTelegram;
+      ev.push(changed
+        ? event(state.marketingTelegram ? "grant" : "withdraw", "marketing", "telegram", "first-sign-in")
+        : `перенос ответа бота в журнал аккаунта: ${botAnswer === "yes" ? "grant" : "decline"} marketing@v1, исходное время 2026-09-15T12:02:40+03:00`);
+    }
     if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in") + `  данные=[${profileFields()}]`);
-    if (state.marketingTelegram) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
+    if (state.marketingTelegram && !(viaTelegram && botAnswer !== "none")) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
     if (state.marketingEmail) ev.push(event("grant", "marketing", "email", "first-sign-in"));
   }
   return ev;
@@ -405,8 +419,7 @@ function welcomeSteps() {
     body = `<div class="group-title"><h3>Новости и предложения</h3><span class="req">по желанию</span></div>
       <p class="note" style="margin:0 0 14px">Сообщения о покупках и доступе придут в любом случае. Здесь — только новости и предложения.</p>
       <div class="stack">
-      <label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
-        <span>В Telegram — ${doc("marketing", "текст согласия")}</span></label>
+      <p class="note" style="margin:0">В Telegram бот спросит сам, когда вы подключите его в кабинете.</p>
       <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
         <span>На почту anna@example.com — ${doc("marketing", "текст согласия")}</span></label></div>
       <div class="divider"></div>
@@ -507,9 +520,10 @@ function telegramScreen() {
           <h2>Что происходит после «Да, это я»</h2>
           <ol style="margin:12px 0 0;padding-left:18px;font-size:14px" class="stack">
             <li>Сайт получает подтверждение от бота и создаёт или находит аккаунт.</li>
-            <li>Новый аккаунт открывает экран «Добро пожаловать» — те же отметки, что при входе по почте.</li>
-            <li>Пока обязательные отметки не сохранены, кабинет, профиль и покупки не открываются; привязка бота к аккаунту не завершается.</li>
-            <li>Ответ на вопрос о рассылке в боте уже виден в кабинете — повторно не спрашиваем.</li>
+            <li>Новый аккаунт открывает экран «Добро пожаловать» с теми же обязательными отметками, что при входе по почте.</li>
+            <li>Ответ из бота о новостях показан на этом экране, его можно изменить прямо там — без перехода в кабинет.</li>
+            <li>Пока обязательные отметки не сохранены, кабинет, профиль, покупки и привязка бота не открываются.</li>
+            <li>При «Продолжить» привязка завершается, а ответ из бота переносится в журнал аккаунта с исходным временем.</li>
           </ol>
           <div class="row" style="margin-top:16px"><button class="btn sm" data-act="to-welcome">Открыть экран первого входа</button></div>
         </div>
@@ -624,8 +638,9 @@ function act(name, el) {
   if (name === "toggle-analytics") { state.analytics = !state.analytics; state.cookieSeen = false; render(); }
   if (name === "tg-yes") { state.tgChoice = "yes"; render(); }
   if (name === "tg-no") { state.tgChoice = "no"; render(); }
-  if (name === "to-welcome") { location.search = "?screen=welcome&variant=A&account=telegram"; }
+  if (name === "to-welcome") { location.search = `?screen=welcome&variant=A&account=telegram&bot=${state.tgChoice ?? "none"}`; }
   if (name === "to-telegram") { screen = "telegram"; render(); }
+  if (name === "toggle-bot-answer") { state.marketingTelegram = !state.marketingTelegram; render(); }
   if (name === "toggle-profile-consent") { state.granted.profile = !state.granted.profile; state.profile = false; render(); }
   if (name === "grant") {
     const f = el.dataset.field; state.granted[f] = true;
