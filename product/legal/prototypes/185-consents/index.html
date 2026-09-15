@@ -1,0 +1,623 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Workspace #185: единый путь согласий пользователя.
+  Вопрос: как должен выглядеть сбор согласий при первом входе и управление ими в кабинете.
+  Три варианта экрана первого входа (?variant=A|B|C) и общие экраны (?screen=...).
+  Не встраивается в Platform и не является реализацией; тексты и версии — кандидатные.
+  Визуальный язык повторяет Platform apps/web (public shell, Manrope, карточки rounded-2xl).
+  Запуск: открыть файл в браузере. Параметр &bar=0 скрывает панель прототипа.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Прототип #185 — согласия Inside</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Токены public shell из Platform apps/web/app/globals.css */
+  :root {
+    --background: #ffffff; --foreground: #202124; --card: #ffffff;
+    --primary: #202124; --primary-foreground: #ffffff;
+    --secondary: #f3f1ed; --muted: #f3f1ed; --muted-foreground: #5f5e59;
+    --accent: #c7461e; --action: #b83a1d; --action-hover: #8f2c16;
+    --border: rgb(32 33 36 / 8%); --input: rgb(32 33 36 / 14%); --ring: #c7461e;
+    --destructive: oklch(0.5 0.2 27);
+    --good: oklch(0.46 0.11 150);
+    --radius: 0.875rem;
+    --shadow-card: 0 1rem 2.5rem -2rem rgb(20 21 24 / 35%);
+    --shadow-float: 0 1.5rem 4rem -1.25rem rgb(20 21 24 / 60%);
+    --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--background); color: var(--foreground);
+    font-family: var(--font-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: var(--action); text-underline-offset: 4px; }
+  a:hover { color: var(--action-hover); }
+  button { font: inherit; }
+  .muted { color: var(--muted-foreground); }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+
+  /* Шапка public shell */
+  .site-header { display: flex; align-items: center; gap: 32px; height: 67px; padding: 0 94px;
+    border-bottom: 1px solid var(--border); }
+  .logo { font-weight: 800; font-size: 20px; letter-spacing: -0.03em; white-space: nowrap; }
+  .logo span { color: var(--accent); }
+  .site-nav { display: flex; gap: 26px; font-size: 14px; font-weight: 600; }
+  .site-header .spacer { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px;
+    border-radius: 999px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; }
+  .mobile-nav { display: none; }
+
+  .page { max-width: 1012px; margin: 0 auto; padding: 28px 24px 160px; }
+  .narrow { max-width: 38rem; margin: 0 auto; }
+  h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; margin: 0; }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  h3 { font-size: 14px; font-weight: 700; margin: 0; }
+  .lead { margin: 10px 0 0; font-size: 15px; color: var(--muted-foreground); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+    box-shadow: var(--shadow-card); padding: 24px 28px; }
+  .stack > * + * { margin-top: 16px; }
+  .divider { border-top: 1px solid var(--border); margin: 22px 0; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted-foreground); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px;
+    padding: 0 18px; border-radius: 0.6rem; border: 1px solid transparent; background: var(--primary);
+    color: var(--primary-foreground); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.outline { background: #fff; color: var(--foreground); border-color: var(--input); }
+  .btn.ghost { background: transparent; color: var(--foreground); }
+  .btn.danger { background: color-mix(in oklab, var(--destructive) 10%, #fff); color: var(--destructive); }
+  .btn.sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  /* Отметка — как ConsentChecklist в Platform: чекбокс слева, текст со ссылкой */
+  .check { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.55; }
+  .check input { margin-top: 2px; width: 20px; height: 20px; flex: none; accent-color: var(--primary); }
+  .check .hint { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+  .tag { display: inline-block; margin-left: 4px; font-size: 12px; color: var(--muted-foreground); }
+  .req { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+  .group-title { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+  .note { font-size: 13px; color: var(--muted-foreground); }
+  .callout { border: 1px solid color-mix(in oklab, oklch(0.45 0.02 128) 28%, var(--border));
+    background: color-mix(in oklab, oklch(0.45 0.02 128) 7%, #fff); border-radius: 0.8rem; padding: 12px 14px; font-size: 13px; }
+
+  /* Кабинет */
+  .cabinet { display: grid; grid-template-columns: 200px 1fr; gap: 34px; }
+  .cabinet-nav .eyebrow { padding: 6px 12px 12px; }
+  .cabinet-nav a { display: block; padding: 9px 12px; border-radius: 0.7rem; color: var(--foreground);
+    text-decoration: none; font-size: 14px; font-weight: 600; }
+  .cabinet-nav a.active { background: var(--secondary); color: var(--accent); }
+  .section-header { border-bottom: 1px solid var(--border); padding-bottom: 26px; margin-bottom: 28px; }
+  .section-header h1 { font-size: 44px; }
+  .consent-row { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; padding: 16px 0;
+    border-top: 1px solid var(--border); }
+  .consent-row:first-of-type { border-top: 0; padding-top: 4px; }
+  .status { font-size: 13px; font-weight: 600; }
+  .status.on { color: var(--good); }
+  .status.off { color: var(--muted-foreground); }
+  .history li { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 8px 0;
+    border-top: 1px solid var(--border); font-size: 13px; }
+  .history { list-style: none; margin: 0; padding: 0; }
+
+  /* Stepper */
+  .steps { display: flex; gap: 6px; margin: 18px 0 22px; }
+  .steps span { flex: 1; height: 4px; border-radius: 4px; background: var(--secondary); }
+  .steps span.done { background: var(--primary); }
+
+  /* Cookies */
+  .cookie-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 88px; width: min(560px, calc(100% - 32px));
+    background: #fff; border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow-float);
+    padding: 16px 18px; z-index: 30; }
+  .fake-feed { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 24px; }
+  .fake-cover { aspect-ratio: 4/3; border-radius: 1rem; }
+
+  /* Telegram */
+  .tg-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 32px; align-items: start; }
+  .tg { background: #dfe7ee; border-radius: 1.4rem; padding: 14px; font-size: 14px; }
+  .tg-head { display: flex; align-items: center; gap: 10px; padding: 4px 6px 12px; font-weight: 700; }
+  .tg-ava { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: grid; place-items: center; font-size: 13px; }
+  .bubble { background: #fff; border-radius: 14px 14px 14px 4px; padding: 10px 12px; margin: 8px 30px 4px 0; }
+  .bubble.me { background: #e1f6cf; border-radius: 14px 14px 4px 14px; margin: 8px 0 4px auto; width: fit-content; }
+  .tg-btns { display: grid; gap: 6px; margin: 6px 30px 8px 0; }
+  .tg-btns button { background: rgb(255 255 255 / 70%); border: 0; border-radius: 10px; padding: 9px; font-weight: 600;
+    color: #2a6fb0; cursor: pointer; }
+  .tg-btns button.picked { background: #2a6fb0; color: #fff; }
+
+  /* Диалог */
+  dialog { border: 0; border-radius: 1rem; padding: 24px; max-width: 440px; box-shadow: var(--shadow-float); }
+  dialog::backdrop { background: rgb(20 21 24 / 40%); }
+
+  /* Панель прототипа: нарочно не похожа на продукт */
+  .proto-state { margin-top: 28px; border: 2px dashed #7c3aed; border-radius: 0.8rem; padding: 12px 14px;
+    background: #faf5ff; font-family: var(--font-mono); font-size: 12px; color: #3b0764; white-space: pre-wrap; }
+  .proto-state b { font-family: var(--font-body); }
+  .proto-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50;
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; max-width: calc(100% - 16px);
+    background: #2e1065; color: #fff; padding: 6px; border-radius: 999px; box-shadow: 0 10px 30px rgb(46 16 101 / 45%);
+    font-size: 12px; font-weight: 600; }
+  .proto-bar button { background: transparent; color: #fff; border: 0; border-radius: 999px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+  .proto-bar button.on { background: #fff; color: #2e1065; }
+  .proto-bar .sep { width: 1px; height: 18px; background: rgb(255 255 255 / 30%); }
+  .proto-label { padding: 0 6px; white-space: nowrap; }
+
+  @media (width < 48rem) {
+    .site-header { padding: 0 20px; height: 58px; }
+    .site-nav, .site-header .search { display: none; }
+    .page { padding: 20px 16px 190px; }
+    h1 { font-size: 30px; }
+    .section-header h1 { font-size: 34px; }
+    .card { padding: 20px 18px; }
+    .cabinet { grid-template-columns: 1fr; gap: 12px; }
+    .cabinet-nav { display: flex; overflow-x: auto; gap: 4px; }
+    .cabinet-nav .eyebrow { display: none; }
+    .cabinet-nav a { white-space: nowrap; }
+    .consent-row { grid-template-columns: 1fr; }
+    .history li { grid-template-columns: 1fr; gap: 2px; }
+    .fake-feed { grid-template-columns: 1fr; }
+    .tg-wrap { grid-template-columns: 1fr; }
+    .mobile-nav { display: flex; position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 20;
+      gap: 6px; padding: 6px; background: #fff; border-radius: 999px; box-shadow: var(--shadow-float); }
+    .mobile-nav span { padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+    .mobile-nav span.on { background: var(--primary); color: #fff; }
+    .proto-bar { bottom: 76px; border-radius: 1rem; }
+    .cookie-bar { bottom: 150px; }
+    .hide-bar .cookie-bar { bottom: 80px; }
+  }
+  .hide-bar .proto-bar, .hide-bar .mobile-nav { display: none; }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="logo">Sachkov <span>Inside</span></div>
+  <nav class="site-nav"><span>Главная</span><span>База знаний</span><span>Закладки</span></nav>
+  <div class="spacer"></div>
+  <span class="search muted" style="font-size:14px">Найти материал</span>
+  <span class="pill">Аккаунт</span>
+</header>
+
+<main class="page" id="app"></main>
+
+<nav class="mobile-nav" aria-hidden="true"><span>Главная</span><span>База</span><span class="on">Профиль</span></nav>
+
+<dialog id="withdraw-dialog"></dialog>
+
+<div class="proto-bar" id="proto-bar" role="toolbar" aria-label="Панель прототипа"></div>
+
+<script>
+// ---------------------------------------------------------------------------------------------
+// Кандидатные ключи и версии документов. Номера сверены с каталогом Platform origin/main
+// (см. consents-inventory.md); действующей остаётся старшая введённая версия.
+// ---------------------------------------------------------------------------------------------
+const DOCS = {
+  terms: { title: "условия использования", version: 1, href: "/legal/terms" },
+  privacy: { title: "политика персональных данных", version: 3, href: "/legal/privacy" },
+  cookies: { title: "cookies и локальное хранение", version: 2, href: "/legal/cookies" },
+  profile: { title: "согласие на данные профиля", version: 1, href: "/legal/consent-profile" },
+  marketing: { title: "согласие на новости и предложения", version: 1, href: "/legal/consent-marketing" },
+};
+
+const params = new URLSearchParams(location.search);
+const SCREENS = [
+  ["welcome", "Первый вход"],
+  ["cookies", "Первое посещение"],
+  ["telegram", "Вход через Telegram"],
+  ["consents", "Кабинет: согласия"],
+  ["profile", "Профиль"],
+];
+const VARIANTS = [
+  ["A", "Один экран"],
+  ["B", "Только нужное сейчас"],
+  ["C", "Короткие шаги"],
+];
+let screen = params.get("screen") ?? "welcome";
+let variant = params.get("variant") ?? "A";
+if (params.get("bar") === "0") document.body.classList.add("hide-bar");
+
+// Состояние прототипа в памяти: какие отметки стоят и какие события будут записаны.
+const state = {
+  terms: false, age: false, profile: false, marketingTelegram: false, marketingEmail: false,
+  step: 0, events: [], cookieSeen: false, analytics: params.get("analytics") === "1",
+  granted: { profile: true, marketingTelegram: false, marketingEmail: false },
+  tgChoice: null,
+};
+
+const now = () => "2026-09-15T12:04:11+03:00";
+function event(action, key, channel, surface) {
+  const doc = DOCS[key];
+  return `${action.padEnd(9)} ${key}@v${doc ? doc.version : "—"}  канал=${channel}  экран=${surface}  время=${now()}`;
+}
+const esc = (s) => s;
+const doc = (key, label) => `<a href="${DOCS[key].href}" target="_blank" rel="noreferrer">${label ?? DOCS[key].title}</a>`;
+
+function setUrl() {
+  const p = new URLSearchParams(location.search);
+  p.set("screen", screen);
+  if (screen === "welcome") p.set("variant", variant); else p.delete("variant");
+  history.replaceState(null, "", `?${p.toString()}`);
+}
+
+function renderBar() {
+  const bar = document.getElementById("proto-bar");
+  const screenBtns = SCREENS.map(([id, label]) =>
+    `<button data-screen="${id}" class="${id === screen ? "on" : ""}">${label}</button>`).join("");
+  const current = VARIANTS.find(([id]) => id === variant);
+  const variantPart = screen === "welcome"
+    ? `<span class="sep"></span><button data-cycle="-1" aria-label="Предыдущий вариант">←</button>
+       <span class="proto-label">${current[0]} (${current[1]})</span>
+       <button data-cycle="1" aria-label="Следующий вариант">→</button>` : "";
+  bar.innerHTML = `<span class="proto-label">ПРОТОТИП #185</span><span class="sep"></span>${screenBtns}${variantPart}`;
+}
+
+function cycle(delta) {
+  const i = VARIANTS.findIndex(([id]) => id === variant);
+  variant = VARIANTS[(i + delta + VARIANTS.length) % VARIANTS.length][0];
+  resetWelcome();
+  render();
+}
+function resetWelcome() {
+  Object.assign(state, { terms: false, age: false, profile: false, marketingTelegram: false, marketingEmail: false, step: 0, events: [] });
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-screen],[data-cycle],[data-act]");
+  if (!t) return;
+  if (t.dataset.screen) { screen = t.dataset.screen; resetWelcome(); render(); }
+  if (t.dataset.cycle) cycle(Number(t.dataset.cycle));
+  if (t.dataset.act) act(t.dataset.act, t);
+});
+document.addEventListener("change", (e) => {
+  const k = e.target.dataset?.field;
+  if (k) { state[k] = e.target.checked; render(true); }
+});
+document.addEventListener("keydown", (e) => {
+  if (screen !== "welcome") return;
+  if (e.target.closest("input,textarea,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+function stateBlock(title, lines) {
+  return `<div class="proto-state"><b>Прототип — ${title}</b>\n${lines.length ? lines.join("\n") : "пока ничего"}</div>`;
+}
+
+// ------------------------------------------------ экраны ------------------------------------------------
+
+function requiredBlock() {
+  return `
+    <div class="group-title"><h3>Чтобы пользоваться аккаунтом</h3><span class="req">обязательно</span></div>
+    <div class="stack">
+      <label class="check"><input type="checkbox" data-field="terms" ${state.terms ? "checked" : ""}>
+        <span>Принимаю ${doc("terms")}
+        <span class="hint">Договор об аккаунте: вход, доступ к открытым материалам, сохранение прогресса.</span></span></label>
+      <label class="check"><input type="checkbox" data-field="age" ${state.age ? "checked" : ""}>
+        <span>Мне исполнилось 14 лет
+        <span class="hint">Если вам нет 18, покупки оформляйте с согласия родителя или другого законного представителя.</span></span></label>
+    </div>
+    <p class="note" style="margin:14px 0 0">Данные для работы аккаунта мы обрабатываем по договору — согласие на это не нужно.
+      Что именно и зачем, описано в ${doc("privacy", "политике персональных данных")}.</p>`;
+}
+
+function optionalBlock({ withProfile = true } = {}) {
+  return `
+    <div class="group-title"><h3>По желанию</h3><span class="req">можно изменить в кабинете</span></div>
+    <div class="stack">
+      ${withProfile ? `<label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
+        <span>Разрешаю показывать участникам с доступом имя, описание и изображение, которые я заполню в профиле —
+        ${doc("profile", "текст согласия")}
+        <span class="hint">Без этого профиль не создаётся, а материалы и покупки работают так же.</span></span></label>` : ""}
+      <label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
+        <span>Присылать новости и предложения Inside в Telegram — ${doc("marketing", "текст согласия")}</span></label>
+      <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
+        <span>Присылать новости и предложения Inside на почту anna@example.com</span></label>
+    </div>
+    <p class="note" style="margin:14px 0 0">Письма о покупках, продлении и доступе приходят без этой отметки: это часть договора, а не реклама.</p>`;
+}
+
+function welcomeEvents(includeOptional = true) {
+  const ev = [];
+  if (state.terms) ev.push(event("accept", "terms", "web", "first-sign-in"));
+  if (state.age) ev.push(`confirm   age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
+  if (includeOptional) {
+    if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in"));
+    if (state.marketingTelegram) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
+    if (state.marketingEmail) ev.push(event("grant", "marketing", "email", "first-sign-in"));
+  }
+  return ev;
+}
+
+function welcomeHeader(sub) {
+  return `<p class="eyebrow">Аккаунт создан</p>
+    <h1 style="margin-top:6px">Добро пожаловать в Inside</h1>
+    <p class="lead">${sub}</p>`;
+}
+
+function welcomeA() {
+  const ready = state.terms && state.age;
+  return `<div class="narrow">
+    ${welcomeHeader("Вы вошли как anna@example.com. Осталось одно действие — всё на этом экране, ничего не отмечено за вас.")}
+    <form class="card" style="margin-top:24px" onsubmit="return false">
+      ${requiredBlock()}
+      <div class="divider"></div>
+      ${optionalBlock()}
+      <div class="divider"></div>
+      <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="submit-welcome">Продолжить</button>
+        <span class="note">${ready ? "Отметки сохранятся с версией текста и временем." : "Отметьте два обязательных пункта."}</span></div>
+    </form>
+    ${stateBlock("будет записано при «Продолжить»", welcomeEvents())}
+  </div>`;
+}
+
+function welcomeB() {
+  const ready = state.terms && state.age;
+  return `<div class="narrow">
+    ${welcomeHeader("Вы вошли как anna@example.com. Сейчас спросим только то, без чего аккаунт не работает.")}
+    <form class="card" style="margin-top:24px" onsubmit="return false">
+      ${requiredBlock()}
+      <div class="divider"></div>
+      <div class="callout">
+        <b>Остальное — там, где понадобится.</b> Показ профиля участникам спросим, когда вы создадите профиль.
+        Новости и предложения можно включить в разделе «Согласия» кабинета или в Telegram-боте.
+      </div>
+      <div class="divider"></div>
+      <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="submit-welcome">Продолжить</button></div>
+    </form>
+    ${stateBlock("будет записано при «Продолжить»", welcomeEvents(false))}
+  </div>`;
+}
+
+function welcomeC() {
+  const steps = ["Условия", "Профиль", "Сообщения"];
+  const bar = steps.map((_, i) => `<span class="${i <= state.step ? "done" : ""}"></span>`).join("");
+  let body = "";
+  if (state.step === 0) {
+    const ready = state.terms && state.age;
+    body = `${requiredBlock()}<div class="divider"></div>
+      <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="next">Дальше</button>
+      <span class="note">Шаг 1 из 3</span></div>`;
+  } else if (state.step === 1) {
+    body = `<div class="group-title"><h3>Профиль участника</h3><span class="req">по желанию</span></div>
+      <p class="note" style="margin:0 0 14px">Профиль — имя, описание и изображение, которые видят участники с доступом.
+      Создать его можно сейчас или позже.</p>
+      <label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
+        <span>Разрешаю показывать участникам с доступом данные, которые я заполню в профиле — ${doc("profile", "текст согласия")}</span></label>
+      <div class="divider"></div>
+      <div class="row"><button class="btn" data-act="next">Дальше</button><button class="btn ghost" data-act="skip">Пропустить</button>
+      <span class="note">Шаг 2 из 3</span></div>`;
+  } else if (state.step === 2) {
+    body = `<div class="group-title"><h3>Новости и предложения</h3><span class="req">по желанию</span></div>
+      <p class="note" style="margin:0 0 14px">Сообщения о покупках и доступе придут в любом случае. Здесь — только новости и предложения.</p>
+      <div class="stack">
+      <label class="check"><input type="checkbox" data-field="marketingTelegram" ${state.marketingTelegram ? "checked" : ""}>
+        <span>В Telegram — ${doc("marketing", "текст согласия")}</span></label>
+      <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
+        <span>На почту anna@example.com</span></label></div>
+      <div class="divider"></div>
+      <div class="row"><button class="btn" data-act="submit-welcome">Готово</button><button class="btn ghost" data-act="skip-finish">Пропустить</button>
+      <span class="note">Шаг 3 из 3</span></div>`;
+  } else {
+    body = `<h2>Готово</h2><p class="note">Изменить любое необязательное согласие можно в кабинете, раздел «Согласия».</p>`;
+  }
+  return `<div class="narrow">
+    ${welcomeHeader("Вы вошли как anna@example.com. Три коротких шага; второй и третий можно пропустить.")}
+    <div class="steps">${bar}</div>
+    <form class="card" onsubmit="return false">${body}</form>
+    ${stateBlock("будет записано в конце", welcomeEvents())}
+  </div>`;
+}
+
+function cookiesScreen() {
+  const banner = state.cookieSeen ? "" : state.analytics
+    ? `<div class="cookie-bar" role="region" aria-label="Cookies">
+        <h3>Разрешить аналитику?</h3>
+        <p class="note" style="margin:6px 0 12px">Для входа и прогресса нужны только необходимые cookies — они работают всегда.
+        Аналитика помогает понять, какие материалы полезны; без вашего выбора она не включается. ${doc("cookies", "Подробнее")}</p>
+        <div class="row"><button class="btn outline sm" data-act="cookie-necessary">Только необходимые</button>
+        <button class="btn outline sm" data-act="cookie-analytics">Разрешить аналитику</button></div></div>`
+    : `<div class="cookie-bar" role="region" aria-label="Cookies">
+        <p style="margin:0;font-size:14px">Inside использует только cookies и хранилище браузера, без которых не работают вход и сохранение прогресса.
+        Рекламы и сторонней аналитики нет. ${doc("cookies", "Подробнее")}</p>
+        <div class="row" style="margin-top:10px"><button class="btn sm" data-act="cookie-ok">Понятно</button></div></div>`;
+  const covers = ["#dce9ff", "#ffdcd2", "#dcefe5"].map((c) => `<div><div class="fake-cover" style="background:${c}"></div>
+    <p style="margin:10px 0 0;font-weight:700">Руководство</p><p class="note" style="margin:0">Материалы и практика</p></div>`).join("");
+  return `<h1>Главная</h1><p class="lead">Первое посещение без аккаунта.</p>
+    <div class="fake-feed">${covers}</div>
+    <div class="row" style="margin-top:24px"><button class="btn outline sm" data-act="toggle-analytics">
+      ${state.analytics ? "Показать текущий режим: только необходимые" : "Показать режим, если появится аналитика"}</button></div>
+    ${stateBlock("что сохраняется", state.analytics
+      ? ["до выбора: аналитика выключена, отметка не стоит",
+         "выбор хранится в браузере: inside.storage-choice.v1 = {analytics, cookies@v2, время}",
+         "у вошедшего пользователя выбор дублируется событием grant/withdraw analytics"]
+      : ["согласие не запрашивается: обработка необходима для запрошенной функции",
+         "localStorage inside.storage-notice.v1 = cookies@v2 — чтобы не показывать уведомление повторно",
+         "новая редакция cookies с новой обработкой — уведомление показывается снова"])}
+    ${banner}`;
+}
+
+function telegramScreen() {
+  const choice = state.tgChoice;
+  const reply = choice === "yes"
+    ? `<div class="bubble">Готово: будем присылать новости и предложения. Отключить — /stop или в кабинете, раздел «Согласия».</div>`
+    : choice === "no"
+    ? `<div class="bubble">Хорошо, только сообщения о доступе и покупках. Передумаете — /resume или в кабинете.</div>` : "";
+  const events = [];
+  if (choice === "yes") events.push(event("grant", "marketing", "telegram", "bot-start"));
+  if (choice === "no") events.push(`decline   marketing@v1  канал=telegram  экран=bot-start  время=${now()}  (рассылка не включается)`);
+  return `<h1>Вход через Telegram</h1>
+    <p class="lead">Бот подтверждает Telegram, но не создаёт аккаунт: первый вход всегда заканчивается тем же экраном на сайте.</p>
+    <div class="tg-wrap" style="margin-top:24px">
+      <div class="tg">
+        <div class="tg-head"><div class="tg-ava">SI</div>Sachkov Inside</div>
+        <div class="bubble me">/start</div>
+        <div class="bubble">Здравствуйте! Здесь приходят сообщения о доступе и покупках Inside.<br><br>
+          Присылать ещё и новости и предложения? <a href="${DOCS.marketing.href}">Текст согласия</a></div>
+        <div class="tg-btns"><button class="${choice === "yes" ? "picked" : ""}" data-act="tg-yes">Да, присылать</button>
+          <button class="${choice === "no" ? "picked" : ""}" data-act="tg-no">Нет, только важное</button></div>
+        ${reply}
+        <div class="bubble me" style="margin-top:14px">Войти в Inside</div>
+        <div class="bubble">Вы входите в Sachkov Inside?</div>
+        <div class="tg-btns"><button data-act="to-welcome">Да, это я</button><button>Нет</button></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h2>Что происходит после «Да, это я»</h2>
+          <ol style="margin:12px 0 0;padding-left:18px;font-size:14px" class="stack">
+            <li>Сайт получает подтверждение от бота и создаёт или находит аккаунт.</li>
+            <li>Новый аккаунт открывает экран «Добро пожаловать» — те же отметки, что при входе по почте.</li>
+            <li>Пока обязательные отметки не сохранены, кабинет, профиль и покупки не открываются; привязка бота к аккаунту не завершается.</li>
+            <li>Ответ на вопрос о рассылке в боте уже виден в кабинете — повторно не спрашиваем.</li>
+          </ol>
+          <div class="row" style="margin-top:16px"><button class="btn sm" data-act="to-welcome">Открыть экран первого входа</button></div>
+        </div>
+        <div class="callout">Сейчас в Telegram-приложении любой /start включает человека в рассылки (флаг marketing_enabled по умолчанию включён).
+          В предложенном пути рассылка приходит только после «Да, присылать» или отметки на сайте.</div>
+      </div>
+    </div>
+    ${stateBlock("будет записано", events)}`;
+}
+
+function cabinetNav(active) {
+  const items = [["profile", "Профиль"], ["access", "Аккаунт"], ["purchases", "Покупки"], ["notifications", "Уведомления"], ["consents", "Согласия"]];
+  return `<nav class="cabinet-nav"><p class="eyebrow">Личный кабинет</p>
+    ${items.map(([id, l]) => `<a class="${id === active ? "active" : ""}" ${id === "profile" ? 'data-screen="profile"' : id === "consents" ? 'data-screen="consents"' : ""} href="javascript:void 0">${l}</a>`).join("")}</nav>`;
+}
+
+function consentRow({ key, field, title, desc, channel }) {
+  const on = state.granted[field];
+  return `<div class="consent-row">
+    <div><h3>${title}</h3>
+      <p class="note" style="margin:2px 0 0">${desc}</p>
+      <p class="status ${on ? "on" : "off"}" style="margin:6px 0 0">${on
+        ? `Дано 15 сентября 2026, 12:04 · ${doc(key, `редакция ${DOCS[key].version}`)}${channel ? ` · ${channel}` : ""}`
+        : "Не дано"}</p></div>
+    <div>${on ? `<button class="btn outline sm" data-act="withdraw" data-field="${field}">Отозвать</button>`
+      : `<button class="btn sm" data-act="grant" data-field="${field}">Разрешить</button>`}</div>
+  </div>`;
+}
+
+function consentsScreen() {
+  return `<div class="cabinet">${cabinetNav("consents")}<div>
+    <header class="section-header"><h1>Согласия</h1>
+      <p class="lead" style="margin-top:6px">Что вы приняли и на что дали согласие. Необязательное можно отозвать в любой момент.</p></header>
+    <section class="card">
+      <h2>По желанию</h2>
+      <div style="margin-top:12px">
+      ${consentRow({ key: "profile", field: "profile", title: "Показ профиля участникам", desc: "Имя, описание и изображение видят участники с действующим доступом. При отзыве профиль скрывается, его данные удаляются." })}
+      ${consentRow({ key: "marketing", field: "marketingTelegram", title: "Новости и предложения в Telegram", desc: "Сообщения о доступе и покупках приходят независимо от этого.", channel: "бот" })}
+      ${consentRow({ key: "marketing", field: "marketingEmail", title: "Новости и предложения на почту", desc: "anna@example.com" })}
+      </div>
+    </section>
+    <section class="card" style="margin-top:18px">
+      <h2>Принятые условия</h2>
+      <div style="margin-top:12px">
+        <div class="consent-row"><div><h3>Условия использования</h3>
+          <p class="status on" style="margin:4px 0 0">Приняты 15 сентября 2026, 12:04 · ${doc("terms", "редакция 1")}</p></div>
+          <div class="note">Отказаться — удалить аккаунт через ${doc("privacy", "обращение")}</div></div>
+        <div class="consent-row"><div><h3>Оферта разовой покупки</h3>
+          <p class="status on" style="margin:4px 0 0">Принята при покупке «Создание Platform Inside» · 20 августа 2026 · редакция 1</p></div>
+          <div class="note">Хранится вместе с покупкой</div></div>
+        <div class="consent-row"><div><h3>Автопродление подписки</h3>
+          <p class="status off" style="margin:4px 0 0">Не давалось</p></div>
+          <div class="note">Управление — раздел «Подписка»</div></div>
+      </div>
+      <p class="note" style="margin:14px 0 0">Как обрабатываются данные: ${doc("privacy", "политика, редакция 3")} · ${doc("cookies", "cookies, редакция 2")}</p>
+    </section>
+    <section class="card" style="margin-top:18px">
+      <h2>История</h2>
+      <ul class="history" style="margin-top:10px">
+        ${state.events.slice().reverse().map((e) => `<li><span class="mono">15.09.2026 12:10</span><span>${e}</span></li>`).join("")}
+        <li><span class="mono">15.09.2026 12:04</span><span>Дано согласие на показ профиля · редакция ${DOCS.profile.version} · сайт, первый вход</span></li>
+        <li><span class="mono">15.09.2026 12:04</span><span>Приняты условия использования · редакция 1 · сайт, первый вход</span></li>
+        <li><span class="mono">15.09.2026 12:02</span><span>Отказ от новостей в Telegram · бот</span></li>
+      </ul>
+    </section>
+    ${stateBlock("журнал согласий (добавляется, не перезаписывается)", [
+      "accept    terms@v1       канал=web       экран=first-sign-in  время=2026-09-15T12:04:11+03:00",
+      "grant     profile@v1     канал=web       экран=first-sign-in  время=2026-09-15T12:04:11+03:00",
+      "decline   marketing@v1   канал=telegram  экран=bot-start      время=2026-09-15T12:02:40+03:00",
+      ...state.events.map((e) => e)])}
+  </div></div>`;
+}
+
+function profileScreen() {
+  const has = state.granted.profile;
+  return `<div class="cabinet">${cabinetNav("profile")}<div>
+    <header class="section-header"><h1>Профиль</h1><p class="lead" style="margin-top:6px">Аватар, имя, о себе и ссылка для участников</p></header>
+    <form class="card" onsubmit="return false">
+      <p class="note" style="margin:0 0 18px">Профиль заполняется по желанию. Имя, описание и изображение видят участники с действующим доступом;
+        без него материалы и покупки работают так же.</p>
+      <label class="check" style="font-weight:700" for="n">Имя</label>
+      <input id="n" value="Анна" style="margin-top:8px;width:100%;min-height:52px;border-radius:.75rem;border:1px solid var(--input);padding:0 14px;font:700 22px var(--font-body)">
+      <div class="divider"></div>
+      ${has ? `<p class="status on" style="margin:0">Показ профиля разрешён 15 сентября 2026 · ${doc("profile", `редакция ${DOCS.profile.version}`)} ·
+          <a href="javascript:void 0" data-screen="consents">изменить</a></p>`
+        : `<label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
+          <span>Разрешаю показывать участникам с доступом имя, описание и изображение из профиля — ${doc("profile", "текст согласия")}</span></label>`}
+      <div class="row" style="margin-top:18px"><button class="btn" ${has || state.profile ? "" : "disabled"}>${has ? "Сохранить" : "Создать профиль"}</button>
+        <span class="note">${has ? "" : "Без отметки профиль не создаётся."}</span></div>
+    </form>
+    <div class="row" style="margin-top:14px"><button class="btn outline sm" data-act="toggle-profile-consent">
+      ${has ? "Показать профиль без согласия (вариант B)" : "Показать профиль с данным согласием"}</button></div>
+    ${stateBlock("что происходит", has
+      ? ["согласие уже есть в журнале: повторно не спрашиваем", "при отзыве: профиль скрыт сразу, данные профиля и аватар удаляются, событие withdraw profile@v1"]
+      : [state.profile ? event("grant", "profile", "web", "profile-form") + "  (вместе с созданием профиля)" : "отметка не стоит — кнопка недоступна"])}
+  </div></div>`;
+}
+
+function act(name, el) {
+  if (name === "submit-welcome") { state.step = 3; state.events = welcomeEvents(); screen = "consents"; render(); }
+  if (name === "next") { state.step += 1; render(); }
+  if (name === "skip") { state.profile = false; state.step += 1; render(); }
+  if (name === "skip-finish") { state.marketingTelegram = false; state.marketingEmail = false; state.step = 3; render(); }
+  if (name === "cookie-ok" || name === "cookie-necessary" || name === "cookie-analytics") { state.cookieSeen = true; render(); }
+  if (name === "toggle-analytics") { state.analytics = !state.analytics; state.cookieSeen = false; render(); }
+  if (name === "tg-yes") { state.tgChoice = "yes"; render(); }
+  if (name === "tg-no") { state.tgChoice = "no"; render(); }
+  if (name === "to-welcome") { screen = "welcome"; resetWelcome(); render(); }
+  if (name === "toggle-profile-consent") { state.granted.profile = !state.granted.profile; state.profile = false; render(); }
+  if (name === "grant") {
+    const f = el.dataset.field; state.granted[f] = true;
+    state.events.push(event("grant", f === "profile" ? "profile" : "marketing", f === "marketingEmail" ? "email" : f === "marketingTelegram" ? "telegram" : "web", "cabinet-consents"));
+    render();
+  }
+  if (name === "withdraw") openWithdraw(el.dataset.field);
+}
+
+function openWithdraw(field) {
+  const d = document.getElementById("withdraw-dialog");
+  const text = field === "profile"
+    ? "Профиль сразу перестанет быть виден участникам. Имя, описание и изображение будут удалены. Материалы, покупки и подписка не изменятся."
+    : "Новости и предложения перестанут приходить. Сообщения о доступе и покупках продолжат приходить.";
+  d.innerHTML = `<h2>Отозвать согласие?</h2><p class="note" style="font-size:14px">${text}</p>
+    <div class="row" style="margin-top:16px"><button class="btn danger" id="confirm-withdraw">Отозвать</button>
+    <button class="btn ghost" id="cancel-withdraw">Отмена</button></div>`;
+  d.showModal();
+  d.querySelector("#cancel-withdraw").onclick = () => d.close();
+  d.querySelector("#confirm-withdraw").onclick = () => {
+    state.granted[field] = false;
+    state.events.push(event("withdraw", field === "profile" ? "profile" : "marketing", field === "marketingEmail" ? "email" : field === "marketingTelegram" ? "telegram" : "web", "cabinet-consents"));
+    d.close(); render();
+  };
+}
+
+function render() {
+  setUrl();
+  renderBar();
+  const app = document.getElementById("app");
+  const views = {
+    welcome: { A: welcomeA, B: welcomeB, C: welcomeC }[variant] ?? welcomeA,
+    cookies: cookiesScreen, telegram: telegramScreen, consents: consentsScreen, profile: profileScreen,
+  };
+  const focusField = document.activeElement?.dataset?.field;
+  app.innerHTML = (views[screen] ?? welcomeA)();
+  if (focusField) app.querySelector(`[data-field="${focusField}"]`)?.focus();
+}
+render();
+</script>
+</body>
+</html>
