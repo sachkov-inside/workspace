@@ -301,7 +301,10 @@ production-инциденты внутрь материалов не попад�
 
 - [Модель подписки и оплаты](subscription-billing-v1.md), Workspace
   [#128](https://github.com/sachkov-inside/workspace/issues/128) — согласованные правила нового
-  billing и перехода участников от 2026-09-07.
+  billing от 2026-09-07.
+- [Модель доступа к контенту](access-model.md), Workspace
+  [#192](https://github.com/sachkov-inside/workspace/issues/192) — что открыто и почему, тарифы и
+  переходы доступа от 2026-09-15.
 - Workspace [#165](https://github.com/sachkov-inside/workspace/issues/165) — рамка продаж от
   2026-09-11: основной продукт — отдельные руководства, подписка стала включаемой опцией.
 - Platform [`platform-mvp-brief.md`](https://github.com/sachkov-inside/platform/blob/main/docs/product/platform-mvp-brief.md)
