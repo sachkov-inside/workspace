@@ -68,7 +68,7 @@ class PolicyTest(unittest.TestCase):
 
     def test_closed_decomposition_with_not_planned_child_is_ready_but_never_auto_completed(self):
         closed = [{'state': 'CLOSED', 'stateReason': 'COMPLETED'}, {'state': 'CLOSED', 'stateReason': 'NOT_PLANNED'}]
-        for current in [None, 'In progress']:
+        for current in [None, 'In progress', 'Review', 'Blocked']:
             with self.subTest(current=current):
                 self.assertEqual(decide(self.issue(children=closed), current).status, 'Ready')
         labelled = decide(self.issue(children=closed, labels=['ready-for-agent', 'tracker:auto-complete']))

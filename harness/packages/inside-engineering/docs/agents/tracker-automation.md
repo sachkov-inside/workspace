@@ -98,8 +98,8 @@ pending/failed request. GitHub may cancel pending commands in the concurrency gr
 are not canceled by the workflow, and the CLI reports cancellations as failures.
 
 Start refuses an issue with open children and names them; a decomposition whose children are all
-closed, including `not_planned`, does not block start and projects by the issue's own readiness;
-parent auto-completion still requires completed children. Blockers keep the policy above. A new start
+closed, including `not_planned`, does not block start and projects by the issue's own readiness,
+even over a manual active state; parent auto-completion still requires completed children. Blockers keep the policy above. A new start
 request under a session identifier that is already `active` is refused: the same writer recovers
 the request named in the refusal with `--request`, and any other writer chooses a unique
 identifier. The same session may start again from `blocked` or `review`.

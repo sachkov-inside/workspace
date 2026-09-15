@@ -83,7 +83,7 @@ def transition(item, state, command, session, branch, reason, request):
     if held and state['session'] != session:
         raise TrackerError(f"Task is occupied by session {state['session']}")
     if command == 'start':
-        if state and state['phase'] == 'active' and state['session'] == session:
+        if state and state['phase'] == 'active':
             # A new request under an active identifier is either lost recovery or a second writer.
             raise TrackerError(f"Session {session} is already active with request {state['request']}. The same "
                                f"writer recovers with --request {state['request']}; another writer must choose "
@@ -97,7 +97,7 @@ def transition(item, state, command, session, branch, reason, request):
         if open_children:
             raise TrackerError(f"Task has open children: {', '.join(open_children)}; work on a child instead")
         if unfinished(item.get('blockers', [])):
-            raise TrackerError('Task has an open blocker or one closed as not planned; resolve it or the scope first')
+            raise TrackerError('Task has a blocker that is open or closed without completion; resolve the blocker or replan')
         if not state and (item['assignees'] or any(p['state'] == 'OPEN' for p in item['prs'])):
             raise TrackerError('Legacy assigned/PR work needs owner adoption; it is not free')
         if state and state['phase'] == 'released' and any(p['state'] == 'OPEN' for p in item['prs']):
