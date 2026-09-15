@@ -98,19 +98,20 @@ pending/failed request. GitHub may cancel pending commands in the concurrency gr
 are not canceled by the workflow, and the CLI reports cancellations as failures.
 
 Start refuses an issue with open children and names them; a decomposition whose children are all
-closed, including `not_planned`, does not block start. Blockers keep the policy above. A new start
+closed, including `not_planned`, does not block start and projects by the issue's own readiness;
+parent auto-completion still requires completed children. Blockers keep the policy above. A new start
 request under a session identifier that is already `active` is refused: the same writer recovers
 the request named in the refusal with `--request`, and any other writer chooses a unique
 identifier. The same session may start again from `blocked` or `review`.
 
 Handoff needs an open non-draft PR on the held branch in `closedByPullRequestsReferences`. That
 connection also contains PRs linked manually in the Development panel, and GitHub closes the issue
-when any of them merges, so a linked PR is always a closing PR. After the merge, record `release`;
-the handoff refusal names the merged PR. A deliberately non-closing PR has no Development link and
-no closing keyword in its body or in any commit message: a squash merge copies commit messages into
-the default-branch commit, and GitHub closes the referenced issue from it (platform#606 closed
-platform#597 this way). Edit the squash message at merge. Such a PR cannot be handed off; release
-the session with a reason instead.
+when any of them merges into the default branch, so a linked PR is always a closing PR. After the
+merge, record `release`; the handoff refusal names the merged PR. A deliberately non-closing PR has
+no Development link and no closing keyword in its body or in any commit message: a squash merge
+copies commit messages into the default-branch commit, and GitHub closes the referenced issue from
+it. Edit the squash message at merge. Such a PR cannot be handed off; release the session with a
+reason instead.
 
 The Workspace default-branch `Inside agent sessions` workflow is the only writer of session state.
 Its global concurrency group serializes all repository targets. The issue comment is written by

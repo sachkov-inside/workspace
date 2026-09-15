@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / 'packages/inside-engineering/github'
 sys.path.insert(0, str(SOURCE))
+import inside_tracker
 from inside_tracker import MARKER, TrackerError
 from tracker_sessions import operate, read_session, transition, WRITER
 
@@ -20,6 +21,11 @@ def issue(**changes):
 def child(number, state='OPEN', reason='', repository='sachkov-inside/platform'):
     return dict(id=f'I_{number}', number=number, state=state, stateReason=reason,
                 repository={'nameWithOwner': repository})
+
+
+def linked_pr(number, state='OPEN'):
+    return dict(number=number, state=state, isDraft=False, headRefName='feat/123-test',
+                repository={'nameWithOwner': 'sachkov-inside/platform'})
 
 
 def start(item=None, state=None, session='session-one', request='request-one'):
@@ -77,13 +83,11 @@ class SessionPolicyTest(unittest.TestCase):
             start(state=state, request='request-two')
 
     def test_same_session_resumes_from_blocked_or_review(self):
-        pr = dict(number=7, state='OPEN', isDraft=False, headRefName='feat/123-test',
-                  repository={'nameWithOwner': 'sachkov-inside/platform'})
         blocked = transition(issue(), start(), 'block', 'session-one', '', 'waiting', 'request-two')
-        review = transition(issue(prs=[pr]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+        review = transition(issue(prs=[linked_pr(7)]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
         for state in [blocked, review]:
             with self.subTest(phase=state['phase']):
-                resumed = start(issue(assignees=[WRITER], prs=[pr]), state, request='request-three')
+                resumed = start(issue(assignees=[WRITER], prs=[linked_pr(7)]), state, request='request-three')
                 self.assertEqual((resumed['phase'], resumed['request']), ('active', 'request-three'))
 
     def test_block_and_release_require_reason(self):
@@ -100,8 +104,7 @@ class SessionPolicyTest(unittest.TestCase):
         self.assertEqual(result['phase'], 'review')
 
     def test_handoff_after_merge_points_to_release(self):
-        merged = dict(number=552, state='MERGED', isDraft=False, headRefName='feat/123-test',
-                      repository={'nameWithOwner': 'sachkov-inside/platform'})
+        merged = linked_pr(552, 'MERGED')
         with self.assertRaisesRegex(TrackerError, r'platform#552 is already merged.*release'):
             transition(issue(prs=[merged]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
         foreign = merged | {'headRefName': 'feat/123-earlier'}
@@ -109,7 +112,6 @@ class SessionPolicyTest(unittest.TestCase):
             transition(issue(prs=[foreign]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
 
     def test_snapshot_reads_child_and_pr_identity(self):
-        import inside_tracker
         raw = dict(node_id='I_123', state='open', labels=[], assignees=[], html_url='https://github.com/x',
                    updated_at='2026-09-15T00:00:00Z', state_reason=None)
         class API:

@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from inside_tracker import CONTROLLER, REPOSITORIES, GitHub, MARKER, Reconciler, TrackerError, identity, snapshot
-from tracker_policy import ROLES, unfinished
+from tracker_policy import ROLES, open_items, unfinished
 
 SESSION_WORKFLOW = 'inside-agent-sessions.yml'
 # Existing automation credential owner; changing the writer is an explicit migration.
@@ -61,7 +61,7 @@ def validate_state(state, repo):
         raise ValueError('timestamp/reason missing')
 
 
-def reference(node):
+def github_reference(node):
     return f"{node['repository']['nameWithOwner']}#{node['number']}"
 
 
@@ -93,12 +93,11 @@ def transition(item, state, command, session, branch, reason, request):
         labels = set(item['labels'])
         if labels & ROLES != {'ready-for-agent'} or labels & {'backlog:human', 'tracker:gate', 'tracker:paused'}:
             raise TrackerError('Task is not ready for autonomous delivery')
-        # Closed children, including not_planned ones, are a finished decomposition.
-        open_children = [reference(c) for c in item.get('children', []) if c['state'] != 'CLOSED']
+        open_children = [github_reference(c) for c in open_items(item.get('children', []))]
         if open_children:
             raise TrackerError(f"Task has open children: {', '.join(open_children)}; work on a child instead")
         if unfinished(item.get('blockers', [])):
-            raise TrackerError('Task has unresolved blockers; a not_planned blocker needs a scope decision')
+            raise TrackerError('Task has an open blocker or one closed as not planned; resolve it or the scope first')
         if not state and (item['assignees'] or any(p['state'] == 'OPEN' for p in item['prs'])):
             raise TrackerError('Legacy assigned/PR work needs owner adoption; it is not free')
         if state and state['phase'] == 'released' and any(p['state'] == 'OPEN' for p in item['prs']):
@@ -115,13 +114,14 @@ def transition(item, state, command, session, branch, reason, request):
             raise TrackerError('block, handoff and release require a reason or verification summary')
         branch = state['branch']
         phase = {'block': 'blocked', 'handoff': 'review', 'release': 'released'}[command]
-        own = [p for p in item['prs'] if p.get('headRefName') == branch and
-               p.get('repository', {}).get('nameWithOwner') in {f'sachkov-inside/{r}' for r in REPOSITORIES}]
-        if command == 'handoff' and not any(p['state'] == 'OPEN' and not p['isDraft'] for p in own):
-            merged = [reference(p) for p in own if p['state'] == 'MERGED']
-            if merged:
-                raise TrackerError(f"PR {merged[0]} is already merged; record release instead of handoff")
-            raise TrackerError('Review handoff requires a linked open non-draft PR')
+        if command == 'handoff':
+            own = [p for p in item['prs'] if p.get('headRefName') == branch and
+                   p.get('repository', {}).get('nameWithOwner') in {f'sachkov-inside/{r}' for r in REPOSITORIES}]
+            if not any(p['state'] == 'OPEN' and not p['isDraft'] for p in own):
+                merged = [github_reference(p) for p in own if p['state'] == 'MERGED']
+                if merged:
+                    raise TrackerError(f"PR {merged[0]} is already merged; record release instead of handoff")
+                raise TrackerError('Review handoff requires a linked open non-draft PR')
     return dict(session=session, request=request, command=command, phase=phase, branch=branch, reason=reason.strip(),
                 updated_at=datetime.now(timezone.utc).isoformat())
 
