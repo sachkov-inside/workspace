@@ -34,15 +34,19 @@ their recurring branches are already covered by this smaller set.
 - Shared conversation rules use the user's language, plain wording, and decision-focused choices;
   `grilling` keeps each question to one decision and groups independent questions into readable
   rounds, and `wait-what` re-explains in the user's language instead of forcing English.
-- `implement` closes every review finding, repeats review after fixes, owns current-head pull
-  request CI through a terminal result, publishes a final Implementation Report for owner review,
-  and promotes only reusable learning to a durable authority.
+- `implement` closes every review finding, repeats review after fixes, commits and pushes once
+  the checks for the change and review closure pass, owns current-head pull request CI through a
+  terminal result, publishes a final Implementation Report for owner review, and promotes only
+  reusable learning to a durable authority.
 - `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
   deprecation or supersession.
 - Shared delivery routing includes the autonomous `inside-telegram` application repository.
 - The shared entrypoint and `WORKFLOW.md` make the pipeline stages owner-driven: an agent does not
-  chain Specification, Ticket breakdown, or Implementation without an explicit owner request, and a
-  development session starts in the repository that owns the outcome.
+  chain Specification, Ticket breakdown, or Implementation without an explicit owner request, a
+  request that names several stages starts each of them, and a development session starts in the
+  repository that owns the outcome.
+- `WORKFLOW.md` keeps an owner approval for its stated scope, scopes verification to the change,
+  and names when a failing check calls for `diagnosing-bugs`.
 - `WORKFLOW.md` gives every issue one native GitHub issue type (`Epic`, `Feature`, `Improvement`,
   `Bug`, `Task`) instead of category labels; `to-spec`, `to-tickets`, `triage`, and the GitHub
   tracker template set that type.

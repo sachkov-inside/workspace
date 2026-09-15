@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import runpy
 import shutil
 import subprocess
@@ -138,6 +139,35 @@ class HarnessCliTest(unittest.TestCase):
             "Решения владельца",
         ):
             self.assertIn(f"### {section}", template)
+
+    def test_readiness_waits_neither_for_its_own_ci_nor_for_merge_approval(self) -> None:
+        # CI runs on a pushed head, so a rule that holds the commit until CI or readiness is a
+        # cycle; readiness that requires the merge approval it is reported to obtain is another.
+        package = WORKSPACE / "harness/packages/inside-engineering"
+        adapter = WORKSPACE / "harness/adapters/AGENTS.product.md"
+        documents = [*sorted(package.rglob("*.md")), adapter]
+        # Split before joining lines, so list items and headings stay separate sentences; a dot
+        # inside a token such as `WORKFLOW.md` does not end one.
+        sentences = re.compile(r"(?<=[.;:])\s+|\n\s*\n|\n\s*[-*]\s+|\n#+\s+")
+        commit_waits = re.compile(
+            r"(?<!head )\bcommit\b(?:(?!\.\s).)*?\b(?:only after|until)\b"
+            r"(?:(?!\.\s).)*?\b(?:CI|checks?|readiness|ready)\b",
+            re.IGNORECASE,
+        )
+        for document in documents:
+            with self.subTest(document=str(document.relative_to(WORKSPACE))):
+                waiting = [
+                    sentence
+                    for part in sentences.split(document.read_text())
+                    if commit_waits.search(sentence := " ".join(part.split()))
+                ]
+                self.assertEqual(waiting, [])
+
+        workflow = (package / "WORKFLOW.md").read_text()
+        ready_section = workflow.split("Work is ready for owner merge when:", 1)[1]
+        ready_conditions = ready_section.split("\n\n", 2)[1]
+        self.assertTrue(ready_conditions.startswith("- "))
+        self.assertNotIn("merge approval", ready_conditions)
 
     def test_existing_skill_requires_explicit_adoption(self) -> None:
         skill = self.repo / ".agents/skills/implement"

@@ -63,7 +63,9 @@ the chosen ref already contains this harness layout.
 2. Bump its version in `manifest.json` and update provenance when upstream changes.
 3. Run unit tests and install/update a pilot repository.
 4. Run `diff` and `health`; test native discovery on the pilot.
-5. Commit and tag the Workspace release only after owner approval.
+5. Commit and push the release through a pull request. After it merges, tag the merge commit once
+   the owner has approved the release; a merge approval for the release pull request is that
+   approval.
 6. Update other repositories one at a time and review their Git diffs.
 
 The version tag is required: it binds the package version to an exact Workspace commit and gives
