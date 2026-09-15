@@ -174,7 +174,7 @@ function tally() {
 
 function setUrl() {
   const p = new URLSearchParams(location.search);
-  p.set("screen", screen); p.delete("variant");
+  p.set("screen", screen);
   history.replaceState(null, "", `?${p.toString()}`);
 }
 function renderBar() {
