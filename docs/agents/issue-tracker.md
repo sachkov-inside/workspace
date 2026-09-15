@@ -3,8 +3,9 @@
 Issues and specs for this repository live in `sachkov-inside/workspace` GitHub Issues. Run `gh`
 inside this clone so repository identity comes from `git remote`.
 
-Product and cross-repository work belongs here; implementation owned by `inside-landing`,
-`platform`, `inside-telegram` or another application belongs in that repository. A
+Product and cross-repository work belongs here; implementation owned by `platform`,
+`inside-telegram` or another active application belongs in that repository. `inside-landing` is
+deprecated and receives no new issues. A
 cross-repository effort uses a Workspace parent issue and repo-local child issues. Tracked pull
 requests use `Closes #<number>`; trivial docs/chore may use `N/A` instead.
 
