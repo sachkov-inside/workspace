@@ -1,4 +1,4 @@
-# inside-engineering 0.4.6
+# inside-engineering 0.4.7
 
 This package contains 30 skills selected through repository profiles:
 
@@ -40,7 +40,8 @@ their recurring branches are already covered by this smaller set.
   reusable learning to a durable authority.
 - `domain-modeling` requires ADR lifecycle status and preserves accepted decisions through
   deprecation or supersession.
-- Shared delivery routing includes the autonomous `inside-telegram` application repository.
+- Shared delivery routing includes the autonomous `inside-telegram` application repository and
+  marks the deprecated `inside-landing` as closed to new work.
 - The shared entrypoint and `WORKFLOW.md` make the pipeline stages owner-driven: an agent does not
   chain Specification, Ticket breakdown, or Implementation without an explicit owner request, a
   request that names several stages starts each of them, and a development session starts in the

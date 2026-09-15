@@ -5,7 +5,7 @@
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
 | [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Общий product context, Developer Pipeline и cross-repo решения |
-| [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Публичный landing Inside |
+| [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Устарел (deprecated с 2026-09-15): публичный landing Inside; задачи, PR и раскатка harness не ведутся, сайт и `main` не трогаются |
 | [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа и её product/technical docs |
 | [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content) | `sachkov-inside` | `repositories/inside-content` | private | Локальные оригиналы материалов/серий и редакционный процесс |
 | [`sachkov-inside/workshop-cases`](https://github.com/sachkov-inside/workshop-cases) | `sachkov-inside` | `repositories/workshop-cases` | private | Закрытый authoring source для versioned Tracks, Laboratories и Production Cases |

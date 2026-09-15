@@ -33,7 +33,7 @@ Run commands from the Workspace root:
 ```bash
 harness/bin/inside-harness install . --profile core
 harness/bin/inside-harness install repositories/platform --profile frontend
-harness/bin/inside-harness install repositories/landing --profile frontend --adopt-existing
+harness/bin/inside-harness install repositories/telegram --profile core --adopt-existing
 
 harness/bin/inside-harness diff repositories/platform
 harness/bin/inside-harness health repositories/platform
