@@ -20,7 +20,7 @@ _Avoid_: Subscription, payment, Access Grant
 
 **Inside Subscription**:
 A recurring commercial arrangement for one Account's chosen Subscription Tier and Subscription
-Option, covering the Materials of every Product and Support rather than naming a learning programme.
+Option, covering Support and the Materials of every Product rather than naming a learning programme.
 It is distinct from a payment, an Access Grant and a Platform permission; a no-charge assignment of
 a tier does not itself create this billing arrangement.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
