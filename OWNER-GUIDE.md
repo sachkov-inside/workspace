@@ -8,7 +8,7 @@
 | Repository | Владеет |
 |---|---|
 | `workspace` | Общие product-документы, cross-repository решения, Developer Pipeline и canonical harness |
-| `inside-landing` | Публичный landing, его product/copy/visual contracts, код и deploy |
+| `inside-landing` | Устарел (deprecated с 2026-09-15): публичный landing больше не развивается; задачи, PR и раскатка harness не ведутся |
 | `platform` | Membership Platform, application contracts, код, ADR и deploy |
 | `inside-telegram` | Telegram application, linking, Membership observations/evidence, код и deploy |
 
