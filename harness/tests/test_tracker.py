@@ -66,6 +66,14 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(decide(gated, 'In progress').status, 'Blocked')
         self.assertEqual(decide(self.issue(children=done, labels=['tracker:auto-complete'])).status, 'Done')
 
+    def test_closed_decomposition_with_not_planned_child_is_ready_but_never_auto_completed(self):
+        closed = [{'state': 'CLOSED', 'stateReason': 'COMPLETED'}, {'state': 'CLOSED', 'stateReason': 'NOT_PLANNED'}]
+        for current in [None, 'In progress', 'Review', 'Blocked']:
+            with self.subTest(current=current):
+                self.assertEqual(decide(self.issue(children=closed), current).status, 'Ready')
+        labelled = decide(self.issue(children=closed, labels=['ready-for-agent', 'tracker:auto-complete']))
+        self.assertEqual((labelled.status, labelled.close), ('Ready', False))
+
     def test_open_child_with_live_work_keeps_the_aggregate_active(self):
         children = [{'state': 'OPEN', 'stateReason': None}]
         self.assertEqual(decide(self.issue(children=children), None).status, 'In progress')

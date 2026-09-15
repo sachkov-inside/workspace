@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / 'packages/inside-engineering/github'
 sys.path.insert(0, str(SOURCE))
+import inside_tracker
 from inside_tracker import MARKER, TrackerError
 from tracker_sessions import operate, read_session, transition, WRITER
 
@@ -15,6 +16,16 @@ from tracker_sessions import operate, read_session, transition, WRITER
 def issue(**changes):
     return dict(kind='Issue', repo='sachkov-inside/platform', number=123, state='OPEN',
                 labels=['ready-for-agent'], children=[], blockers=[], assignees=[], prs=[]) | changes
+
+
+def child(number, state='OPEN', reason='', repository='sachkov-inside/platform'):
+    return dict(id=f'I_{number}', number=number, state=state, stateReason=reason,
+                repository={'nameWithOwner': repository})
+
+
+def linked_pr(number, state='OPEN'):
+    return dict(number=number, state=state, isDraft=False, headRefName='feat/123-test',
+                repository={'nameWithOwner': 'sachkov-inside/platform'})
 
 
 def start(item=None, state=None, session='session-one', request='request-one'):
@@ -47,11 +58,37 @@ class SessionPolicyTest(unittest.TestCase):
                 start(issue(**changes))
 
     def test_children_blockers_gate_and_closed_issue_are_not_claimable(self):
-        for changes in [dict(children=[{}]), dict(blockers=[dict(state='OPEN')]),
+        for changes in [dict(children=[child(330)]), dict(blockers=[dict(state='OPEN')]),
+                        dict(blockers=[dict(state='CLOSED', stateReason='NOT_PLANNED')]),
                         dict(labels=['ready-for-human']), dict(labels=['ready-for-agent', 'tracker:gate']),
                         dict(labels=['ready-for-agent', 'tracker:paused']), dict(state='CLOSED')]:
             with self.subTest(changes=changes), self.assertRaises(TrackerError):
                 start(issue(**changes))
+
+    def test_aggregate_with_closed_decomposition_can_start(self):
+        children = [child(330, 'CLOSED', 'NOT_PLANNED'), child(331, 'CLOSED', 'NOT_PLANNED'),
+                    child(332, 'CLOSED', 'COMPLETED')]
+        self.assertEqual(start(issue(children=children))['phase'], 'active')
+
+    def test_open_child_blocks_start_and_is_named(self):
+        children = [child(332, 'CLOSED', 'COMPLETED'), child(330),
+                    child(45, repository='sachkov-inside/inside-telegram')]
+        with self.assertRaisesRegex(TrackerError, r'platform#330.*inside-telegram#45') as raised:
+            start(issue(children=children))
+        self.assertNotIn('#332', str(raised.exception))
+
+    def test_occupied_session_identifier_with_new_request_grants_nothing(self):
+        state = start()
+        with self.assertRaisesRegex(TrackerError, r'--request request-one.*unique session'):
+            start(state=state, request='request-two')
+
+    def test_same_session_resumes_from_blocked_or_review(self):
+        blocked = transition(issue(), start(), 'block', 'session-one', '', 'waiting', 'request-two')
+        review = transition(issue(prs=[linked_pr(7)]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+        for state in [blocked, review]:
+            with self.subTest(phase=state['phase']):
+                resumed = start(issue(assignees=[WRITER], prs=[linked_pr(7)]), state, request='request-three')
+                self.assertEqual((resumed['phase'], resumed['request']), ('active', 'request-three'))
 
     def test_block_and_release_require_reason(self):
         with self.assertRaises(TrackerError):
@@ -65,6 +102,27 @@ class SessionPolicyTest(unittest.TestCase):
         pr = dict(state='OPEN', isDraft=False, headRefName='feat/123-test', repository={'nameWithOwner':'sachkov-inside/platform'})
         result = transition(issue(prs=[pr]), state, 'handoff', 'session-one', '', 'tests passed', 'request-two')
         self.assertEqual(result['phase'], 'review')
+
+    def test_handoff_after_merge_points_to_release(self):
+        merged = linked_pr(552, 'MERGED')
+        with self.assertRaisesRegex(TrackerError, r'platform#552 is already merged.*release'):
+            transition(issue(prs=[merged]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+        foreign = merged | {'headRefName': 'feat/123-earlier'}
+        with self.assertRaisesRegex(TrackerError, 'requires a linked open non-draft PR'):
+            transition(issue(prs=[foreign]), start(), 'handoff', 'session-one', '', 'verified', 'request-two')
+
+    def test_snapshot_reads_child_and_pr_identity(self):
+        raw = dict(node_id='I_123', state='open', labels=[], assignees=[], html_url='https://github.com/x',
+                   updated_at='2026-09-15T00:00:00Z', state_reason=None)
+        class API:
+            def call(self, endpoint):
+                return raw
+        with patch.object(inside_tracker, 'connection', side_effect=lambda *args: args[4]):
+            item = inside_tracker.snapshot(API(), 'sachkov-inside/platform', 123)
+        for field in ['children', 'prs']:
+            with self.subTest(field=field):
+                self.assertRegex(item[field], r'\bnumber\b')
+                self.assertIn('repository { nameWithOwner }', item[field])
 
     def test_released_task_without_pr_can_be_claimed(self):
         state = transition(issue(), start(), 'release', 'session-one', '', 'stopped', 'request-two')
