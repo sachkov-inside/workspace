@@ -61,6 +61,10 @@ def validate_state(state, repo):
         raise ValueError('timestamp/reason missing')
 
 
+def reference(node):
+    return f"{node['repository']['nameWithOwner']}#{node['number']}"
+
+
 def fingerprint(values):
     return hashlib.sha256(json.dumps(values, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
@@ -79,13 +83,22 @@ def transition(item, state, command, session, branch, reason, request):
     if held and state['session'] != session:
         raise TrackerError(f"Task is occupied by session {state['session']}")
     if command == 'start':
+        if state and state['phase'] == 'active' and state['session'] == session:
+            # A new request under an active identifier is either lost recovery or a second writer.
+            raise TrackerError(f"Session {session} is already active with request {state['request']}. The same "
+                               f"writer recovers with --request {state['request']}; another writer must choose "
+                               'a unique session identifier')
         if item['kind'] != 'Issue' or item['state'] != 'OPEN':
             raise TrackerError('Start requires an open issue')
         labels = set(item['labels'])
         if labels & ROLES != {'ready-for-agent'} or labels & {'backlog:human', 'tracker:gate', 'tracker:paused'}:
             raise TrackerError('Task is not ready for autonomous delivery')
-        if item.get('children') or unfinished(item.get('blockers', [])):
-            raise TrackerError('Task has children or unresolved blockers')
+        # Closed children, including not_planned ones, are a finished decomposition.
+        open_children = [reference(c) for c in item.get('children', []) if c['state'] != 'CLOSED']
+        if open_children:
+            raise TrackerError(f"Task has open children: {', '.join(open_children)}; work on a child instead")
+        if unfinished(item.get('blockers', [])):
+            raise TrackerError('Task has unresolved blockers; a not_planned blocker needs a scope decision')
         if not state and (item['assignees'] or any(p['state'] == 'OPEN' for p in item['prs'])):
             raise TrackerError('Legacy assigned/PR work needs owner adoption; it is not free')
         if state and state['phase'] == 'released' and any(p['state'] == 'OPEN' for p in item['prs']):
@@ -102,10 +115,12 @@ def transition(item, state, command, session, branch, reason, request):
             raise TrackerError('block, handoff and release require a reason or verification summary')
         branch = state['branch']
         phase = {'block': 'blocked', 'handoff': 'review', 'release': 'released'}[command]
-        if command == 'handoff' and not any(p['state'] == 'OPEN' and not p['isDraft']
-                and p.get('headRefName') == branch and p.get('repository', {}).get('nameWithOwner')
-                in {f'sachkov-inside/{r}' for r in REPOSITORIES}
-                for p in item['prs']):
+        own = [p for p in item['prs'] if p.get('headRefName') == branch and
+               p.get('repository', {}).get('nameWithOwner') in {f'sachkov-inside/{r}' for r in REPOSITORIES}]
+        if command == 'handoff' and not any(p['state'] == 'OPEN' and not p['isDraft'] for p in own):
+            merged = [reference(p) for p in own if p['state'] == 'MERGED']
+            if merged:
+                raise TrackerError(f"PR {merged[0]} is already merged; record release instead of handoff")
             raise TrackerError('Review handoff requires a linked open non-draft PR')
     return dict(session=session, request=request, command=command, phase=phase, branch=branch, reason=reason.strip(),
                 updated_at=datetime.now(timezone.utc).isoformat())
