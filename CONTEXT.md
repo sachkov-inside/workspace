@@ -20,7 +20,7 @@ _Avoid_: Subscription, payment, Access Grant
 
 **Inside Subscription**:
 A recurring commercial arrangement for one Account's chosen Subscription Tier and Subscription
-Option, covering its declared set of Products and Materials rather than naming a learning programme.
+Option, covering the Materials of every Product and Support rather than naming a learning programme.
 It is distinct from a payment, an Access Grant and a Platform permission; a no-charge assignment of
 a tier does not itself create this billing arrangement.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
@@ -37,14 +37,15 @@ Product, Support or the single shared community chat.
 _Avoid_: Price, tier name, Telegram presence, whole library
 
 **Subscription Tier**:
-An Offer with an explicit Content Scope and benefits, such as Materials and community
+An Offer with a Content Scope and benefits, such as Materials, Support and community
 participation, assigned or sold independently of the duration and price used to obtain it.
 _Avoid_: Subscription Option, payment period, permission
 
 **Content Scope**:
-The explicit set of Products and individual Materials promised by a Subscription Tier or recorded
-in an Access Grant.
-_Avoid_: Published library, catalogue, global Materials access
+The set of Products promised by a Subscription Tier or recorded in an Access Grant: every Product
+for an Inside Subscription, otherwise an explicit set. A Material is covered only through a Product
+that contains it; no right opens an individual Material.
+_Avoid_: Individual Material access, published library, catalogue, global Materials access
 
 **Subscription Enrollment**:
 An Account's assignment to a fixed version of a Subscription Tier, with its own origin and term.
@@ -56,8 +57,9 @@ The right to ask the author for help within a stated term; in Russian, «Соп�
 _Avoid_: Personal mentoring, guaranteed answer, community participation
 
 **Community Entitlement**:
-An Account's effective right to participate in the shared community chat, derived from its live
-rights that cover the chat or any Product. It is distinct from actual presence in the chat.
+An Account's effective right to participate in the single shared community chat, derived from its
+live rights that cover Support, the chat or any Product. It is distinct from actual presence in the
+chat.
 _Avoid_: Chat membership, Membership Signal, tier name
 
 **Admission Restriction**:
