@@ -212,8 +212,8 @@ const SCREENS = [
 ];
 const VARIANTS = [
   ["A", "Один экран"],
-  ["B", "Только нужное сейчас"],
-  ["C", "Короткие шаги"],
+  ["B", "Короткие шаги"],
+  ["C", "Только нужное сейчас"],
 ];
 let screen = params.get("screen") ?? "welcome";
 let variant = params.get("variant") ?? "A";
@@ -222,8 +222,9 @@ if (params.get("bar") === "0") document.body.classList.add("hide-bar");
 // Состояние прототипа в памяти: какие отметки стоят и какие события будут записаны.
 const state = {
   terms: false, age: false, profile: false, marketingTelegram: false, marketingEmail: false,
+  showBio: true, showAvatar: true,
   step: 0, events: [], cookieSeen: false, analytics: params.get("analytics") === "1",
-  granted: { profile: true, marketingTelegram: false, marketingEmail: false },
+  granted: { profile: params.get("screen") !== "profile", marketingTelegram: false, marketingEmail: false },
   tgChoice: null,
 };
 
@@ -303,6 +304,17 @@ function requiredBlock() {
       Что именно и зачем, описано в ${doc("privacy", "политике персональных данных")}.</p>`;
 }
 
+function profileChoice() {
+  return `<div class="stack" style="margin:10px 0 0 32px">
+      <label class="check"><input type="checkbox" checked disabled><span>Имя <span class="tag">без имени профиля нет</span></span></label>
+      <label class="check"><input type="checkbox" data-field="showBio" ${state.showBio ? "checked" : ""}><span>Описание «О себе»</span></label>
+      <label class="check"><input type="checkbox" data-field="showAvatar" ${state.showAvatar ? "checked" : ""}><span>Изображение</span></label>
+    </div>`;
+}
+function profileFields() {
+  return ["имя", state.showBio ? "описание" : null, state.showAvatar ? "изображение" : null].filter(Boolean).join(", ");
+}
+
 function optionalBlock({ withProfile = true } = {}) {
   return `
     <div class="group-title"><h3>По желанию</h3><span class="req">можно изменить в кабинете</span></div>
@@ -324,7 +336,7 @@ function welcomeEvents(includeOptional = true) {
   if (state.terms) ev.push(event("accept", "terms", "web", "first-sign-in"));
   if (state.age) ev.push(`confirm   age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
   if (includeOptional) {
-    if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in"));
+    if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in") + `  данные=[${profileFields()}]`);
     if (state.marketingTelegram) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
     if (state.marketingEmail) ev.push(event("grant", "marketing", "email", "first-sign-in"));
   }
@@ -344,7 +356,8 @@ function welcomeA() {
     <form class="card" style="margin-top:24px" onsubmit="return false">
       ${requiredBlock()}
       <div class="divider"></div>
-      ${optionalBlock()}
+      ${optionalBlock({ withProfile: false })}
+      <p class="note" style="margin:10px 0 0">Показ профиля участникам спросим, когда вы создадите профиль: там же выберете, что показывать.</p>
       <div class="divider"></div>
       <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="submit-welcome">Продолжить</button>
         <span class="note">${ready ? "Отметки сохранятся с версией текста и временем." : "Отметьте два обязательных пункта."}</span></div>
@@ -353,7 +366,7 @@ function welcomeA() {
   </div>`;
 }
 
-function welcomeB() {
+function welcomeOnlyRequired() {
   const ready = state.terms && state.age;
   return `<div class="narrow">
     ${welcomeHeader("Вы вошли как anna@example.com. Сейчас спросим только то, без чего аккаунт не работает.")}
@@ -362,7 +375,7 @@ function welcomeB() {
       <div class="divider"></div>
       <div class="callout">
         <b>Остальное — там, где понадобится.</b> Показ профиля участникам спросим, когда вы создадите профиль.
-        Новости и предложения можно включить в разделе «Согласия» кабинета или в Telegram-боте.
+        Новости и предложения можно включить в кабинете, раздел «Согласия», или в Telegram-боте.
       </div>
       <div class="divider"></div>
       <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="submit-welcome">Продолжить</button></div>
@@ -371,8 +384,8 @@ function welcomeB() {
   </div>`;
 }
 
-function welcomeC() {
-  const steps = ["Условия", "Профиль", "Сообщения"];
+function welcomeSteps() {
+  const steps = ["Условия", "Новости", "Профиль"];
   const bar = steps.map((_, i) => `<span class="${i <= state.step ? "done" : ""}"></span>`).join("");
   let body = "";
   if (state.step === 0) {
@@ -381,15 +394,6 @@ function welcomeC() {
       <div class="row"><button class="btn" ${ready ? "" : "disabled"} data-act="next">Дальше</button>
       <span class="note">Шаг 1 из 3</span></div>`;
   } else if (state.step === 1) {
-    body = `<div class="group-title"><h3>Профиль участника</h3><span class="req">по желанию</span></div>
-      <p class="note" style="margin:0 0 14px">Профиль — имя, описание и изображение, которые видят участники с доступом.
-      Создать его можно сейчас или позже.</p>
-      <label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
-        <span>Разрешаю показывать участникам с доступом данные, которые я заполню в профиле — ${doc("profile", "текст согласия")}</span></label>
-      <div class="divider"></div>
-      <div class="row"><button class="btn" data-act="next">Дальше</button><button class="btn ghost" data-act="skip">Пропустить</button>
-      <span class="note">Шаг 2 из 3</span></div>`;
-  } else if (state.step === 2) {
     body = `<div class="group-title"><h3>Новости и предложения</h3><span class="req">по желанию</span></div>
       <p class="note" style="margin:0 0 14px">Сообщения о покупках и доступе придут в любом случае. Здесь — только новости и предложения.</p>
       <div class="stack">
@@ -398,7 +402,16 @@ function welcomeC() {
       <label class="check"><input type="checkbox" data-field="marketingEmail" ${state.marketingEmail ? "checked" : ""}>
         <span>На почту anna@example.com</span></label></div>
       <div class="divider"></div>
-      <div class="row"><button class="btn" data-act="submit-welcome">Готово</button><button class="btn ghost" data-act="skip-finish">Пропустить</button>
+      <div class="row"><button class="btn" data-act="next">Дальше</button><button class="btn ghost" data-act="skip-marketing">Пропустить</button>
+      <span class="note">Шаг 2 из 3</span></div>`;
+  } else if (state.step === 2) {
+    body = `<div class="group-title"><h3>Профиль участника</h3><span class="req">по желанию</span></div>
+      <p class="note" style="margin:0 0 14px">Профиль видят участники с действующим доступом. Выберите, что показывать; заполнить можно позже.</p>
+      <label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
+        <span>Разрешаю показывать участникам с доступом отмеченные данные профиля — ${doc("profile", "текст согласия")}</span></label>
+      ${state.profile ? profileChoice() : ""}
+      <div class="divider"></div>
+      <div class="row"><button class="btn" data-act="submit-welcome">Готово</button><button class="btn ghost" data-act="skip-profile">Пропустить</button>
       <span class="note">Шаг 3 из 3</span></div>`;
   } else {
     body = `<h2>Готово</h2><p class="note">Изменить любое необязательное согласие можно в кабинете, раздел «Согласия».</p>`;
@@ -507,7 +520,7 @@ function consentsScreen() {
     <section class="card">
       <h2>По желанию</h2>
       <div style="margin-top:12px">
-      ${consentRow({ key: "profile", field: "profile", title: "Показ профиля участникам", desc: "Имя, описание и изображение видят участники с действующим доступом. При отзыве профиль скрывается, его данные удаляются." })}
+      ${consentRow({ key: "profile", field: "profile", title: "Показ профиля участникам", desc: `Показываются: ${profileFields()}. Видят участники с действующим доступом. При отзыве профиль сразу скрывается, данные удаляются не позднее 30 дней.` })}
       ${consentRow({ key: "marketing", field: "marketingTelegram", title: "Новости и предложения в Telegram", desc: "Сообщения о доступе и покупках приходят независимо от этого.", channel: "бот" })}
       ${consentRow({ key: "marketing", field: "marketingEmail", title: "Новости и предложения на почту", desc: "anna@example.com" })}
       </div>
@@ -531,14 +544,14 @@ function consentsScreen() {
       <h2>История</h2>
       <ul class="history" style="margin-top:10px">
         ${state.events.slice().reverse().map((e) => `<li><span class="mono">15.09.2026 12:10</span><span>${e}</span></li>`).join("")}
-        <li><span class="mono">15.09.2026 12:04</span><span>Дано согласие на показ профиля · редакция ${DOCS.profile.version} · сайт, первый вход</span></li>
+        <li><span class="mono">15.09.2026 12:20</span><span>Дано согласие на показ профиля: имя, описание, изображение · редакция ${DOCS.profile.version} · форма профиля</span></li>
         <li><span class="mono">15.09.2026 12:04</span><span>Приняты условия использования · редакция 1 · сайт, первый вход</span></li>
         <li><span class="mono">15.09.2026 12:02</span><span>Отказ от новостей в Telegram · бот</span></li>
       </ul>
     </section>
     ${stateBlock("журнал согласий (добавляется, не перезаписывается)", [
       "accept    terms@v1       канал=web       экран=first-sign-in  время=2026-09-15T12:04:11+03:00",
-      "grant     profile@v1     канал=web       экран=first-sign-in  время=2026-09-15T12:04:11+03:00",
+      "grant     profile@v1     канал=web       экран=profile-form   время=2026-09-15T12:20:03+03:00  данные=[имя, описание, изображение]",
       "decline   marketing@v1   канал=telegram  экран=bot-start      время=2026-09-15T12:02:40+03:00",
       ...state.events.map((e) => e)])}
   </div></div>`;
@@ -557,23 +570,30 @@ function profileScreen() {
       ${has ? `<p class="status on" style="margin:0">Показ профиля разрешён 15 сентября 2026 · ${doc("profile", `редакция ${DOCS.profile.version}`)} ·
           <a href="javascript:void 0" data-screen="consents">изменить</a></p>`
         : `<label class="check"><input type="checkbox" data-field="profile" ${state.profile ? "checked" : ""}>
-          <span>Разрешаю показывать участникам с доступом имя, описание и изображение из профиля — ${doc("profile", "текст согласия")}</span></label>`}
+          <span>Разрешаю показывать участникам с доступом отмеченные данные профиля — ${doc("profile", "текст согласия")}
+          <span class="hint">Снимите отметку у описания или изображения, если не хотите их показывать.</span></span></label>
+          ${profileChoice()}`}
       <div class="row" style="margin-top:18px"><button class="btn" ${has || state.profile ? "" : "disabled"}>${has ? "Сохранить" : "Создать профиль"}</button>
         <span class="note">${has ? "" : "Без отметки профиль не создаётся."}</span></div>
     </form>
     <div class="row" style="margin-top:14px"><button class="btn outline sm" data-act="toggle-profile-consent">
-      ${has ? "Показать профиль без согласия (вариант B)" : "Показать профиль с данным согласием"}</button></div>
+      ${has ? "Показать форму создания профиля" : "Показать профиль с данным согласием"}</button></div>
     ${stateBlock("что происходит", has
-      ? ["согласие уже есть в журнале: повторно не спрашиваем", "при отзыве: профиль скрыт сразу, данные профиля и аватар удаляются, событие withdraw profile@v1"]
-      : [state.profile ? event("grant", "profile", "web", "profile-form") + "  (вместе с созданием профиля)" : "отметка не стоит — кнопка недоступна"])}
+      ? ["согласие уже есть в журнале: повторно не спрашиваем", "при отзыве: профиль скрыт сразу, данные и аватар удаляются не позднее 30 дней, событие withdraw profile@v1"]
+      : [state.profile ? event("grant", "profile", "web", "profile-form") + `  данные=[${profileFields()}]  (вместе с созданием профиля)` : "отметка не стоит — кнопка недоступна"])}
   </div></div>`;
 }
 
 function act(name, el) {
-  if (name === "submit-welcome") { state.step = 3; state.events = welcomeEvents(); screen = "consents"; render(); }
+  if (name === "submit-welcome") {
+    state.events = welcomeEvents(variant !== "C");
+    if (state.profile) state.granted.profile = true;
+    state.granted.marketingTelegram = state.marketingTelegram; state.granted.marketingEmail = state.marketingEmail;
+    screen = "consents"; render();
+  }
   if (name === "next") { state.step += 1; render(); }
-  if (name === "skip") { state.profile = false; state.step += 1; render(); }
-  if (name === "skip-finish") { state.marketingTelegram = false; state.marketingEmail = false; state.step = 3; render(); }
+  if (name === "skip-marketing") { state.marketingTelegram = false; state.marketingEmail = false; state.step += 1; render(); }
+  if (name === "skip-profile") { state.profile = false; act("submit-welcome"); }
   if (name === "cookie-ok" || name === "cookie-necessary" || name === "cookie-analytics") { state.cookieSeen = true; render(); }
   if (name === "toggle-analytics") { state.analytics = !state.analytics; state.cookieSeen = false; render(); }
   if (name === "tg-yes") { state.tgChoice = "yes"; render(); }
@@ -591,8 +611,8 @@ function act(name, el) {
 function openWithdraw(field) {
   const d = document.getElementById("withdraw-dialog");
   const text = field === "profile"
-    ? "Профиль сразу перестанет быть виден участникам. Имя, описание и изображение будут удалены. Материалы, покупки и подписка не изменятся."
-    : "Новости и предложения перестанут приходить. Сообщения о доступе и покупках продолжат приходить.";
+    ? "Профиль сразу перестанет быть виден участникам. Имя, описание и изображение будут удалены не позднее 30 дней. Материалы, покупки и подписка не изменятся."
+    : "Новости и предложения перестанут приходить сразу. Сообщения о доступе и покупках продолжат приходить.";
   d.innerHTML = `<h2>Отозвать согласие?</h2><p class="note" style="font-size:14px">${text}</p>
     <div class="row" style="margin-top:16px"><button class="btn danger" id="confirm-withdraw">Отозвать</button>
     <button class="btn ghost" id="cancel-withdraw">Отмена</button></div>`;
@@ -610,7 +630,7 @@ function render() {
   renderBar();
   const app = document.getElementById("app");
   const views = {
-    welcome: { A: welcomeA, B: welcomeB, C: welcomeC }[variant] ?? welcomeA,
+    welcome: { A: welcomeA, B: welcomeSteps, C: welcomeOnlyRequired }[variant] ?? welcomeA,
     cookies: cookiesScreen, telegram: telegramScreen, consents: consentsScreen, profile: profileScreen,
   };
   const focusField = document.activeElement?.dataset?.field;
