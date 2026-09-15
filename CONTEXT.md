@@ -26,19 +26,44 @@ a tier does not itself create this billing arrangement.
 _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 
 **Offer**:
-A versioned commercial description of a set of benefits, independent of a Guide, payment and
-Access Grant. Its payment option states the price, period and sale mode.
+A versioned commercial description of a set of benefits with independent for-sale, assignable and
+archived states, separate from a Guide, payment and Access Grant. Its payment option states the
+price, period and sale mode.
 _Avoid_: Guide, Order, Payment, Access Grant
 
 **Access Scope**:
-The benefit or resource an Access Grant covers: the published library, a particular Guide, support
-or the single shared community chat.
-_Avoid_: Price, tier name, Telegram presence
+The benefit or resource an Access Grant covers: Materials within a Content Scope, a particular
+Product, Support or the single shared community chat.
+_Avoid_: Price, tier name, Telegram presence, whole library
 
 **Subscription Tier**:
-A subscription Offer with a defined set of benefits, such as library access or library access with
-support and community participation. It is independent of the duration and price used to purchase it.
+An Offer with an explicit Content Scope and benefits, such as Materials and community
+participation, assigned or sold independently of the duration and price used to obtain it.
 _Avoid_: Subscription Option, payment period, permission
+
+**Content Scope**:
+The explicit set of Products and individual Materials promised by a Subscription Tier or recorded
+in an Access Grant.
+_Avoid_: Published library, catalogue, global Materials access
+
+**Subscription Enrollment**:
+An Account's assignment to a fixed version of a Subscription Tier, with its own origin and term.
+It is neither a payment nor renewal consent.
+_Avoid_: Inside Subscription, payment, Telegram membership
+
+**Support**:
+The right to ask the author for help within a stated term; in Russian, «Сопровождение».
+_Avoid_: Personal mentoring, guaranteed answer, community participation
+
+**Community Entitlement**:
+An Account's effective right to participate in the shared community chat, derived from its live
+rights that cover the chat or any Product. It is distinct from actual presence in the chat.
+_Avoid_: Chat membership, Membership Signal, tier name
+
+**Admission Restriction**:
+A moderator's or unexplained external restriction on joining the shared community chat,
+independent of content rights.
+_Avoid_: Expired right, revoked access, failed payment
 
 **Subscription Option**:
 A purchasable combination of a Subscription Tier, a duration in calendar months and a full price
@@ -55,6 +80,11 @@ _Avoid_: Payment, Inside Subscription, Telegram chat presence
 An Access Grant without a scheduled end date, for a defined set of Inside benefits. It does not
 promise every future separate paid offer.
 _Avoid_: Never-expiring subscription, future all-access purchase, permanent Telegram membership
+
+**Direct Right**:
+A right an Account holds without a Subscription Enrollment or Product Purchase: an owner's or
+carried-over Access Grant, or the legacy member bridge; in Russian, «Прямое право».
+_Avoid_: Manual tier assignment, gift subscription, purchase
 
 **Account**:
 Platform's stable private identity for one authenticated human. It owns Platform permissions and
@@ -85,7 +115,8 @@ _Avoid_: Raw Telegram status, permanent member flag, MembershipEntitlement
 
 **MembershipEntitlement**:
 Platform's finite grant that an Account may access Membership-scoped Platform surfaces, including
-protected Library content and Member Profiles. It does not authorize protected Workshop content.
+protected Materials allowed by its live rights and Member Profiles. It does not authorize
+protected Workshop content.
 _Avoid_: IdP role, Telegram role, subscription, WorkshopEntitlement
 
 **Canonical Membership Chat**:
