@@ -185,7 +185,9 @@ Build-series — флагманская линия, но не всё обеща�
 ([#178](https://github.com/sachkov-inside/workspace/issues/178),
 [#180](https://github.com/sachkov-inside/workspace/issues/180)). Подготовка платформы к релизу
 ведётся в [#183](https://github.com/sachkov-inside/workspace/issues/183); наполнение продукта и
-перенос участников идут после релиза.
+перенос участников идут после релиза. Требование исходного решения сохраняется: к первой оплате
+должен существовать kickoff pack — manifesto/roadmap, правила, несколько опорных guides и первый
+выпуск build-series.
 
 ## Концепции, на которых строится Inside
 
