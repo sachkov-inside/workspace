@@ -352,10 +352,9 @@ function welcomeEvents(includeOptional = true) {
   if (state.age) ev.push(`accept    age-14-plus  канал=web  экран=first-sign-in  время=${now()}`);
   if (includeOptional) {
     if (viaTelegram && botAnswer !== "none") {
-      const changed = (botAnswer === "yes") !== state.marketingTelegram;
-      ev.push(changed
-        ? event(state.marketingTelegram ? "grant" : "withdraw", "marketing", "telegram", "first-sign-in")
-        : `перенос ответа бота в журнал аккаунта: ${botAnswer === "yes" ? "grant" : "decline"} marketing@v1, исходное время 2026-09-15T12:02:40+03:00`);
+      ev.push(`перенос ответа бота в журнал аккаунта: ${botAnswer === "yes" ? "grant" : "decline"} marketing@v1, исходное время 2026-09-15T12:02:40+03:00`);
+      if ((botAnswer === "yes") !== state.marketingTelegram)
+        ev.push(event(state.marketingTelegram ? "grant" : "withdraw", "marketing", "telegram", "first-sign-in"));
     }
     if (state.profile) ev.push(event("grant", "profile", "web", "first-sign-in") + `  данные=[${profileFields()}]`);
     if (state.marketingTelegram && !(viaTelegram && botAnswer !== "none")) ev.push(event("grant", "marketing", "telegram", "first-sign-in"));
@@ -498,8 +497,9 @@ function telegramScreen() {
     : choice === "no"
     ? `<div class="bubble">Хорошо, только сообщения о доступе и покупках. Передумаете — /resume или в кабинете.</div>` : "";
   const events = [];
-  if (choice === "yes") events.push(event("grant", "marketing", "telegram", "bot-start"));
-  if (choice === "no") events.push(`decline   marketing@v1  канал=telegram  экран=bot-start  время=${now()}  (рассылка не включается)`);
+  const botTime = "2026-09-15T12:02:40+03:00";
+  if (choice === "yes") events.push(event("grant", "marketing", "telegram", "bot-start").replace(now(), botTime));
+  if (choice === "no") events.push(`decline   marketing@v1  канал=telegram  экран=bot-start  время=${botTime}  (рассылка не включается)`);
   return `<h1>Вход через Telegram</h1>
     <p class="lead">Бот подтверждает Telegram, но не создаёт аккаунт: первый вход всегда заканчивается тем же экраном на сайте.</p>
     <div class="tg-wrap" style="margin-top:24px">
