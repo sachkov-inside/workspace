@@ -1,8 +1,10 @@
 import copy
 import json
+import subprocess
 import sys
 import threading
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -218,17 +220,18 @@ class ClientReceiptTest(unittest.TestCase):
                       branch=args.branch, reason=args.reason, request=args.request)
         run = dict(id=42, display_title=f"session {args.request} {fingerprint(values)}",
                    status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
-        state = start()
+        state = start(request=args.request or 'request-one')
         result = dict(ok=True, issue=values['issue'], **state)
         return args, run, state, result
 
     class API:
         def __init__(self, runs, state):
-            self.runs, self.state, self.writes = runs, state, []
+            self.runs, self.state, self.writes, self.reads = runs, state, [], []
         def call(self, endpoint, payload=None, method=None):
             if method == 'POST':
                 self.writes.append(endpoint)
                 return None
+            self.reads.append(endpoint)
             value = self.runs.pop(0) if len(self.runs) > 1 else self.runs[0]
             return {'workflow_runs': value, 'total_count': len(value)}
         def pages(self, endpoint):
@@ -238,6 +241,7 @@ class ClientReceiptTest(unittest.TestCase):
         from tracker_sessions import request_command
         def download(command, **kw):
             Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(json.dumps(result))
+            return subprocess.CompletedProcess(command, 0, '', '')
         with patch('tracker_sessions.GitHub', return_value=api), patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
             request_command(args)
 
@@ -313,10 +317,175 @@ class RequestHistoryTest(unittest.TestCase):
         self.assertEqual(api.writes, [])
 
 
+class RequestWindowTest(unittest.TestCase):
+    """A timestamped request is searched only among runs created since shortly before it."""
+    setup_request = ClientReceiptTest.setup_request
+    invoke = ClientReceiptTest.invoke
+    API = ClientReceiptTest.API
+
+    def test_recovered_request_reads_one_filtered_page(self):
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        api = self.API([[run]], state)
+        self.invoke(args, api, result)
+        listings = [e for e in api.reads if '/runs?' in e]
+        self.assertTrue(listings)
+        for endpoint in listings:
+            self.assertIn('created=%3E%3D2026-09-24T18:55:00Z', endpoint)
+            self.assertIn('page=1', endpoint)
+        self.assertEqual(api.writes, [])
+
+    def test_new_request_is_timestamped_and_searched_from_its_creation(self):
+        from tracker_sessions import fingerprint
+        args, _, _, _ = self.setup_request(request=None)
+        api = ClientReceiptTest.API([[]], None)
+        dispatched = {}
+
+        def call(endpoint, payload=None, method=None):
+            if method == 'POST':
+                dispatched.update(payload['inputs'])
+                return None
+            if not dispatched:
+                return {'workflow_runs': [], 'total_count': 0}
+            searched.append(endpoint)
+            run = dict(id=42, display_title=f"session {dispatched['request']} {dispatched['fingerprint']}",
+                       status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
+            return {'workflow_runs': [run], 'total_count': 1}
+        api.call = call
+        searched = []
+        before = datetime.now(timezone.utc).replace(microsecond=0)
+        state = start(request='placeholder-id')
+
+        def download(command, **kw):
+            state.update(request=dispatched['request'])
+            api.state = state
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(
+                json.dumps(dict(ok=True, issue='sachkov-inside/platform#123', **state)))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        from tracker_sessions import request_command
+        with patch('tracker_sessions.GitHub', return_value=api), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+        self.assertRegex(dispatched['request'], r'^\d{8}T\d{6}Z-[0-9a-f]{16}$')
+        issued = datetime.strptime(dispatched['request'][:16], '%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
+        self.assertLessEqual(before, issued)
+        window = (issued - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        self.assertTrue(searched)
+        self.assertTrue(all(f'created=%3E%3D{window}' in e for e in searched))
+        values = {k: v for k, v in dispatched.items() if k != 'fingerprint'}
+        self.assertEqual(dispatched['fingerprint'], fingerprint(values))
+
+    def test_receipt_download_survives_dropped_connection(self):
+        from tracker_sessions import request_command
+        args, run, state, result = self.setup_request()
+        attempts = []
+
+        def download(command, **kw):
+            attempts.append(command)
+            if len(attempts) == 1:
+                return subprocess.CompletedProcess(command, 1, '', 'error connecting to api.github.com: EOF')
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(json.dumps(result))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        with patch('tracker_sessions.GitHub', return_value=self.API([[run]], state)), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+        self.assertEqual(len(attempts), 2)
+        directories = [c[c.index('--dir') + 1] for c in attempts]
+        self.assertNotEqual(directories[0], directories[1])
+
+    def test_window_at_search_cap_reads_complete_history_without_dispatch(self):
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        class CappedAPI(ClientReceiptTest.API):
+            def call(self, endpoint, payload=None, method=None):
+                if method == 'POST':raise AssertionError('must not dispatch')
+                self.reads.append(endpoint)
+                if 'created=' in endpoint:
+                    return {'workflow_runs': [], 'total_count': 1000}
+                return {'workflow_runs': [run], 'total_count': 1}
+        api = CappedAPI([[]], state)
+        self.invoke(args, api, result)
+        self.assertTrue(any('created=' not in e for e in api.reads if '/runs?' in e))
+
+    def test_recovered_run_before_its_window_is_found_in_complete_history(self):
+        # The local clock ran fast when the request was issued: its run predates the window.
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        class SkewedAPI(ClientReceiptTest.API):
+            def call(self, endpoint, payload=None, method=None):
+                if method == 'POST':raise AssertionError('must not dispatch a recovered request twice')
+                self.reads.append(endpoint)
+                runs = [] if 'created=' in endpoint else [run]
+                return {'workflow_runs': runs, 'total_count': len(runs)}
+        api = SkewedAPI([[]], state)
+        self.invoke(args, api, result)
+        self.assertEqual(api.writes, [])
+
+    def test_new_run_before_its_window_is_found_in_complete_history_at_timeout(self):
+        # The local clock runs fast: the new request's run predates the window it is polled in.
+        args, _, _, _ = self.setup_request(request=None, timeout=0)
+        api = ClientReceiptTest.API([[]], None)
+        dispatched = {}
+
+        def call(endpoint, payload=None, method=None):
+            if method == 'POST':
+                dispatched.update(payload['inputs'])
+                return None
+            if 'created=' in endpoint or not dispatched:
+                return {'workflow_runs': [], 'total_count': 0}
+            run = dict(id=42, display_title=f"session {dispatched['request']} {dispatched['fingerprint']}",
+                       status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
+            return {'workflow_runs': [run], 'total_count': 1}
+        api.call = call
+
+        def download(command, **kw):
+            state = start(request=dispatched['request'])
+            api.state = state
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(
+                json.dumps(dict(ok=True, issue='sachkov-inside/platform#123', **state)))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        from tracker_sessions import request_command
+        with patch('tracker_sessions.GitHub', return_value=api), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+
+    def test_unreachable_history_at_timeout_still_reports_timeout(self):
+        from inside_tracker import TransientError
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef', timeout=0)
+        api = self.API([[run]], state)
+        call = api.call
+        def flaky(endpoint, payload=None, method=None):
+            if '/runs?' in endpoint and 'created=' not in endpoint and api.writes:
+                raise TransientError('EOF')
+            return call(endpoint, payload, method)
+        api.call = flaky
+        api.runs = [[]]
+        with self.assertRaisesRegex(TrackerError, 'timed out'):
+            self.invoke(args, api, result)
+
+    def test_unreachable_history_while_waiting_keeps_waiting(self):
+        from inside_tracker import TransientError
+        args, run, state, result = self.setup_request()
+        api = self.API([[run]], state)
+        call, failures = api.call, [TransientError('EOF')]
+        def flaky(endpoint, payload=None, method=None):
+            if '/runs?' in endpoint and api.writes and failures:
+                raise failures.pop()
+            return call(endpoint, payload, method)
+        api.call = flaky
+        api.runs = [[], [run]]
+        self.invoke(args, api, result)
+        self.assertEqual(failures, [])
+
+    def test_impossible_request_timestamp_is_rejected(self):
+        args, run, state, result = self.setup_request(request='20261399T000000Z-abcdefgh')
+        with self.assertRaisesRegex(TrackerError, 'invalid request identifier'):
+            self.invoke(args, self.API([[run]], state), result)
+
+
 class CompleteHistoryTest(unittest.TestCase):
-    def test_workflow_specific_history_has_no_filtered_api_cap(self):
-        source = (SOURCE/'tracker_sessions.py').read_text()
-        self.assertNotIn('event=workflow_dispatch', source)
+    def test_legacy_request_reads_complete_unfiltered_history(self):
+        args, run, state, result = ClientReceiptTest().setup_request()
+        api = ClientReceiptTest.API([[run]], state)
+        ClientReceiptTest().invoke(args, api, result)
+        self.assertTrue(all('created=' not in e for e in api.reads))
 
     def test_truncated_history_refuses_dispatch(self):
         args, run, state, result = ClientReceiptTest().setup_request()
