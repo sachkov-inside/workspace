@@ -1,15 +1,15 @@
 # Repositories Sachkov Inside
 
-Проверено: 2026-09-03.
+Проверено: 2026-09-24.
 
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
-| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | private | Общий product context, Developer Pipeline и cross-repo решения |
+| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | public | Общий product context, Developer Pipeline и cross-repo решения |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Устарел (deprecated с 2026-09-15): публичный landing Inside; задачи, PR и раскатка harness не ведутся, сайт и `main` не трогаются |
-| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | private | Membership-платформа и её product/technical docs |
+| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | public | Membership-платформа и её product/technical docs |
 | [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content) | `sachkov-inside` | `repositories/inside-content` | private | Локальные оригиналы материалов/серий и редакционный процесс |
 | [`sachkov-inside/workshop-cases`](https://github.com/sachkov-inside/workshop-cases) | `sachkov-inside` | `repositories/workshop-cases` | private | Закрытый authoring source для versioned Tracks, Laboratories и Production Cases |
-| [`sachkov-inside/inside-telegram`](https://github.com/sachkov-inside/inside-telegram) | `sachkov-inside` | `repositories/telegram` | private | Telegram BotContact, identity linking и Membership Evidence provider |
+| [`sachkov-inside/inside-telegram`](https://github.com/sachkov-inside/inside-telegram) | `sachkov-inside` | `repositories/telegram` | public | Telegram BotContact, identity linking и Membership Evidence provider |
 
 Owner decision от 2026-09-03 зафиксировал отдельный private repository
 `sachkov-inside/workshop-cases`. Он хранит TrackSpec, LaboratorySpec, CaseSpec, starter baselines,
@@ -43,7 +43,8 @@ Workspace не становится runtime или build dependency нового
 ## Правила границ
 
 - Новые repositories создаются в организации `sachkov-inside` и по умолчанию имеют private
-  visibility.
+  visibility. `workspace`, `platform` и `inside-telegram` открыты намеренно (решение владельца
+  2026-09-24); их история и документы не должны содержать секретов и персональных данных.
 - Участники организации получают базовый read-доступ к private repositories через organization
   base permission.
 - `repositories/` является только локальным размещением checkout. Root Git его игнорирует.
