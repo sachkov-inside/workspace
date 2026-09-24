@@ -157,9 +157,10 @@ Place the worktree by where the repository's primary checkout lives:
 placement directory, beside other worktrees rather than inside one.
 
 Treat another session's worktree, branch, containers, processes, volumes, and stash entries as
-owned live state. Integrate upstream changes inside
-the task worktree, and keep worktree paths out of committed configuration and documentation; name
-only the placement patterns above.
+owned live state. Every worktree shares one `git stash` stack, so give each safety stash entry a
+unique message with `git stash push -m`. Integrate upstream changes inside the task worktree, and
+keep worktree paths out of committed configuration and documentation; name only the placement
+patterns above.
 
 ### Session cleanup
 
@@ -175,8 +176,8 @@ is complete when nothing it started keeps running and its local state is clean:
   `main`, so delete such a branch with `git branch -D`;
 - prune stale worktree records, and delete merged local branches whose upstream is gone unless a
   worktree still uses them;
-- name every safety `git stash` entry after the task branch, and drop the session's entries only
-  after comparing them with the merged pull request;
+- drop the session's safety `git stash` entries, found by their messages, only after comparing
+  them with the merged pull request;
 - close the tracker session by the Agent sessions procedure: `release` after the merge, `handoff`
   while the pull request is open.
 
