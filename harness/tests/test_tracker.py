@@ -138,6 +138,26 @@ class GitHubBoundaryTest(unittest.TestCase):
         self.assertEqual(GitHub().call('repos/x/y'), {})
         self.assertEqual(run.call_count, 2)
 
+    @patch('inside_tracker.time.sleep')
+    @patch('inside_tracker.subprocess.run')
+    def test_dropped_connection_read_is_retried_with_backoff(self, run, sleep):
+        for error in ('Post "https://api.github.com/graphql": EOF',
+                      'Get "https://api.github.com/repos/x/y": net/http: TLS handshake timeout',
+                      'read tcp 10.0.0.1:5->10.0.0.2:443: read: connection reset by peer'):
+            run.reset_mock(), sleep.reset_mock()
+            run.side_effect = [self.result(1, err=error), self.result(1, err=error), self.result(0, '{"ok": 1}')]
+            with self.subTest(error=error):
+                self.assertEqual(GitHub().call('graphql', {'query': 'query { viewer { login } }'}), {'ok': 1})
+                self.assertEqual(run.call_count, 3)
+                self.assertEqual([c.args[0] for c in sleep.call_args_list], [1, 2])
+
+    @patch('inside_tracker.subprocess.run')
+    def test_dropped_connection_on_mutation_is_not_retried(self, run):
+        run.return_value = self.result(1, err='Post "https://api.github.com/graphql": EOF')
+        with self.assertRaises(TrackerError):
+            GitHub().call('graphql', {'query': 'mutation { addComment { clientMutationId } }'})
+        self.assertEqual(run.call_count, 1)
+
     @patch('inside_tracker.subprocess.run')
     def test_permission_failure_is_not_hidden_or_retried(self, run):
         run.return_value = self.result(1, err='HTTP 403')
@@ -158,7 +178,7 @@ class GitHubBoundaryTest(unittest.TestCase):
         run.return_value = self.result(1, err='HTTP 429')
         with self.assertRaises(TrackerError):
             GitHub().call('repos/x/y')
-        self.assertEqual(run.call_count, 3)
+        self.assertEqual(run.call_count, 5)
 
     def test_rest_pagination_includes_later_page(self):
         api = GitHub()

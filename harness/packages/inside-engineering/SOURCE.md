@@ -1,4 +1,4 @@
-# inside-engineering 0.4.8
+# inside-engineering 0.4.9
 
 This package contains 30 skills selected through repository profiles:
 
@@ -54,6 +54,9 @@ their recurring branches are already covered by this smaller set.
 - `WORKFLOW.md` places every agent worktree in one predictable location outside tracked files and
   apart from primary checkouts, and makes session cleanup (containers, processes, worktrees,
   branches, stash entries, tracker session) the final task step; `implement` points to it.
+- Tracker automation retries idempotent GitHub reads through dropped connections, and the session
+  CLI finds its run among runs created since its timestamped request identifier instead of listing
+  the complete run history.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

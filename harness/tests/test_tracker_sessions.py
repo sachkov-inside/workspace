@@ -1,8 +1,10 @@
 import copy
 import json
+import subprocess
 import sys
 import threading
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -218,7 +220,7 @@ class ClientReceiptTest(unittest.TestCase):
                       branch=args.branch, reason=args.reason, request=args.request)
         run = dict(id=42, display_title=f"session {args.request} {fingerprint(values)}",
                    status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
-        state = start()
+        state = start(request=args.request or 'request-one')
         result = dict(ok=True, issue=values['issue'], **state)
         return args, run, state, result
 
@@ -238,6 +240,7 @@ class ClientReceiptTest(unittest.TestCase):
         from tracker_sessions import request_command
         def download(command, **kw):
             Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(json.dumps(result))
+            return subprocess.CompletedProcess(command, 0, '', '')
         with patch('tracker_sessions.GitHub', return_value=api), patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
             request_command(args)
 
@@ -313,10 +316,101 @@ class RequestHistoryTest(unittest.TestCase):
         self.assertEqual(api.writes, [])
 
 
+class RequestWindowTest(unittest.TestCase):
+    """A timestamped request is searched only among runs created since shortly before it."""
+    setup_request = ClientReceiptTest.setup_request
+    invoke = ClientReceiptTest.invoke
+    API = ClientReceiptTest.API
+
+    def test_recovered_request_reads_one_filtered_page(self):
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        api = self.API([[run]], state)
+        endpoints = []
+        call = api.call
+        api.call = lambda endpoint, payload=None, method=None: endpoints.append(endpoint) or call(endpoint, payload, method)
+        self.invoke(args, api, result)
+        listings = [e for e in endpoints if '/runs?' in e]
+        self.assertTrue(listings)
+        for endpoint in listings:
+            self.assertIn('created=%3E%3D2026-09-24T18:55:00Z', endpoint)
+            self.assertIn('page=1', endpoint)
+        self.assertEqual(api.writes, [])
+
+    def test_new_request_is_timestamped_and_searched_from_its_creation(self):
+        from tracker_sessions import fingerprint
+        args, _, _, _ = self.setup_request(request=None)
+        api = ClientReceiptTest.API([[]], None)
+        dispatched = {}
+
+        def call(endpoint, payload=None, method=None):
+            if method == 'POST':
+                dispatched.update(payload['inputs'])
+                return None
+            if not dispatched:
+                return {'workflow_runs': [], 'total_count': 0}
+            searched.append(endpoint)
+            run = dict(id=42, display_title=f"session {dispatched['request']} {dispatched['fingerprint']}",
+                       status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
+            return {'workflow_runs': [run], 'total_count': 1}
+        api.call = call
+        searched = []
+        before = datetime.now(timezone.utc).replace(microsecond=0)
+        state = start(request='placeholder-id')
+
+        def download(command, **kw):
+            state.update(request=dispatched['request'])
+            api.state = state
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(
+                json.dumps(dict(ok=True, issue='sachkov-inside/platform#123', **state)))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        from tracker_sessions import request_command
+        with patch('tracker_sessions.GitHub', return_value=api), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+        self.assertRegex(dispatched['request'], r'^\d{8}T\d{6}Z-[0-9a-f]{16}$')
+        issued = datetime.strptime(dispatched['request'][:16], '%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
+        self.assertLessEqual(before, issued)
+        window = (issued - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        self.assertTrue(searched)
+        self.assertTrue(all(f'created=%3E%3D{window}' in e for e in searched))
+        values = {k: v for k, v in dispatched.items() if k != 'fingerprint'}
+        self.assertEqual(dispatched['fingerprint'], fingerprint(values))
+
+    def test_receipt_download_survives_dropped_connection(self):
+        from tracker_sessions import request_command
+        args, run, state, result = self.setup_request()
+        attempts = []
+
+        def download(command, **kw):
+            attempts.append(command)
+            if len(attempts) == 1:
+                return subprocess.CompletedProcess(command, 1, '', 'error connecting to api.github.com: EOF')
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(json.dumps(result))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        with patch('tracker_sessions.GitHub', return_value=self.API([[run]], state)), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
+        self.assertEqual(len(attempts), 2)
+
+    def test_filtered_window_at_search_cap_refuses_dispatch(self):
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        class CappedAPI(ClientReceiptTest.API):
+            def call(self, endpoint, payload=None, method=None):
+                if method == 'POST':raise AssertionError('must not dispatch')
+                return {'workflow_runs': [], 'total_count': 1000}
+        with self.assertRaisesRegex(TrackerError, 'Incomplete request history'):
+            self.invoke(args, CappedAPI([[]], state), result)
+
+
 class CompleteHistoryTest(unittest.TestCase):
-    def test_workflow_specific_history_has_no_filtered_api_cap(self):
-        source = (SOURCE/'tracker_sessions.py').read_text()
-        self.assertNotIn('event=workflow_dispatch', source)
+    def test_legacy_request_reads_complete_unfiltered_history(self):
+        args, run, state, result = ClientReceiptTest().setup_request()
+        api = ClientReceiptTest.API([[run]], state)
+        endpoints = []
+        call = api.call
+        api.call = lambda endpoint, payload=None, method=None: endpoints.append(endpoint) or call(endpoint, payload, method)
+        ClientReceiptTest().invoke(args, api, result)
+        self.assertTrue(all('created=' not in e for e in endpoints))
 
     def test_truncated_history_refuses_dispatch(self):
         args, run, state, result = ClientReceiptTest().setup_request()

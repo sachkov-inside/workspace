@@ -53,7 +53,8 @@ python3 .github/scripts/inside_tracker.py --issue platform#310 --apply
 
 Workspace workflow_dispatch can reconcile a bounded issue or all repositories. Other repositories
 can only request their own scope. Every decision is JSONL in the Actions artifact. Failures retain
-partial reports and fail the run. Reads/idempotent PATCH retry transient errors at most three times;
+partial reports and fail the run. Reads/idempotent PATCH make up to five attempts with backoff on
+throttling, server errors, timeouts and dropped connections (`EOF`, TLS handshake, connection reset);
 unknown create/mutation results are reconciled by a fresh run, not blindly retried. State is reread
 before writes, then read back from Projects. A concurrent edit fails that item and the next run
 recalculates it. Cross-repository parent chains may need another sweep as children settle.
@@ -94,7 +95,10 @@ pending run, failed job or unverified result grants no ownership. Recover the sa
 `--request` from the printed identifier. The operation fingerprint must match; a terminal failed or
 canceled run is explicitly rerun with its original inputs and must produce a new successful attempt; if it never reached GitHub, retry with a new request and the
 same session identifier after checking the prior run. Never create a second writer to bypass a
-pending/failed request. GitHub may cancel pending commands in the concurrency group; active commands
+pending/failed request. A request identifier begins with its UTC creation time, and the CLI searches
+only session runs created since 15 minutes before it; a filtered window that reaches GitHub's
+1,000-run listing cap refuses to dispatch. An identifier without that prefix is searched through the
+complete run history. The receipt artifact download retries like other reads. GitHub may cancel pending commands in the concurrency group; active commands
 are not canceled by the workflow, and the CLI reports cancellations as failures.
 
 Start refuses an issue with open children and names them; a decomposition whose children are all

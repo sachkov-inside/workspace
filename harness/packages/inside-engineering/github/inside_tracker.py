@@ -18,6 +18,9 @@ REPOSITORIES = ('workspace', 'platform', 'inside-telegram', 'inside-landing', 'i
 CONTROLLER = f'{ORG}/workspace'
 WORKFLOW = 'add-to-inside-project.yml'
 MARKER = '<!-- inside-tracker-session:v1 -->'
+READ_ATTEMPTS = 5
+# Throttling, server errors and connections dropped before a response is known.
+TRANSIENT = re.compile(r'HTTP (429|5\d\d)|TLS|timeout|connection reset|\bEOF\b', re.I)
 
 
 class TrackerError(Exception):
@@ -34,7 +37,7 @@ class GitHub:
             command += ['--method', method]
         safe = (not payload['query'].lstrip().startswith('mutation') if endpoint == 'graphql'
                 else method in (None, 'GET', 'PATCH'))
-        for attempt in range(3 if safe else 1):
+        for attempt in range(READ_ATTEMPTS if safe else 1):
             result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None,
                                     text=True, capture_output=True)
             if result.returncode == 0:
@@ -42,8 +45,7 @@ class GitHub:
                 if isinstance(value, dict) and value.get('errors'):
                     raise TrackerError(json.dumps(value['errors']))
                 return value
-            temporary = bool(re.search(r'HTTP (429|5\d\d)|TLS|timeout|connection reset', result.stderr, re.I))
-            if not temporary or not safe or attempt == 2:
+            if not TRANSIENT.search(result.stderr) or not safe or attempt == READ_ATTEMPTS - 1:
                 raise TrackerError(result.stderr.strip())
             time.sleep(2 ** attempt)
         raise TrackerError('GitHub request did not complete')
