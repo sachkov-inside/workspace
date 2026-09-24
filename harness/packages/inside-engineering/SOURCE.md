@@ -1,4 +1,4 @@
-# inside-engineering 0.4.7
+# inside-engineering 0.4.8
 
 This package contains 30 skills selected through repository profiles:
 
@@ -51,6 +51,9 @@ their recurring branches are already covered by this smaller set.
 - `WORKFLOW.md` gives every issue one native GitHub issue type (`Epic`, `Feature`, `Improvement`,
   `Bug`, `Task`) instead of category labels; `to-spec`, `to-tickets`, `triage`, and the GitHub
   tracker template set that type.
+- `WORKFLOW.md` places every agent worktree in one predictable location outside tracked files and
+  apart from primary checkouts, and makes session cleanup (containers, processes, worktrees,
+  branches, stash entries, tracker session) the final task step; `implement` points to it.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other
