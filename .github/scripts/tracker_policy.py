@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 
 ROLES = {'needs-triage', 'needs-info', 'ready-for-agent', 'ready-for-human', 'wontfix'}
+ACCEPTANCE = 'tracker:acceptance'
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,10 @@ def decide(item, current=None):
         return Decision(1, 'In progress', 'aggregate requires acceptance or remaining child work')
     # Every child is closed, or nothing is active any more: decide this item's own
     # readiness instead of leaving the aggregate in a stale aggregate state.
+    live = session.get('phase') in {'active', 'blocked'} or any(p['state'] == 'OPEN' for p in prs)
+    if ACCEPTANCE in labels and not blocked and not live:
+        # Owner acceptance is itself the remaining gate, so gate labels do not hide it.
+        return Decision(1, 'Acceptance', 'delivered; awaiting owner acceptance')
     if blocked or gate or session.get('phase') == 'blocked':
         return Decision(1, 'Blocked', 'unresolved dependency, owner gate, or session blocker')
     if any(p['state'] == 'OPEN' and not p.get('isDraft') for p in prs):

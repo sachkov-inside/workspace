@@ -51,6 +51,9 @@ NATIVE_INTEGRATIONS = {
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)")
 MACHINE_LOCAL_PATH = re.compile(r"(?:/(?:Users|home|Applications)/|[A-Za-z]:\\\\)")
 SECRET_ENVIRONMENT_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
+WORKFLOW_ACTION = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<reference>\S+)(?P<comment>.*)$")
+PINNED_ACTION = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
+PINNED_ACTION_COMMENT = re.compile(r"^\s+#\s+v\d+(?:\.\d+)*\s*$")
 
 
 class HarnessError(RuntimeError):
@@ -190,12 +193,29 @@ def validate_package(package: Path, manifest: dict) -> None:
             raise HarnessError(f"Managed file source is missing or not a file: {source_path}")
         sources.add(source)
         targets.add(target)
+        if target.parent == Path(".github/workflows"):
+            validate_workflow_actions(source_path)
     seen_names: set[str] = set()
     for name in manifest["skills"]:
         actual_name, _, _ = validated_skill_metadata(skill_root / name)
         if actual_name in seen_names:
             raise HarnessError(f"Duplicate skill name: {actual_name}")
         seen_names.add(actual_name)
+
+
+def validate_workflow_actions(workflow: Path) -> None:
+    """Managed workflows run in every repository: each third-party action is a reviewed commit."""
+    for number, line in enumerate(workflow.read_text().splitlines(), start=1):
+        match = WORKFLOW_ACTION.match(line)
+        if match is None or match["reference"].startswith("./"):
+            continue
+        if PINNED_ACTION.fullmatch(match["reference"]) is None or PINNED_ACTION_COMMENT.fullmatch(
+            match["comment"]
+        ) is None:
+            raise HarnessError(
+                f"Managed workflow action must use a full commit SHA with a version comment: "
+                f"{workflow}:{number}: {line.strip()}"
+            )
 
 
 def safe_relative_path(value: object, label: str) -> Path:

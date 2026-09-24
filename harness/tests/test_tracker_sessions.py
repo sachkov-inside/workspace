@@ -67,6 +67,13 @@ class SessionPolicyTest(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(TrackerError):
                 start(issue(**changes))
 
+    def test_work_awaiting_owner_acceptance_is_not_claimable(self):
+        with self.assertRaisesRegex(TrackerError, 'owner acceptance'):
+            start(issue(labels=['ready-for-agent', 'tracker:acceptance']))
+        released = start() | {'command': 'release', 'phase': 'released', 'reason': 'merged'}
+        with self.assertRaisesRegex(TrackerError, 'owner acceptance'):
+            start(issue(labels=['ready-for-agent', 'tracker:acceptance']), released, request='request-two')
+
     def test_aggregate_with_closed_decomposition_can_start(self):
         children = [child(330, 'CLOSED', 'NOT_PLANNED'), child(331, 'CLOSED', 'NOT_PLANNED'),
                     child(332, 'CLOSED', 'COMPLETED')]

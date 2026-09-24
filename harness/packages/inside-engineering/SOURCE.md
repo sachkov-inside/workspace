@@ -1,4 +1,4 @@
-# inside-engineering 0.4.9
+# inside-engineering 0.4.10
 
 This package contains 30 skills selected through repository profiles:
 
@@ -57,6 +57,13 @@ their recurring branches are already covered by this smaller set.
 - Tracker automation retries idempotent GitHub reads through dropped connections, and the session
   CLI finds its run among runs created since its timestamped request identifier instead of listing
   the complete run history.
+- `WORKFLOW.md` adds the `Acceptance` delivery state with the `tracker:acceptance` label, and lists
+  the current `Area` values; the tracker projects the label and the session CLI refuses to start
+  such an issue.
+- Managed workflows pin every third-party action to a commit SHA with a version comment, which
+  `inside-harness` package validation enforces; the managed `inside-harness-health.yml` runs
+  `health` in every installed repository against the Workspace release tag of its version, and a
+  managed `.github/scripts/.gitignore` ignores Python bytecode.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

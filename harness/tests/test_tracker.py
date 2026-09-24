@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / 'packages/inside-engineering/github'
 sys.path.insert(0, str(SOURCE))
-from inside_tracker import GitHub, TrackerError, connection, identity
+from inside_tracker import GitHub, TrackerError, connection, identity, project_data
 from tracker_event import arguments
 from tracker_policy import decide
 
@@ -80,6 +80,30 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(decide(self.issue(children=children), 'In progress').status, 'In progress')
         drafted = self.issue(children=children, prs=[{'state': 'OPEN', 'isDraft': True}])
         self.assertEqual(decide(drafted, None).status, 'In progress')
+
+    def test_delivered_work_awaiting_owner_acceptance(self):
+        for roles in (['ready-for-agent'], ['ready-for-human'], ['ready-for-human', 'tracker:gate']):
+            item = self.issue(labels=roles + ['tracker:acceptance'])
+            for current in (None, 'Ready', 'Blocked', 'In progress'):
+                with self.subTest(roles=roles, current=current):
+                    self.assertEqual(decide(item, current).status, 'Acceptance')
+        merged = self.issue(labels=['ready-for-agent', 'tracker:acceptance'],
+                            session={'phase': 'review'}, prs=[{'state': 'MERGED', 'isDraft': False}])
+        self.assertEqual(decide(merged, 'Review').status, 'Acceptance')
+        closed = [{'state': 'CLOSED', 'stateReason': 'COMPLETED'}]
+        aggregate = self.issue(children=closed, labels=['ready-for-human', 'tracker:acceptance'])
+        self.assertEqual(decide(aggregate, 'In progress').status, 'Acceptance')
+
+    def test_acceptance_yields_to_live_work_and_dependencies(self):
+        accepted = ['ready-for-agent', 'tracker:acceptance']
+        self.assertEqual(decide(self.issue(labels=accepted, session={'phase': 'active'})).status, 'In progress')
+        self.assertEqual(decide(self.issue(labels=accepted, prs=[{'state': 'OPEN', 'isDraft': False}])).status, 'Review')
+        self.assertEqual(decide(self.issue(labels=accepted, session={'phase': 'blocked'})).status, 'Blocked')
+        self.assertEqual(decide(self.issue(labels=accepted, blockers=[{'state': 'OPEN'}])).status, 'Blocked')
+        self.assertEqual(decide(self.issue(labels=accepted, children=[{'state': 'OPEN'}])).status, 'In progress')
+        self.assertEqual(decide(self.issue(labels=accepted, state='CLOSED')).status, 'Done')
+        human = self.issue(labels=['backlog:human', 'tracker:acceptance'])
+        self.assertEqual(decide(human, 'In Progress').status, 'In Progress')
 
     def test_repeated_decision_converges(self):
         item = self.issue(prs=[{'state': 'OPEN', 'isDraft': False}])
@@ -202,6 +226,23 @@ class GitHubBoundaryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class ProjectSchemaTest(unittest.TestCase):
+    PIPELINE = ['Inbox', 'Ready', 'In progress', 'Review', 'Blocked', 'Done']
+
+    def api(self, statuses):
+        class API:
+            def graphql(self, query, **variables):
+                options = [{'id': name, 'name': name} for name in statuses]
+                return {'organization': {'projectV2': {'id': 'P', 'fields': {'nodes': [
+                    {'id': 'S', 'name': 'Status', 'options': options}]}}}}
+        return API()
+
+    def test_developer_pipeline_requires_the_acceptance_status(self):
+        with self.assertRaisesRegex(TrackerError, 'Status schema'):
+            project_data(self.api(self.PIPELINE), 1)
+        self.assertEqual(project_data(self.api(self.PIPELINE + ['Acceptance']), 1)['id'], 'P')
+
 
 class ReconciliationTest(unittest.TestCase):
     def fixture(self, human=False):
