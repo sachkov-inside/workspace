@@ -141,16 +141,57 @@ meaningful scope. Supporting agents gather evidence read-only and return it to t
 Create another writing worktree only for an independently mergeable child task with its own branch
 and pull request. Parallel independently mergeable tasks use separate worktrees and branches.
 
-Treat another session's worktree and branch as owned live state. Integrate upstream changes inside
-the task worktree, and keep worktree paths out of committed configuration and documentation.
+Every agent worktree lives in one predictable place: an untracked directory set apart from the
+primary checkouts. The Workspace `repositories/` directory holds primary checkouts only, and the
+Workspace root's Git-ignored `worktrees/` directory is the one permitted place inside a checkout.
+Place the worktree by where the repository's primary checkout lives:
 
-Worktree cleanup is the owning writing agent's final task step. After the pull request is merged, or
-the issue is closed without a pull request, verify that the worktree has no uncommitted changes and
-that every commit is preserved by a remote branch or the merged pull request. Then remove the task
-worktree and delete its local task branch. Commits represented by a squash-merged pull request are
-preserved even when they are not ancestors of `main`. If unpublished work remains, keep the
-worktree and report the exact blocker. Remove another session's worktree only after confirming that
-its task is terminal and its state is preserved.
+| Primary checkout | Task worktree |
+|---|---|
+| The Workspace itself | `worktrees/workspace-<task>` at the Workspace root |
+| `repositories/<repo>` inside the Workspace | `worktrees/<repo>-<task>` at the Workspace root |
+| A standalone checkout `<parent>/<repo>` | `<parent>/<repo>.worktrees/<task>` |
+
+`<repo>` is the checkout directory name, and `<task>` is the task branch without its type prefix:
+`docs/212-worktree-location` becomes `212-worktree-location`.
+
+Treat another session's worktree and branch as owned live state. Integrate upstream changes inside
+the task worktree, and keep worktree paths out of committed configuration and documentation; name
+only the placement patterns above.
+
+### Session cleanup
+
+Cleanup is the owning writing agent's final task step, done before its closing handoff. A session
+is not complete while its own resources keep running or its local state goes stale:
+
+- stop and remove the containers, volumes, and stand processes the session started, and free their
+  ports;
+- after the pull request is merged, or the issue is closed without a pull request, verify that the
+  task worktree has no uncommitted changes and that every commit is preserved by a remote branch or
+  the merged pull request, then remove the worktree and delete its local task branch; commits
+  represented by a squash-merged pull request are preserved even when they are not ancestors of
+  `main`;
+- prune stale worktree records, and delete merged local branches whose upstream is gone unless a
+  worktree still uses them;
+- drop the session's safety `git stash` entries only after comparing them with the merged pull
+  request;
+- close the tracker session: `release` after the merge, `handoff` while the pull request is open.
+
+If unpublished work remains, keep the worktree and report the exact blocker. Another session's
+containers, processes, volumes, worktrees, branches, and stash entries are its owned live state:
+leave them and name their owner in the handoff. Remove another session's worktree only after
+confirming that its task is terminal and its state is preserved.
+
+List the leftovers from the repository root with one command. The Compose working directory and a
+process's current directory show which worktree owns a container or a listening port.
+
+```bash
+git worktree list; git branch -vv | grep ': gone]'; git stash list; \
+docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Label "com.docker.compose.project.working_dir"}}'; \
+docker volume ls -qf dangling=true; lsof -nP -iTCP -sTCP:LISTEN
+```
+
+Use `lsof -a -p <pid> -d cwd` to read a listening process's current directory.
 
 ### Long-lived branches and deployment
 

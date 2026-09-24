@@ -23,3 +23,6 @@ Invoke `/code-review` from the original fixed point. When review changes code or
 re-run the relevant verification and invoke `/code-review` from that same fixed point again. Commit
 and push as `Pull request CI closure` describes. Before finishing, execute its authoritative
 `Implementation report` section.
+
+Cleanup is part of completion, like the Implementation report: before the final message, execute
+`Session cleanup` in the repository-root `WORKFLOW.md`.
