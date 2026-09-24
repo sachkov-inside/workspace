@@ -389,6 +389,8 @@ class RequestWindowTest(unittest.TestCase):
                 patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
             request_command(args)
         self.assertEqual(len(attempts), 2)
+        directories = [c[c.index('--dir') + 1] for c in attempts]
+        self.assertNotEqual(directories[0], directories[1])
 
     def test_window_at_search_cap_reads_complete_history_without_dispatch(self):
         args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
@@ -415,6 +417,34 @@ class RequestWindowTest(unittest.TestCase):
         api = SkewedAPI([[]], state)
         self.invoke(args, api, result)
         self.assertEqual(api.writes, [])
+
+    def test_new_run_before_its_window_is_found_in_complete_history_at_timeout(self):
+        # The local clock runs fast: the new request's run predates the window it is polled in.
+        args, _, _, _ = self.setup_request(request=None, timeout=0)
+        api = ClientReceiptTest.API([[]], None)
+        dispatched = {}
+
+        def call(endpoint, payload=None, method=None):
+            if method == 'POST':
+                dispatched.update(payload['inputs'])
+                return None
+            if 'created=' in endpoint or not dispatched:
+                return {'workflow_runs': [], 'total_count': 0}
+            run = dict(id=42, display_title=f"session {dispatched['request']} {dispatched['fingerprint']}",
+                       status='completed', conclusion='success', run_attempt=1, html_url='https://github.com/test/run/42')
+            return {'workflow_runs': [run], 'total_count': 1}
+        api.call = call
+
+        def download(command, **kw):
+            state = start(request=dispatched['request'])
+            api.state = state
+            Path(command[command.index('--dir')+1], 'tracker-session-result.json').write_text(
+                json.dumps(dict(ok=True, issue='sachkov-inside/platform#123', **state)))
+            return subprocess.CompletedProcess(command, 0, '', '')
+        from tracker_sessions import request_command
+        with patch('tracker_sessions.GitHub', return_value=api), \
+                patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
+            request_command(args)
 
     def test_unreachable_history_while_waiting_keeps_waiting(self):
         from inside_tracker import TransientError

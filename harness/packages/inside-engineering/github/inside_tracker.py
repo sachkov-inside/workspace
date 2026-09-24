@@ -32,11 +32,15 @@ class TransientError(TrackerError):
 
 
 def run_gh(command, stdin=None, retry=False):
-    """Run a gh command; a retried command must be a read or an idempotent write."""
+    """Run a gh command; a retried command must be a read or an idempotent write.
+
+    A callable command is rebuilt for every attempt, e.g. to write into a fresh directory.
+    """
     for attempt in range(READ_ATTEMPTS if retry else 1):
         if attempt:
             time.sleep(2 ** (attempt - 1))
-        result = subprocess.run(command, input=stdin, text=True, capture_output=True)
+        result = subprocess.run(command() if callable(command) else command, input=stdin,
+                                text=True, capture_output=True)
         if result.returncode == 0:
             return result.stdout
         if not TRANSIENT.search(result.stderr):

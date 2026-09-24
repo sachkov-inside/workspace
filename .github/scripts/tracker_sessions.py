@@ -214,10 +214,14 @@ def request_issued_at(request_id):
 
 def download_receipt(run_id, temp):
     """Download into a fresh directory per attempt so a torn download never blocks the retry."""
-    directory = Path(tempfile.mkdtemp(dir=temp))
-    run_gh(['gh', 'run', 'download', str(run_id), '-R', CONTROLLER,
-            '--name', 'tracker-session-result', '--dir', str(directory)], retry=True)
-    return json.loads((directory / 'tracker-session-result.json').read_text())
+    directories = []
+
+    def command():
+        directories.append(Path(tempfile.mkdtemp(dir=temp)))
+        return ['gh', 'run', 'download', str(run_id), '-R', CONTROLLER,
+                '--name', 'tracker-session-result', '--dir', str(directories[-1])]
+    run_gh(command, retry=True)
+    return json.loads((directories[-1] / 'tracker-session-result.json').read_text())
 
 
 def request_command(args):
@@ -279,6 +283,13 @@ def request_command(args):
         except TrackerError as error:
             print(f'Dispatch response unavailable ({error}); checking request {request_id}.', flush=True)
     print(f'Request {request_id}: waiting for central confirmation. Do not start work yet.', flush=True)
+    def finished(run):
+        if not run or run['run_attempt'] < minimum_attempt or run['status'] != 'completed':
+            return False
+        if run['conclusion'] != 'success':
+            raise TrackerError(f"Command {run['conclusion']}: {run['html_url']}; no grant to start work")
+        return True
+
     deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
         try:
@@ -287,13 +298,14 @@ def request_command(args):
             print(f'Run history unavailable ({error}); still waiting.', flush=True)
             time.sleep(3)
             continue
-        if run and run['run_attempt'] >= minimum_attempt and run['status'] == 'completed':
-            if run['conclusion'] != 'success':
-                raise TrackerError(f"Command {run['conclusion']}: {run['html_url']}; no grant to start work")
+        if finished(run):
             break
         time.sleep(3)
     else:
-        raise TrackerError(f'Request {request_id} timed out; it may still execute. Do not start or steal the task.')
+        # A fast local clock places the run before its window; the complete history is conclusive.
+        run = find_run() if window else None
+        if not finished(run):
+            raise TrackerError(f'Request {request_id} timed out; it may still execute. Do not start or steal the task.')
     with tempfile.TemporaryDirectory(prefix='inside-session-receipt-') as temp:
         result = download_receipt(run['id'], temp)
     state = {k: v for k, v in result.items() if k not in {'ok', 'issue'}}

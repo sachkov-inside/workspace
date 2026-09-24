@@ -103,7 +103,8 @@ runs created since 15 minutes before that time. A recovered request whose run is
 window, a window that reaches GitHub's 1,000-run cap for filtered listings, and an identifier without
 the time prefix are all checked against the complete run history before any dispatch. A read that
 stays unavailable after its retries does not end the wait for a receipt; polling continues until the
-timeout. The receipt artifact download retries like other reads.
+timeout, and a timed-out wait checks the complete history once in case a fast local clock placed the
+run before its window. The receipt artifact download retries like other reads.
 
 Start refuses an issue with open children and names them; a decomposition whose children are all
 closed, including `not_planned`, does not block start and projects by the issue's own readiness,
