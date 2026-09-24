@@ -1,8 +1,9 @@
 # Harness Sachkov Inside
 
-Canonical package `inside-engineering` распространяется в Workspace, Landing, Platform и Telegram
-через явный rollout lifecycle ниже. Точное содержимое и версия принадлежат package manifest, а не
-этому описанию.
+Canonical package `inside-engineering` распространяется в Workspace, Platform, Telegram и Workshop
+Cases через явный rollout lifecycle ниже. Landing устарел с 2026-09-15: его установленная копия
+не обновляется, раскатка туда не ведётся. Точное содержимое и версия принадлежат package manifest,
+а не этому описанию.
 
 ## Итоговая модель
 
@@ -20,8 +21,9 @@ Inside Workspace
             │
             ├─ install/update → Workspace repository
             ├─ install/update → platform repository
-            ├─ install/update → landing repository
-            └─ install/update → telegram repository
+            ├─ install/update → telegram repository
+            ├─ install/update → workshop-cases repository
+            └─ landing repository (устарел, раскатка не ведётся)
 
 Каждый repository
   ├─ управляемая копия общего product harness
@@ -78,8 +80,9 @@ docs/agents/triage-labels.md            # общие readiness-роли
 
 Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
 OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они
-не входят в `managedSkills` package state. Workspace и Telegram используют `core`; Landing и
-Platform — `frontend`. У Landing дополнительно остаётся локальный skill `add-reference`.
+не входят в `managedSkills` package state. Workspace, Telegram и Workshop Cases используют `core`;
+Platform и устаревший Landing — `frontend`. У Landing дополнительно остаётся локальный skill
+`add-reference`.
 
 ## Рабочий цикл
 
