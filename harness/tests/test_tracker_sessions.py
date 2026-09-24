@@ -446,6 +446,20 @@ class RequestWindowTest(unittest.TestCase):
                 patch('tracker_sessions.subprocess.run', side_effect=download), patch('tracker_sessions.time.sleep'):
             request_command(args)
 
+    def test_unreachable_history_at_timeout_still_reports_timeout(self):
+        from inside_tracker import TransientError
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef', timeout=0)
+        api = self.API([[run]], state)
+        call = api.call
+        def flaky(endpoint, payload=None, method=None):
+            if '/runs?' in endpoint and 'created=' not in endpoint and api.writes:
+                raise TransientError('EOF')
+            return call(endpoint, payload, method)
+        api.call = flaky
+        api.runs = [[]]
+        with self.assertRaisesRegex(TrackerError, 'timed out'):
+            self.invoke(args, api, result)
+
     def test_unreachable_history_while_waiting_keeps_waiting(self):
         from inside_tracker import TransientError
         args, run, state, result = self.setup_request()

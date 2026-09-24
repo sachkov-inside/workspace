@@ -303,7 +303,10 @@ def request_command(args):
         time.sleep(3)
     else:
         # A fast local clock places the run before its window; the complete history is conclusive.
-        run = find_run() if window else None
+        try:
+            run = find_run() if window else None
+        except TransientError:
+            run = None
         if not finished(run):
             raise TrackerError(f'Request {request_id} timed out; it may still execute. Do not start or steal the task.')
     with tempfile.TemporaryDirectory(prefix='inside-session-receipt-') as temp:
