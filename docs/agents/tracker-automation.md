@@ -95,11 +95,15 @@ pending run, failed job or unverified result grants no ownership. Recover the sa
 `--request` from the printed identifier. The operation fingerprint must match; a terminal failed or
 canceled run is explicitly rerun with its original inputs and must produce a new successful attempt; if it never reached GitHub, retry with a new request and the
 same session identifier after checking the prior run. Never create a second writer to bypass a
-pending/failed request. A request identifier begins with its UTC creation time, and the CLI searches
-only session runs created since 15 minutes before it; a filtered window that reaches GitHub's
-1,000-run listing cap refuses to dispatch. An identifier without that prefix is searched through the
-complete run history. The receipt artifact download retries like other reads. GitHub may cancel pending commands in the concurrency group; active commands
+pending/failed request. GitHub may cancel pending commands in the concurrency group; active commands
 are not canceled by the workflow, and the CLI reports cancellations as failures.
+
+A request identifier begins with its UTC creation time. The CLI looks for its run only among session
+runs created since 15 minutes before that time. A recovered request whose run is absent from that
+window, a window that reaches GitHub's 1,000-run cap for filtered listings, and an identifier without
+the time prefix are all checked against the complete run history before any dispatch. A read that
+stays unavailable after its retries does not end the wait for a receipt; polling continues until the
+timeout. The receipt artifact download retries like other reads.
 
 Start refuses an issue with open children and names them; a decomposition whose children are all
 closed, including `not_planned`, does not block start and projects by the issue's own readiness,

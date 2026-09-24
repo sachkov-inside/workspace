@@ -20,11 +20,28 @@ WORKFLOW = 'add-to-inside-project.yml'
 MARKER = '<!-- inside-tracker-session:v1 -->'
 READ_ATTEMPTS = 5
 # Throttling, server errors and connections dropped before a response is known.
-TRANSIENT = re.compile(r'HTTP (429|5\d\d)|TLS|timeout|connection reset|\bEOF\b', re.I)
+TRANSIENT = re.compile(r'HTTP (429|5\d\d)|TLS handshake|timeout|connection reset|\bEOF\b', re.I)
 
 
 class TrackerError(Exception):
     pass
+
+
+class TransientError(TrackerError):
+    """GitHub stayed unreachable for every allowed attempt; the facts are unknown, not refused."""
+
+
+def run_gh(command, stdin=None, retry=False):
+    """Run a gh command; a retried command must be a read or an idempotent write."""
+    for attempt in range(READ_ATTEMPTS if retry else 1):
+        if attempt:
+            time.sleep(2 ** (attempt - 1))
+        result = subprocess.run(command, input=stdin, text=True, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout
+        if not TRANSIENT.search(result.stderr):
+            raise TrackerError(result.stderr.strip())
+    raise TransientError(result.stderr.strip())
 
 
 class GitHub:
@@ -37,18 +54,11 @@ class GitHub:
             command += ['--method', method]
         safe = (not payload['query'].lstrip().startswith('mutation') if endpoint == 'graphql'
                 else method in (None, 'GET', 'PATCH'))
-        for attempt in range(READ_ATTEMPTS if safe else 1):
-            result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None,
-                                    text=True, capture_output=True)
-            if result.returncode == 0:
-                value = json.loads(result.stdout) if result.stdout.strip() else None
-                if isinstance(value, dict) and value.get('errors'):
-                    raise TrackerError(json.dumps(value['errors']))
-                return value
-            if not TRANSIENT.search(result.stderr) or not safe or attempt == READ_ATTEMPTS - 1:
-                raise TrackerError(result.stderr.strip())
-            time.sleep(2 ** attempt)
-        raise TrackerError('GitHub request did not complete')
+        output = run_gh(command, json.dumps(payload) if payload is not None else None, retry=safe)
+        value = json.loads(output) if output.strip() else None
+        if isinstance(value, dict) and value.get('errors'):
+            raise TrackerError(json.dumps(value['errors']))
+        return value
 
     def graphql(self, query, **variables):
         return self.call('graphql', {'query': query, 'variables': variables})['data']

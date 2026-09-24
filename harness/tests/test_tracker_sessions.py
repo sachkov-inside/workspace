@@ -226,11 +226,12 @@ class ClientReceiptTest(unittest.TestCase):
 
     class API:
         def __init__(self, runs, state):
-            self.runs, self.state, self.writes = runs, state, []
+            self.runs, self.state, self.writes, self.reads = runs, state, [], []
         def call(self, endpoint, payload=None, method=None):
             if method == 'POST':
                 self.writes.append(endpoint)
                 return None
+            self.reads.append(endpoint)
             value = self.runs.pop(0) if len(self.runs) > 1 else self.runs[0]
             return {'workflow_runs': value, 'total_count': len(value)}
         def pages(self, endpoint):
@@ -325,11 +326,8 @@ class RequestWindowTest(unittest.TestCase):
     def test_recovered_request_reads_one_filtered_page(self):
         args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
         api = self.API([[run]], state)
-        endpoints = []
-        call = api.call
-        api.call = lambda endpoint, payload=None, method=None: endpoints.append(endpoint) or call(endpoint, payload, method)
         self.invoke(args, api, result)
-        listings = [e for e in endpoints if '/runs?' in e]
+        listings = [e for e in api.reads if '/runs?' in e]
         self.assertTrue(listings)
         for endpoint in listings:
             self.assertIn('created=%3E%3D2026-09-24T18:55:00Z', endpoint)
@@ -392,25 +390,58 @@ class RequestWindowTest(unittest.TestCase):
             request_command(args)
         self.assertEqual(len(attempts), 2)
 
-    def test_filtered_window_at_search_cap_refuses_dispatch(self):
+    def test_window_at_search_cap_reads_complete_history_without_dispatch(self):
         args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
         class CappedAPI(ClientReceiptTest.API):
             def call(self, endpoint, payload=None, method=None):
                 if method == 'POST':raise AssertionError('must not dispatch')
-                return {'workflow_runs': [], 'total_count': 1000}
-        with self.assertRaisesRegex(TrackerError, 'Incomplete request history'):
-            self.invoke(args, CappedAPI([[]], state), result)
+                self.reads.append(endpoint)
+                if 'created=' in endpoint:
+                    return {'workflow_runs': [], 'total_count': 1000}
+                return {'workflow_runs': [run], 'total_count': 1}
+        api = CappedAPI([[]], state)
+        self.invoke(args, api, result)
+        self.assertTrue(any('created=' not in e for e in api.reads if '/runs?' in e))
+
+    def test_recovered_run_before_its_window_is_found_in_complete_history(self):
+        # The local clock ran fast when the request was issued: its run predates the window.
+        args, run, state, result = self.setup_request(request='20260924T191000Z-0123456789abcdef')
+        class SkewedAPI(ClientReceiptTest.API):
+            def call(self, endpoint, payload=None, method=None):
+                if method == 'POST':raise AssertionError('must not dispatch a recovered request twice')
+                self.reads.append(endpoint)
+                runs = [] if 'created=' in endpoint else [run]
+                return {'workflow_runs': runs, 'total_count': len(runs)}
+        api = SkewedAPI([[]], state)
+        self.invoke(args, api, result)
+        self.assertEqual(api.writes, [])
+
+    def test_unreachable_history_while_waiting_keeps_waiting(self):
+        from inside_tracker import TransientError
+        args, run, state, result = self.setup_request()
+        api = self.API([[run]], state)
+        call, failures = api.call, [TransientError('EOF')]
+        def flaky(endpoint, payload=None, method=None):
+            if '/runs?' in endpoint and api.writes and failures:
+                raise failures.pop()
+            return call(endpoint, payload, method)
+        api.call = flaky
+        api.runs = [[], [run]]
+        self.invoke(args, api, result)
+        self.assertEqual(failures, [])
+
+    def test_impossible_request_timestamp_is_rejected(self):
+        args, run, state, result = self.setup_request(request='20261399T000000Z-abcdefgh')
+        with self.assertRaisesRegex(TrackerError, 'invalid request identifier'):
+            self.invoke(args, self.API([[run]], state), result)
 
 
 class CompleteHistoryTest(unittest.TestCase):
     def test_legacy_request_reads_complete_unfiltered_history(self):
         args, run, state, result = ClientReceiptTest().setup_request()
         api = ClientReceiptTest.API([[run]], state)
-        endpoints = []
-        call = api.call
-        api.call = lambda endpoint, payload=None, method=None: endpoints.append(endpoint) or call(endpoint, payload, method)
         ClientReceiptTest().invoke(args, api, result)
-        self.assertTrue(all('created=' not in e for e in endpoints))
+        self.assertTrue(all('created=' not in e for e in api.reads))
 
     def test_truncated_history_refuses_dispatch(self):
         args, run, state, result = ClientReceiptTest().setup_request()
