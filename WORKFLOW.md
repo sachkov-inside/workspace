@@ -153,16 +153,18 @@ Place the worktree by where the repository's primary checkout lives:
 | A standalone checkout `<parent>/<repo>` | `<parent>/<repo>.worktrees/<task>` |
 
 `<repo>` is the checkout directory name, and `<task>` is the task branch without its type prefix:
-`docs/212-worktree-location` becomes `212-worktree-location`.
+`docs/212-worktree-location` becomes `212-worktree-location`. Each worktree is a direct child of its
+placement directory, beside other worktrees rather than inside one.
 
-Treat another session's worktree and branch as owned live state. Integrate upstream changes inside
+Treat another session's worktree, branch, containers, processes, volumes, and stash entries as
+owned live state. Integrate upstream changes inside
 the task worktree, and keep worktree paths out of committed configuration and documentation; name
 only the placement patterns above.
 
 ### Session cleanup
 
 Cleanup is the owning writing agent's final task step, done before its closing handoff. A session
-is not complete while its own resources keep running or its local state goes stale:
+is complete when nothing it started keeps running and its local state is clean:
 
 - stop and remove the containers, volumes, and stand processes the session started, and free their
   ports;
@@ -170,28 +172,31 @@ is not complete while its own resources keep running or its local state goes sta
   task worktree has no uncommitted changes and that every commit is preserved by a remote branch or
   the merged pull request, then remove the worktree and delete its local task branch; commits
   represented by a squash-merged pull request are preserved even when they are not ancestors of
-  `main`;
+  `main`, so delete such a branch with `git branch -D`;
 - prune stale worktree records, and delete merged local branches whose upstream is gone unless a
   worktree still uses them;
-- drop the session's safety `git stash` entries only after comparing them with the merged pull
-  request;
-- close the tracker session: `release` after the merge, `handoff` while the pull request is open.
+- name every safety `git stash` entry after the task branch, and drop the session's entries only
+  after comparing them with the merged pull request;
+- close the tracker session by the Agent sessions procedure: `release` after the merge, `handoff`
+  while the pull request is open.
 
-If unpublished work remains, keep the worktree and report the exact blocker. Another session's
-containers, processes, volumes, worktrees, branches, and stash entries are its owned live state:
-leave them and name their owner in the handoff. Remove another session's worktree only after
-confirming that its task is terminal and its state is preserved.
+While the pull request is still open, keep the worktree and task branch and complete the other
+steps. If unpublished work remains after the merge, keep the worktree and report the exact blocker.
+Leave another session's resources in place and name their owner in the handoff. Remove another
+session's worktree only after confirming that its task is terminal and its state is preserved.
 
-List the leftovers from the repository root with one command. The Compose working directory and a
-process's current directory show which worktree owns a container or a listening port.
+List the leftovers from the repository root with one command. The Compose working directory, the
+Compose project of a volume, and a process's current directory show which worktree owns a resource.
 
 ```bash
 git worktree list; git branch -vv | grep ': gone]'; git stash list; \
 docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Label "com.docker.compose.project.working_dir"}}'; \
-docker volume ls -qf dangling=true; lsof -nP -iTCP -sTCP:LISTEN
+docker volume ls -f dangling=true --format '{{.Name}}\t{{.Label "com.docker.compose.project"}}'; \
+lsof -nP -iTCP -sTCP:LISTEN
 ```
 
-Use `lsof -a -p <pid> -d cwd` to read a listening process's current directory.
+Read a listening process's current directory with `lsof -a -p <pid> -d cwd`; on Linux without
+`lsof`, use `ss -ltnp` and `readlink /proc/<pid>/cwd`.
 
 ### Long-lived branches and deployment
 
