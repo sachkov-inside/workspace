@@ -169,8 +169,8 @@ placement directory, beside other worktrees rather than inside one.
 
 Treat another session's worktree, branch, containers, processes, volumes, and stash entries as
 owned live state. Every worktree shares one `git stash` stack, so give each safety stash entry a
-unique message with `git stash push -m`. Integrate upstream changes inside the task worktree by
-merging `origin/main` into the task branch; once a branch is pushed, never rebase or force-push it.
+unique message with `git stash push -m`. Integrate upstream changes inside the task worktree; once
+the task branch is pushed, integrate by merging `origin/main` and never rebase or force-push it.
 Keep worktree paths out of committed configuration and documentation; name only the placement
 patterns above.
 
@@ -297,10 +297,12 @@ ended: the last round returned no new actionable finding, or it stopped with dis
 findings it still produced.
 
 Promote a finding only when it generalizes beyond one diff. Prefer the strongest durable home:
-type, schema, test, lint or guardrail first; repository coding standard for recurring judgement;
-specification for required behaviour; ADR for a hard-to-reverse trade-off; tracker issue for
-deferred work. Pull request history is the durable home for one-off findings. Do not create a
-repository review ledger. A promoted rule follows `Rule sources`.
+type, schema, test, lint, guardrail, or a script that removes the problem first; tracker issue for
+deferred work or a problem that has an end; repository coding standard for recurring judgement;
+specification for required behaviour; ADR for a hard-to-reverse trade-off; otherwise the nearest
+owning document, such as the root or a nested `AGENTS.md`, `docs/agents/`, a runbook, or this
+workflow through the canonical package. Pull request history is the durable home for one-off
+findings. Do not create a repository review ledger. A promoted rule follows `Rule sources`.
 
 ### Rule sources
 
@@ -332,9 +334,7 @@ The report's documentation section names each changed owning document or that st
 
 Before the closing handoff, name what the session learned that the repository does not yet say: an
 environment trap, a non-obvious command, a flaky check, or an owner decision. Give each item the
-first home that fits: a script, check, or fix that removes it; a tracker issue when the problem has
-an end; otherwise the nearest owning document, such as the root or a nested `AGENTS.md`,
-`docs/agents/`, a runbook, an ADR, or this workflow through the canonical package. Deliver it in the
+strongest durable home in the order `Review closure` sets for promoted findings. Deliver it in the
 current pull request when it concerns the change, otherwise in a small follow-up pull request or
 issue. Memory local to one runtime or machine is not a home for project knowledge; other agents
 cannot read it. Knowledge added this way follows `Rule sources`.
@@ -346,13 +346,14 @@ pull request body from the final diff, issue or specification, verification evid
 outcomes. The repository pull request template is the single authority for the report format. The
 report guides owner review; it does not replace Standards, Spec, CI, or owner approval.
 
-Complete every applicable template section, state unchanged surfaces explicitly, and give a
-bounded review path through the conceptual files or groups that explain the change. Separate
-generated and mechanical files from that path. Record the final remote head SHA, read by a command
-against the pull request in the same step rather than recalled, and the disposition of review
-findings. The same holds for every readiness message that names a head. If code or durable documents change afterward, repeat the relevant verification
-and review closure, then refresh the report for the new head. Trivial documentation or chore work
-may keep only the compact template sections named by their comments.
+Complete every applicable template section, state unchanged surfaces explicitly, and give a bounded
+review path through the conceptual files or groups that explain the change. Separate generated and
+mechanical files from that path. Record the final remote head SHA, read by a command against the
+pull request in the same step rather than recalled, and the disposition of review findings. The same
+holds for every readiness message that names a head. If code or durable documents change afterward,
+repeat the relevant verification and review closure, then refresh the report for the new head.
+Trivial documentation or chore work may keep only the compact template sections named by their
+comments.
 
 The report is complete when the owner can identify the delivered outcome, affected product and
 business surfaces, material design constraints, evidence, remaining gaps, and requested decisions
@@ -369,8 +370,9 @@ part of that repository's full verification command.
 
 `inside-harness health` owns shared harness fitness: managed-package integrity, runtime discovery,
 coding-standard discoverability, ADR lifecycle, a Claude Code bridge beside every nested
-`AGENTS.md`, and local pointers in agent, product, specification, and ADR documents. A prose-only architecture rule states why it
-cannot yet be enforced and becomes a fitness candidate when a stable seam appears.
+`AGENTS.md`, and local pointers in agent, product, specification, and ADR documents. A prose-only
+architecture rule states why it cannot yet be enforced and becomes a fitness candidate when a stable
+seam appears.
 
 ### Pruning
 
