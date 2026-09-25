@@ -44,8 +44,9 @@ def decide(item, current=None):
     children = item.get('children', [])
     blocked = unfinished(item.get('blockers', []))
     gate = bool(labels & {'needs-info', 'ready-for-human', 'tracker:gate'})
+    # Only the owner closes work that awaits the owner's acceptance.
     if (children and 'tracker:auto-complete' in labels and not unfinished(children)
-            and not blocked and not gate):
+            and not blocked and not gate and ACCEPTANCE not in labels):
         return Decision(1, 'Done', 'explicit aggregate policy; children and gates complete', close=True)
     session = item.get('session') or {}
     prs = item.get('prs', [])

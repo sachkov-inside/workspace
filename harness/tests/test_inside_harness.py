@@ -461,10 +461,13 @@ class HarnessCliTest(unittest.TestCase):
             "actions/upload-artifact@v7.0.1",
             "actions/upload-artifact@v7",
             "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # latest",
         ):
             workflow.write_text(re.sub(r"actions/upload-artifact@\S+( # \S+)?", reference, pinned))
             with self.subTest(reference=reference), self.assertRaisesRegex(HarnessError, "commit SHA"):
                 HARNESS["validate_package"](package, load_manifest(package))
+        workflow.write_text(pinned + "      - uses: ./.github/actions/local-step\n")
+        HARNESS["validate_package"](package, load_manifest(package))
 
     def test_install_rejects_an_unknown_profile(self) -> None:
         result = self.run_cli(

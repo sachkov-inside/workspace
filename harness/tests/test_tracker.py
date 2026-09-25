@@ -94,6 +94,12 @@ class PolicyTest(unittest.TestCase):
         aggregate = self.issue(children=closed, labels=['ready-for-human', 'tracker:acceptance'])
         self.assertEqual(decide(aggregate, 'In progress').status, 'Acceptance')
 
+    def test_auto_complete_never_closes_work_awaiting_owner_acceptance(self):
+        done = [{'state': 'CLOSED', 'stateReason': 'COMPLETED'}]
+        item = self.issue(children=done, labels=['ready-for-agent', 'tracker:auto-complete', 'tracker:acceptance'])
+        decision = decide(item, 'In progress')
+        self.assertEqual((decision.status, decision.close), ('Acceptance', False))
+
     def test_acceptance_yields_to_live_work_and_dependencies(self):
         accepted = ['ready-for-agent', 'tracker:acceptance']
         self.assertEqual(decide(self.issue(labels=accepted, session={'phase': 'active'})).status, 'In progress')
@@ -223,9 +229,6 @@ class GitHubBoundaryTest(unittest.TestCase):
         self.assertEqual(values[-1]['state'], 'OPEN')
         self.assertEqual(api.cursors, [None, 'next'])
 
-
-if __name__ == '__main__':
-    unittest.main()
 
 class ProjectSchemaTest(unittest.TestCase):
     PIPELINE = ['Inbox', 'Ready', 'In progress', 'Review', 'Blocked', 'Done']
@@ -389,3 +392,7 @@ class ReconciliationTest(unittest.TestCase):
         self.assertTrue(cards[1]['isArchived'])
         self.assertEqual(runner.api.cursors, [None, 'next'])
         self.assertIn('includeArchived:true', runner.api.assert_query)
+
+
+if __name__ == '__main__':
+    unittest.main()

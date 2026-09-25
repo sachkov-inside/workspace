@@ -125,16 +125,17 @@ Rollback читает package и adapters из выбранного Git ref Work
 1. Изменить canonical package в Workspace.
 2. Обновить `manifest.json` и provenance, если изменился upstream.
 3. Запустить unit tests.
-4. Обновить один pilot repository, проверить `diff`, `health` и native discovery.
+4. Обновить один pilot repository локально, проверить `diff`, `health` и native discovery.
 5. После подтверждения владельца закоммитить Workspace и создать release tag
    `inside-engineering-v<version>` на merge-коммите.
-6. Обновить остальные repositories отдельными reviewable changes.
+6. Открыть PR раскатки в pilot и остальные repositories отдельными reviewable changes.
 
 Version tag обязателен: он связывает package-версию с точным Workspace commit и служит стабильным
 Git ref для rollback. CI каждого repository кроме Workspace проверяет `health` по тегу своей
-установленной версии, поэтому тег публикуется до PR раскатки. GitHub Release необязателен и создаётся только когда нужны отдельные release
-notes или downloadable assets. Текущий installer не скачивает GitHub Release: `update` читает
-canonical package из Workspace, а `rollback --to` — из указанного Workspace Git ref.
+установленной версии, поэтому PR раскатки открывается только после публикации тега. GitHub Release
+необязателен и создаётся только когда нужны отдельные release notes или downloadable assets. Текущий
+installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а `rollback
+--to` — из указанного Workspace Git ref.
 
 Upstream не обновляется автоматически. User-level profiles, MCP, hooks и автоматические runtime
 changes в product harness не входят. Если integration становится recurring, она добавляется в

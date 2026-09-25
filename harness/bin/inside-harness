@@ -204,7 +204,11 @@ def validate_package(package: Path, manifest: dict) -> None:
 
 
 def validate_workflow_actions(workflow: Path) -> None:
-    """Managed workflows run in every repository: each third-party action is a reviewed commit."""
+    """Managed workflows run in every repository: each third-party action is a reviewed commit.
+
+    Checks the block-style `uses:` lines the package uses; any other line form fails closed or
+    stays unchecked, so managed workflows keep to that one form.
+    """
     for number, line in enumerate(workflow.read_text().splitlines(), start=1):
         match = WORKFLOW_ACTION.match(line)
         if match is None or match["reference"].startswith("./"):
