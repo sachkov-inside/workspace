@@ -50,6 +50,13 @@ NATIVE_INTEGRATIONS = {
 }
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)")
 MACHINE_LOCAL_PATH = re.compile(r"(?:/(?:Users|home|Applications)/|[A-Za-z]:\\\\)")
+CLAUDE_BRIDGE_IMPORT = re.compile(r"^@AGENTS\.md\s*$", re.MULTILINE)
+PRODUCT_DOCUMENT_ROOTS = (
+    Path("product"),
+    Path("docs/product"),
+    Path("docs/specifications"),
+    Path("docs/adr"),
+)
 SECRET_ENVIRONMENT_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 WORKFLOW_ACTION = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<reference>\S+)(?P<comment>.*)$")
 PINNED_ACTION = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
@@ -728,7 +735,7 @@ def local_markdown_targets(path: Path, repo: Path) -> list[tuple[str, Path]]:
             resolved.relative_to(repo)
         except ValueError as error:
             raise HarnessError(
-                f"Agent documentation pointer escapes repository: "
+                f"Documentation pointer escapes repository: "
                 f"{path.relative_to(repo)} -> {target}"
             ) from error
         targets.append((target, resolved))
@@ -762,27 +769,82 @@ def base_agent_documents(repo: Path) -> set[Path]:
     return result
 
 
-def validate_agent_documents(repo: Path) -> None:
-    base = base_agent_documents(repo)
+def broken_pointers(path: Path, repo: Path) -> list[str]:
+    return [
+        f"{path.relative_to(repo)}: local pointer does not resolve: {target}"
+        for target, resolved in local_markdown_targets(path, repo)
+        if not resolved.exists()
+    ]
+
+
+def validate_agent_documents(repo: Path, nested_instructions: list[Path]) -> None:
+    base = base_agent_documents(repo) | set(nested_instructions)
     documents = set(base)
     failures: list[str] = []
     for path in sorted(base):
-        for target, resolved in local_markdown_targets(path, repo):
-            if not resolved.exists():
-                failures.append(f"{path.relative_to(repo)}: local pointer does not resolve: {target}")
-            elif resolved.is_file() and resolved.suffix.lower() == ".md":
+        for _, resolved in local_markdown_targets(path, repo):
+            if resolved.is_file() and resolved.suffix.lower() == ".md":
                 documents.add(resolved)
 
     for path in sorted(documents):
-        content = path.read_text()
-        if MACHINE_LOCAL_PATH.search(content):
+        if MACHINE_LOCAL_PATH.search(path.read_text()):
             failures.append(f"{path.relative_to(repo)}: machine-local path is not portable")
-        for target, resolved in local_markdown_targets(path, repo):
-            if not resolved.exists():
-                failures.append(f"{path.relative_to(repo)}: local pointer does not resolve: {target}")
+        failures.extend(broken_pointers(path, repo))
 
     if failures:
         raise HarnessError("Agent documentation is not portable:\n" + "\n".join(sorted(set(failures))))
+
+
+def repository_markdown_documents(repo: Path) -> list[Path]:
+    listed = run(
+        ["git", "-C", str(repo), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.md"]
+    ).stdout
+    return sorted(
+        repo / relative
+        for relative in {value for value in listed.split("\0") if value}
+        if (repo / relative).is_file()
+    )
+
+
+def nested_instruction_documents(repo: Path, documents: list[Path]) -> list[Path]:
+    """Directory instructions below the root; a skill's own AGENTS.md is skill content."""
+    excluded = (SNAPSHOT_REL, PORTABLE_REL, CLAUDE_SKILLS_REL)
+    result = []
+    for path in documents:
+        relative = path.relative_to(repo)
+        if relative.name not in {AGENTS_REL.name, CLAUDE_MD_REL.name} or len(relative.parts) == 1:
+            continue
+        if any(relative.is_relative_to(root) for root in excluded):
+            continue
+        if any((repo / parent / "SKILL.md").is_file() for parent in relative.parents):
+            continue
+        result.append(path)
+    return result
+
+
+def validate_claude_bridges(repo: Path, nested_instructions: list[Path]) -> None:
+    failures = []
+    for path in nested_instructions:
+        if path.name != AGENTS_REL.name:
+            continue
+        relative = path.relative_to(repo)
+        bridge = path.with_name(CLAUDE_MD_REL.name)
+        if not bridge.is_file() or CLAUDE_BRIDGE_IMPORT.search(bridge.read_text()) is None:
+            failures.append(
+                f"{relative} needs a Claude Code bridge: "
+                f"{relative.with_name(CLAUDE_MD_REL.name)} importing @AGENTS.md"
+            )
+    if failures:
+        raise HarnessError("Nested agent instructions are not discoverable:\n" + "\n".join(failures))
+
+
+def validate_product_documents(repo: Path, documents: list[Path]) -> None:
+    failures = []
+    for path in documents:
+        if any(path.relative_to(repo).is_relative_to(root) for root in PRODUCT_DOCUMENT_ROOTS):
+            failures.extend(broken_pointers(path, repo))
+    if failures:
+        raise HarnessError("Product documentation has broken pointers:\n" + "\n".join(failures))
 
 
 def validate_integration_inventory(repo: Path) -> None:
@@ -849,7 +911,11 @@ def validate_repository_architecture(repo: Path) -> None:
             f"{CODING_STANDARDS_POINTER}"
         )
 
-    validate_agent_documents(repo)
+    documents = repository_markdown_documents(repo)
+    nested_instructions = nested_instruction_documents(repo, documents)
+    validate_agent_documents(repo, nested_instructions)
+    validate_claude_bridges(repo, nested_instructions)
+    validate_product_documents(repo, documents)
     validate_integration_inventory(repo)
 
     adr_root = repo / "docs/adr"

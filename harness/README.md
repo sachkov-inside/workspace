@@ -66,7 +66,15 @@ the chosen ref already contains this harness layout.
 5. Commit and push the release through a pull request. After it merges, tag the merge commit once
    the owner has approved the release; a merge approval for the release pull request is that
    approval.
-6. Update other repositories one at a time and review their Git diffs.
+6. Update the consumers. Pushing the tag starts the `Harness rollout` workflow: for every
+   repository in `rollout-targets.json` it runs `update` and opens one pull request
+   `chore/harness-<version>`, or reports the consumer as current. Without an open pull request the
+   branch starts from `main`, replacing a leftover of a merged rollout; a rollout the owner closed
+   is not reopened. Each pull request passes that repository's CI and waits for its owner merge; add
+   repository-local changes the release needs as commits on the same branch. The workflow needs the
+   `HARNESS_ROLLOUT_TOKEN` secret with contents and pull-request write access to the consumers.
+   Without it the run reports the rollout as blocked, and consumers are updated one at a time by
+   hand with `update`, reviewing their Git diffs.
 
 The version tag is required: it binds the package version to an exact Workspace commit and gives
 `rollback --to` a stable Git ref. A GitHub Release is optional and is useful only for separate
@@ -74,5 +82,6 @@ release notes or downloadable assets. The current installer does not download Gi
 `update` reads the canonical Workspace package and `rollback --to` reads the selected Workspace
 Git ref.
 
-There are no automatic upstream updates, machine-local links, user-level project profiles, or
-complex lock files. Repository skill profiles are explicit, versioned package selections.
+Upstream skill sources are never pulled automatically; only the release rollout above is automated.
+There are no machine-local links, user-level project profiles, or complex lock files. Repository
+skill profiles are explicit, versioned package selections.

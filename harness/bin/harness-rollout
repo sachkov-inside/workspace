@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Open a pull request that updates the product harness in every active consumer repository.
+
+For each target listed in harness/rollout-targets.json the command clones the repository, runs
+`inside-harness update`, and, when the result differs from the consumer's `main`, pushes
+`chore/harness-<version>` and opens a pull request unless one is already open. A consumer that is
+already current gets nothing, and a rollout pull request the owner closed without merging is not
+reopened. Merging stays with the consumer's own CI and owner gate.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve()
+WORKSPACE = SCRIPT.parents[2]
+CLI = WORKSPACE / "harness/bin/inside-harness"
+TARGETS = WORKSPACE / "harness/rollout-targets.json"
+MANIFEST = WORKSPACE / "harness/packages/inside-engineering/manifest.json"
+# Git authenticates through `gh auth setup-git`, so the token never appears in a URL or argv.
+DEFAULT_REMOTE = "https://github.com/{repository}.git"
+COMMIT_AUTHOR = ("inside-harness-rollout", "inside-harness-rollout@users.noreply.github.com")
+EXIT_FAILED = 1
+EXIT_INVALID = 2
+EXIT_BLOCKED = 3
+
+
+class RolloutError(Exception):
+    pass
+
+
+def run(command: list[str], *, cwd: Path | None = None) -> str:
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RolloutError(f"{' '.join(command[:3])} failed: {detail}")
+    return result.stdout
+
+
+def load_targets(path: Path) -> list[str]:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise RolloutError(f"Invalid rollout targets {path}: {error}") from error
+    targets = data.get("targets") if isinstance(data, dict) else None
+    if not isinstance(data, dict) or data.get("schemaVersion") != 1 or not isinstance(targets, list) or not all(
+        isinstance(target, str) and target.count("/") == 1 for target in targets
+    ):
+        raise RolloutError(f"Invalid rollout targets {path}: expected schemaVersion 1 and owner/name targets")
+    return targets
+
+
+def pull_request_body(version: str, tag: str) -> str:
+    return (
+        "## Отчёт о реализации\n\n"
+        "### Результат\n\n"
+        f"Репозиторий переходит на общий harness `inside-engineering` {version}. "
+        "Изменения внёс `inside-harness update` без ручных правок.\n\n"
+        "### Связанная задача\n\n"
+        f"Не относится — раскатка выпуска `{tag}` из Workspace, PR открыт автоматически.\n\n"
+        "### Проверки\n\n"
+        "CI этого репозитория, включая `Inside harness health` для установленной версии.\n\n"
+        "### Не проверено и не входит в задачу\n\n"
+        "Нет.\n\n"
+        "### Решения владельца\n\n"
+        "Merge этого PR.\n"
+    )
+
+
+def rollout_pull_requests(repository: str, branch: str) -> list[dict]:
+    return json.loads(
+        run(["gh", "pr", "list", "--repo", repository, "--head", branch, "--state", "all", "--json", "number,state"])
+    )
+
+
+def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path) -> str:
+    branch = f"chore/harness-{version}"
+    title = f"Раскатать harness inside-engineering {version}"
+    clone = work / repository.replace("/", "__")
+    run(["git", "clone", "--quiet", remote, str(clone)])
+    pull_requests = rollout_pull_requests(repository, branch)
+    open_numbers = [item["number"] for item in pull_requests if item["state"] == "OPEN"]
+    closed_numbers = [item["number"] for item in pull_requests if item["state"] == "CLOSED"]
+    leftover = run(["git", "ls-remote", "origin", f"refs/heads/{branch}"], cwd=clone).split("\t")[0].strip()
+    if open_numbers:
+        # Build on the open pull request so its review history stays intact.
+        run(["git", "fetch", "--quiet", "origin", branch], cwd=clone)
+        run(["git", "checkout", "--quiet", "-B", branch, "FETCH_HEAD"], cwd=clone)
+    else:
+        # Without an open pull request, start from the current main, never from a stale branch.
+        run(["git", "checkout", "--quiet", "-B", branch, "origin/main"], cwd=clone)
+
+    run([sys.executable, str(CLI), "update", str(clone)])
+    changed = bool(run(["git", "status", "--porcelain"], cwd=clone).strip())
+    if changed:
+        name, email = COMMIT_AUTHOR
+        run(["git", "add", "--all"], cwd=clone)
+        run(["git", "-c", f"user.name={name}", "-c", f"user.email={email}", "commit", "--quiet", "-m", title], cwd=clone)
+    if not run(["git", "diff", "--name-only", "origin/main", "HEAD"], cwd=clone).strip():
+        return "current"
+    if not open_numbers and closed_numbers:
+        return f"declined #{closed_numbers[0]}: the owner closed this release's rollout; not reopened"
+
+    push = ["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"]
+    if leftover and not open_numbers:
+        # No open or closed rollout pull request owns the leftover (it was merged, or an earlier
+        # run stopped before opening one); replace it only if nobody moved it meanwhile.
+        push.insert(2, f"--force-with-lease=refs/heads/{branch}:{leftover}")
+    if changed:
+        run(push, cwd=clone)
+    if open_numbers:
+        return f"updated #{open_numbers[0]}" if changed else f"open #{open_numbers[0]}"
+    url = run(
+        [
+            "gh", "pr", "create", "--repo", repository, "--base", "main", "--head", branch,
+            "--title", title, "--body", pull_request_body(version, tag),
+        ]
+    ).strip()
+    return f"opened {url}"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--targets", type=Path, default=TARGETS)
+    parser.add_argument("--remote-template", default=DEFAULT_REMOTE)
+    args = parser.parse_args()
+
+    if args.remote_template == DEFAULT_REMOTE and not os.environ.get("GH_TOKEN"):
+        print("Blocked: GH_TOKEN with write access to the consumer repositories is not configured.")
+        return EXIT_BLOCKED
+    try:
+        targets = load_targets(args.targets)
+    except RolloutError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return EXIT_INVALID
+
+    version = json.loads(MANIFEST.read_text())["version"]
+    tag = f"inside-engineering-v{version}"
+    failed = False
+    with tempfile.TemporaryDirectory(prefix="harness-rollout-") as temp:
+        for repository in targets:
+            remote = args.remote_template.format(repository=repository)
+            try:
+                outcome = roll_out(repository, version=version, tag=tag, remote=remote, work=Path(temp))
+            except RolloutError as error:
+                failed = True
+                outcome = f"failed: {error}"
+            print(f"{repository}: {outcome}")
+    return EXIT_FAILED if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -15,6 +15,7 @@ product surface or application.
 - For product terminology, Series/content decisions, editorial handoff, repository ownership
   or ADR placement, read `docs/agents/domain.md`.
 - For coding and review rules, read `CODING_STANDARDS.md`.
+- For which document owns a changed fact, read `docs/agents/documentation-maintenance.md`.
 
 ## Verification
 
@@ -47,6 +48,8 @@ This repository uses the versioned Sachkov Inside product harness.
   plain words on first use.
 - When offering a choice, name the decision directly. Give each option a short everyday label and
   one sentence explaining what it changes. Mark the recommendation and explain its reason plainly.
+- When a choice depends on facts not yet measured, state the criterion that decides it and what
+  each outcome of the measurement means, so whoever measures can apply it without a new decision.
 
 - For shared delivery rules and owner gates, read the repository-local `WORKFLOW.md` when the task
   touches issues, branches, pull requests, review, readiness, or merge.
