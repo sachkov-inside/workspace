@@ -56,6 +56,10 @@ Do NOT include specific file paths or code snippets. They may end up being outda
 
 Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
 
+## Documents and rules
+
+The durable facts this work changes (product behaviour, business rules, domain terms, architecture seams, public contracts, developer commands, delivery workflow, agent routing), the document that owns each fact, and every new or changed rule for agents or code with its source: an accepted Specification, an ADR, an owner decision, or an environment fact confirmed by a check. Write "None: code, schemas and tests are the authority" when the work changes no durable fact. Implementation reconciles its diff against this section.
+
 ## Testing Decisions
 
 A list of testing decisions that were made. Include:
