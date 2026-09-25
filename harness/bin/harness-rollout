@@ -2,9 +2,10 @@
 """Open a pull request that updates the product harness in every active consumer repository.
 
 For each target listed in harness/rollout-targets.json the command clones the repository, runs
-`inside-harness update`, and, when the update changes files, pushes `chore/harness-<version>` and
-opens a pull request unless one is already open. A consumer that is already current gets nothing.
-Merging stays with the consumer's own CI and owner gate.
+`inside-harness update`, and, when the result differs from the consumer's `main`, pushes
+`chore/harness-<version>` and opens a pull request unless one is already open. A consumer that is
+already current gets nothing, and a rollout pull request the owner closed without merging is not
+reopened. Merging stays with the consumer's own CI and owner gate.
 """
 
 from __future__ import annotations
@@ -23,29 +24,36 @@ WORKSPACE = SCRIPT.parents[2]
 CLI = WORKSPACE / "harness/bin/inside-harness"
 TARGETS = WORKSPACE / "harness/rollout-targets.json"
 MANIFEST = WORKSPACE / "harness/packages/inside-engineering/manifest.json"
-DEFAULT_REMOTE = "https://x-access-token:{token}@github.com/{repository}.git"
+# Git authenticates through `gh auth setup-git`, so the token never appears in a URL or argv.
+DEFAULT_REMOTE = "https://github.com/{repository}.git"
 COMMIT_AUTHOR = ("inside-harness-rollout", "inside-harness-rollout@users.noreply.github.com")
+EXIT_FAILED = 1
+EXIT_INVALID = 2
+EXIT_BLOCKED = 3
 
 
 class RolloutError(Exception):
     pass
 
 
-def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
-    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True)
+def run(command: list[str], *, cwd: Path | None = None) -> str:
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
     if result.returncode != 0:
-        detail = (result.stderr.strip() or result.stdout.strip()).replace(os.environ.get("GH_TOKEN", "\0"), "***")
-        raise RolloutError(f"{command[0]} {command[1] if len(command) > 1 else ''} failed: {detail}")
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RolloutError(f"{' '.join(command[:3])} failed: {detail}")
     return result.stdout
 
 
 def load_targets(path: Path) -> list[str]:
-    data = json.loads(path.read_text())
-    targets = data.get("targets")
-    if data.get("schemaVersion") != 1 or not isinstance(targets, list) or not all(
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise RolloutError(f"Invalid rollout targets {path}: {error}") from error
+    targets = data.get("targets") if isinstance(data, dict) else None
+    if not isinstance(data, dict) or data.get("schemaVersion") != 1 or not isinstance(targets, list) or not all(
         isinstance(target, str) and target.count("/") == 1 for target in targets
     ):
-        raise RolloutError(f"Invalid rollout targets: {path}")
+        raise RolloutError(f"Invalid rollout targets {path}: expected schemaVersion 1 and owner/name targets")
     return targets
 
 
@@ -60,17 +68,24 @@ def pull_request_body(version: str, tag: str) -> str:
         "### Проверки\n\n"
         "CI этого репозитория, включая `Inside harness health` для установленной версии.\n\n"
         "### Не проверено и не входит в задачу\n\n"
-        "Локальные правки под новые правила выпуска, если они нужны, вносит отдельный коммит в эту ветку.\n\n"
+        "Нет.\n\n"
         "### Решения владельца\n\n"
         "Merge этого PR.\n"
     )
 
 
+def rollout_pull_requests(repository: str, branch: str) -> list[dict]:
+    return json.loads(
+        run(["gh", "pr", "list", "--repo", repository, "--head", branch, "--state", "all", "--json", "number,state"])
+    )
+
+
 def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path) -> str:
     branch = f"chore/harness-{version}"
+    title = f"Раскатать harness inside-engineering {version}"
     clone = work / repository.replace("/", "__")
     run(["git", "clone", "--quiet", remote, str(clone)])
-    remote_branch = run(["git", "ls-remote", "--heads", "origin", branch], cwd=clone).strip()
+    remote_branch = bool(run(["git", "ls-remote", "--heads", "origin", branch], cwd=clone).strip())
     if remote_branch:
         run(["git", "fetch", "--quiet", "origin", branch], cwd=clone)
         run(["git", "checkout", "--quiet", "-B", branch, "FETCH_HEAD"], cwd=clone)
@@ -78,31 +93,28 @@ def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path
         run(["git", "checkout", "--quiet", "-B", branch], cwd=clone)
 
     run([sys.executable, str(CLI), "update", str(clone)])
-    if not run(["git", "status", "--porcelain"], cwd=clone).strip():
-        if not remote_branch:
-            return "current"
-    else:
+    changed = bool(run(["git", "status", "--porcelain"], cwd=clone).strip())
+    if changed:
         name, email = COMMIT_AUTHOR
         run(["git", "add", "--all"], cwd=clone)
-        run(
-            [
-                "git", "-c", f"user.name={name}", "-c", f"user.email={email}",
-                "commit", "--quiet", "-m", f"Раскатать harness inside-engineering {version}",
-            ],
-            cwd=clone,
-        )
-        run(["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"], cwd=clone)
+        run(["git", "-c", f"user.name={name}", "-c", f"user.email={email}", "commit", "--quiet", "-m", title], cwd=clone)
+    # Compare content, not ancestry: a squash-merged rollout branch is never an ancestor of main.
+    if not run(["git", "diff", "--name-only", "origin/main", "HEAD"], cwd=clone).strip():
+        return "current"
 
-    open_prs = json.loads(
-        run(["gh", "pr", "list", "--repo", repository, "--head", branch, "--state", "open", "--json", "number"])
-    )
-    if open_prs:
-        return f"updated #{open_prs[0]['number']}"
+    pull_requests = rollout_pull_requests(repository, branch)
+    open_numbers = [item["number"] for item in pull_requests if item["state"] == "OPEN"]
+    closed_numbers = [item["number"] for item in pull_requests if item["state"] == "CLOSED"]
+    if not open_numbers and closed_numbers:
+        return f"declined #{closed_numbers[0]}: the owner closed this release's rollout; not reopened"
+    if changed:
+        run(["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"], cwd=clone)
+    if open_numbers:
+        return f"updated #{open_numbers[0]}" if changed else f"open #{open_numbers[0]}"
     url = run(
         [
             "gh", "pr", "create", "--repo", repository, "--base", "main", "--head", branch,
-            "--title", f"Раскатать harness inside-engineering {version}",
-            "--body", pull_request_body(version, tag),
+            "--title", title, "--body", pull_request_body(version, tag),
         ]
     ).strip()
     return f"opened {url}"
@@ -114,24 +126,28 @@ def main() -> int:
     parser.add_argument("--remote-template", default=DEFAULT_REMOTE)
     args = parser.parse_args()
 
-    token = os.environ.get("GH_TOKEN", "")
-    if "{token}" in args.remote_template and not token:
+    if args.remote_template == DEFAULT_REMOTE and not os.environ.get("GH_TOKEN"):
         print("Blocked: GH_TOKEN with write access to the consumer repositories is not configured.")
-        return 3
+        return EXIT_BLOCKED
+    try:
+        targets = load_targets(args.targets)
+    except RolloutError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return EXIT_INVALID
 
     version = json.loads(MANIFEST.read_text())["version"]
     tag = f"inside-engineering-v{version}"
     failed = False
     with tempfile.TemporaryDirectory(prefix="harness-rollout-") as temp:
-        for repository in load_targets(args.targets):
-            remote = args.remote_template.format(token=token, repository=repository, name=repository.split("/")[1])
+        for repository in targets:
+            remote = args.remote_template.format(repository=repository)
             try:
                 outcome = roll_out(repository, version=version, tag=tag, remote=remote, work=Path(temp))
             except RolloutError as error:
                 failed = True
                 outcome = f"failed: {error}"
             print(f"{repository}: {outcome}")
-    return 1 if failed else 0
+    return EXIT_FAILED if failed else 0
 
 
 if __name__ == "__main__":

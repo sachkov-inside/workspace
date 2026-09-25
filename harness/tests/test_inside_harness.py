@@ -647,18 +647,31 @@ class HarnessCliTest(unittest.TestCase):
             with self.subTest(document=relative):
                 self.install()
                 document = self.repo / relative
+                target = document.parent / "notes/missing.md"
                 document.parent.mkdir(parents=True, exist_ok=True)
                 document.write_text(content + "\n[Missing](notes/missing.md)\n")
+                try:
+                    result = self.run_cli("health", str(self.repo), expected=2)
+                    self.assertIn(
+                        f"{relative}: local pointer does not resolve: notes/missing.md", result.stderr
+                    )
 
-                result = self.run_cli("health", str(self.repo), expected=2)
-                self.assertIn(f"{relative}: local pointer does not resolve: notes/missing.md", result.stderr)
+                    target.parent.mkdir()
+                    target.write_text("# Present\n")
+                    self.run_cli("health", str(self.repo))
+                finally:
+                    document.unlink()
+                    shutil.rmtree(target.parent, ignore_errors=True)
 
-                target = document.parent / "notes/missing.md"
-                target.parent.mkdir()
-                target.write_text("# Present\n")
-                self.run_cli("health", str(self.repo))
-                document.unlink()
-                shutil.rmtree(target.parent)
+    def test_health_rejects_machine_local_path_in_nested_agents_document(self) -> None:
+        self.install()
+        nested = self.repo / "services/worker/AGENTS.md"
+        nested.parent.mkdir(parents=True)
+        nested.write_text("Run the worker from `/Users/example/worker`.\n")
+        (nested.parent / "CLAUDE.md").write_text("@AGENTS.md\n")
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("services/worker/AGENTS.md: machine-local path is not portable", result.stderr)
 
     def test_health_rejects_machine_local_path_in_direct_reference(self) -> None:
         self.install()

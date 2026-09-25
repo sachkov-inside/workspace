@@ -16,18 +16,37 @@ concurrency:
 
 jobs:
   rollout:
+    # A manual run starts from main; the release tag it rolls out must already exist.
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Check that the release tag matches the package version
+        run: |
+          set -euo pipefail
+          version="$(jq --exit-status --raw-output .version harness/packages/inside-engineering/manifest.json)"
+          tag="inside-engineering-v${version}"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            if [ "$GITHUB_REF_NAME" != "$tag" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match package version $version."
+              exit 1
+            fi
+          elif ! git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::Release tag $tag does not exist; consumer health checks would fail."
+            exit 1
+          fi
       - name: Open update pull requests in consumers
         env:
           # Contents and pull-request write access to every consumer repository.
           GH_TOKEN: ${{ secrets.HARNESS_ROLLOUT_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -n "$GH_TOKEN" ]; then
+            gh auth setup-git
+          fi
           status=0
           python3 harness/bin/harness-rollout > "$RUNNER_TEMP/rollout.txt" || status=$?
           cat "$RUNNER_TEMP/rollout.txt"

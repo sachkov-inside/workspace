@@ -45,7 +45,9 @@ harness/
 │   ├── AGENTS.product.md
 │   └── CLAUDE.product.md
 ├── bin/
-│   └── inside-harness
+│   ├── inside-harness
+│   └── harness-rollout
+├── rollout-targets.json
 ├── packages/
 │   └── inside-engineering/
 │       ├── manifest.json
@@ -128,7 +130,11 @@ Rollback читает package и adapters из выбранного Git ref Work
 4. Обновить один pilot repository локально, проверить `diff`, `health` и native discovery.
 5. После подтверждения владельца закоммитить Workspace и создать release tag
    `inside-engineering-v<version>` на merge-коммите.
-6. Открыть PR раскатки в pilot и остальные repositories отдельными reviewable changes.
+6. Раскатать версию. Тег запускает workflow `Harness rollout`: для каждого repository из
+   `harness/rollout-targets.json` он выполняет `update` и открывает один PR
+   `chore/harness-<version>` или отмечает repository как актуальный. PR проходит CI repository и ждёт
+   merge владельца. Без секрета `HARNESS_ROLLOUT_TOKEN` workflow сообщает, что раскатка
+   заблокирована, и PR раскатки открываются вручную отдельными reviewable changes.
 
 Version tag обязателен: он связывает package-версию с точным Workspace commit и служит стабильным
 Git ref для rollback. CI каждого repository кроме Workspace проверяет `health` по тегу своей
@@ -137,7 +143,7 @@ Git ref для rollback. CI каждого repository кроме Workspace пр�
 installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а
 `rollback --to` — из указанного Workspace Git ref.
 
-Upstream не обновляется автоматически. User-level profiles, MCP, hooks и автоматические runtime
+Upstream не обновляется автоматически; автоматизирована только раскатка выпуска. User-level profiles, MCP, hooks и автоматические runtime
 changes в product harness не входят. Если integration становится recurring, она добавляется в
 конкретный repository через native project config и проверяется его `health`; credentials остаются
 в native auth или environment.

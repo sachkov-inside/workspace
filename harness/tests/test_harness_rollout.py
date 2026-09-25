@@ -16,11 +16,10 @@ BRANCH = f"chore/harness-{VERSION}"
 
 FAKE_GH = """#!/usr/bin/env python3
 import json, os, sys
-log = os.environ["FAKE_GH_LOG"]
-with open(log, "a") as handle:
+with open(os.environ["FAKE_GH_LOG"], "a") as handle:
     handle.write(json.dumps(sys.argv[1:]) + "\\n")
 if sys.argv[1:3] == ["pr", "list"]:
-    print(os.environ.get("FAKE_GH_OPEN_PRS", "[]"))
+    print(os.environ.get("FAKE_GH_PULL_REQUESTS", "[]"))
 elif sys.argv[1:3] == ["pr", "create"]:
     print("https://github.com/example/pull/1")
 """
@@ -41,7 +40,6 @@ class HarnessRolloutTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="harness-rollout-test-")
         self.root = Path(self.temp.name)
         self.remotes = self.root / "remotes"
-        self.remotes.mkdir()
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         gh = bin_dir / "gh"
@@ -58,18 +56,30 @@ class HarnessRolloutTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def consumer(self, name: str, *, behind: bool) -> Path:
-        work = self.root / f"{name}-work"
-        work.mkdir()
+    def consumer(self, repository: str, *, behind: bool) -> Path:
+        work = self.root / "work" / repository
+        work.mkdir(parents=True)
         git("init", "-q", "-b", "main", str(work))
         subprocess.run([str(CLI), "install", str(work)], check=True, capture_output=True)
         if behind:
             (work / "WORKFLOW.md").unlink()
         git("add", "--all", cwd=work)
         git("commit", "-qm", "consumer", cwd=work)
-        remote = self.remotes / f"{name}.git"
+        remote = self.remotes / f"{repository}.git"
+        remote.parent.mkdir(parents=True, exist_ok=True)
         git("clone", "-q", "--bare", str(work), str(remote))
         return remote
+
+    def push_rollout_branch(self, remote: Path, *, updated: bool) -> None:
+        """Leave a rollout branch on the remote, as an earlier run would have."""
+        clone = self.root / "earlier-run"
+        git("clone", "-q", str(remote), str(clone))
+        git("checkout", "-q", "-b", BRANCH, cwd=clone)
+        if updated:
+            subprocess.run([str(CLI), "update", str(clone)], check=True, capture_output=True)
+            git("add", "--all", cwd=clone)
+        git("commit", "-q", "--allow-empty", "-m", "earlier rollout", cwd=clone)
+        git("push", "-q", "origin", BRANCH, cwd=clone)
 
     def rollout(self, *targets: str, expected: int = 0) -> subprocess.CompletedProcess[str]:
         targets_file = self.root / "targets.json"
@@ -78,7 +88,7 @@ class HarnessRolloutTest(unittest.TestCase):
             [
                 str(ROLLOUT),
                 "--targets", str(targets_file),
-                "--remote-template", f"{self.remotes}/{{name}}.git",
+                "--remote-template", f"{self.remotes}/{{repository}}.git",
             ],
             env=self.env,
             text=True,
@@ -87,24 +97,25 @@ class HarnessRolloutTest(unittest.TestCase):
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
 
-    def gh_calls(self) -> list[list[str]]:
+    def gh_calls(self, *prefix: str) -> list[list[str]]:
         if not self.gh_log.exists():
             return []
-        return [json.loads(line) for line in self.gh_log.read_text().splitlines()]
+        calls = [json.loads(line) for line in self.gh_log.read_text().splitlines()]
+        return [call for call in calls if call[: len(prefix)] == list(prefix)]
 
     def test_behind_consumer_gets_branch_and_pull_request(self) -> None:
-        remote = self.consumer("platform", behind=True)
+        remote = self.consumer("example/platform", behind=True)
 
         result = self.rollout("example/platform")
 
         self.assertIn("example/platform: opened https://github.com/example/pull/1", result.stdout)
         self.assertIn("WORKFLOW.md", git("show", "--name-only", "--format=", BRANCH, cwd=remote))
-        creates = [call for call in self.gh_calls() if call[:2] == ["pr", "create"]]
+        creates = self.gh_calls("pr", "create")
         self.assertEqual(len(creates), 1)
         self.assertIn(BRANCH, creates[0])
 
     def test_current_consumer_gets_nothing(self) -> None:
-        remote = self.consumer("telegram", behind=False)
+        remote = self.consumer("example/telegram", behind=False)
 
         result = self.rollout("example/telegram")
 
@@ -112,14 +123,39 @@ class HarnessRolloutTest(unittest.TestCase):
         self.assertEqual(git("branch", "--list", BRANCH, cwd=remote).strip(), "")
         self.assertEqual(self.gh_calls(), [])
 
-    def test_open_pull_request_is_updated_not_duplicated(self) -> None:
-        self.consumer("cases", behind=True)
-        self.env["FAKE_GH_OPEN_PRS"] = '[{"number": 7}]'
+    def test_leftover_branch_after_merge_counts_as_current(self) -> None:
+        remote = self.consumer("example/cases", behind=False)
+        self.push_rollout_branch(remote, updated=False)
+        self.env["FAKE_GH_PULL_REQUESTS"] = '[{"number": 5, "state": "MERGED"}]'
+
+        result = self.rollout("example/cases")
+
+        self.assertIn("example/cases: current", result.stdout)
+        self.assertEqual(self.gh_calls("pr", "create"), [])
+
+    def test_open_pull_request_gets_new_commit_not_a_duplicate(self) -> None:
+        remote = self.consumer("example/cases", behind=True)
+        self.push_rollout_branch(remote, updated=False)
+        before = git("rev-parse", BRANCH, cwd=remote).strip()
+        self.env["FAKE_GH_PULL_REQUESTS"] = '[{"number": 7, "state": "OPEN"}]'
 
         result = self.rollout("example/cases")
 
         self.assertIn("example/cases: updated #7", result.stdout)
-        self.assertFalse(any(call[:2] == ["pr", "create"] for call in self.gh_calls()))
+        self.assertNotEqual(git("rev-parse", BRANCH, cwd=remote).strip(), before)
+        self.assertEqual(self.gh_calls("pr", "create"), [])
+
+    def test_rollout_closed_by_owner_is_not_reopened(self) -> None:
+        remote = self.consumer("example/cases", behind=True)
+        self.push_rollout_branch(remote, updated=True)
+        before = git("rev-parse", BRANCH, cwd=remote).strip()
+        self.env["FAKE_GH_PULL_REQUESTS"] = '[{"number": 8, "state": "CLOSED"}]'
+
+        result = self.rollout("example/cases")
+
+        self.assertIn("example/cases: declined #8", result.stdout)
+        self.assertEqual(git("rev-parse", BRANCH, cwd=remote).strip(), before)
+        self.assertEqual(self.gh_calls("pr", "create"), [])
 
     def test_missing_token_blocks_default_remote(self) -> None:
         targets_file = self.root / "targets.json"
@@ -133,13 +169,37 @@ class HarnessRolloutTest(unittest.TestCase):
         self.assertIn("GH_TOKEN", result.stdout)
         self.assertEqual(self.gh_calls(), [])
 
+    def test_invalid_targets_are_rejected_before_any_clone(self) -> None:
+        targets_file = self.root / "targets.json"
+        for content in ("not json", "[]", '{"schemaVersion": 1, "targets": ["platform"]}'):
+            with self.subTest(content=content):
+                targets_file.write_text(content)
+                result = subprocess.run(
+                    [str(ROLLOUT), "--targets", str(targets_file), "--remote-template", "{repository}"],
+                    env=self.env,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("Invalid rollout targets", result.stderr)
+        self.assertEqual(self.gh_calls(), [])
+
     def test_one_failed_target_does_not_stop_the_others(self) -> None:
-        self.consumer("platform", behind=True)
+        self.consumer("example/platform", behind=True)
 
         result = self.rollout("example/missing", "example/platform", expected=1)
 
         self.assertIn("example/missing: failed", result.stdout)
         self.assertIn("example/platform: opened", result.stdout)
+
+    def test_release_targets_are_the_active_consumers(self) -> None:
+        targets = json.loads((WORKSPACE / "harness/rollout-targets.json").read_text())["targets"]
+
+        self.assertEqual(
+            targets,
+            ["sachkov-inside/platform", "sachkov-inside/inside-telegram", "sachkov-inside/workshop-cases"],
+        )
+        self.assertNotIn("sachkov-inside/inside-landing", targets)
 
 
 if __name__ == "__main__":
