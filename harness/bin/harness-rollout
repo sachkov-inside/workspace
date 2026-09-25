@@ -88,7 +88,7 @@ def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path
     pull_requests = rollout_pull_requests(repository, branch)
     open_numbers = [item["number"] for item in pull_requests if item["state"] == "OPEN"]
     closed_numbers = [item["number"] for item in pull_requests if item["state"] == "CLOSED"]
-    leftover = run(["git", "ls-remote", "--heads", "origin", branch], cwd=clone).split("\t")[0].strip()
+    leftover = run(["git", "ls-remote", "origin", f"refs/heads/{branch}"], cwd=clone).split("\t")[0].strip()
     if open_numbers:
         # Build on the open pull request so its review history stays intact.
         run(["git", "fetch", "--quiet", "origin", branch], cwd=clone)
@@ -110,7 +110,8 @@ def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path
 
     push = ["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"]
     if leftover and not open_numbers:
-        # The leftover belongs to a merged rollout; replace it only if nobody moved it meanwhile.
+        # No open or closed rollout pull request owns the leftover (it was merged, or an earlier
+        # run stopped before opening one); replace it only if nobody moved it meanwhile.
         push.insert(2, f"--force-with-lease=refs/heads/{branch}:{leftover}")
     if changed:
         run(push, cwd=clone)
