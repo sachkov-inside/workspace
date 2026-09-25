@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",
@@ -74,6 +74,14 @@
     {
       "source": "github/inside-agent-sessions.yml",
       "target": ".github/workflows/inside-agent-sessions.yml"
+    },
+    {
+      "source": "github/inside-harness-health.yml",
+      "target": ".github/workflows/inside-harness-health.yml"
+    },
+    {
+      "source": "github/scripts.gitignore",
+      "target": ".github/scripts/.gitignore"
     }
   ],
   "skills": [

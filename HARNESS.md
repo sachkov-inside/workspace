@@ -76,7 +76,12 @@ AGENTS.md                               # общий entrypoint + repo-specific 
 CLAUDE.md                               # импорт AGENTS.md
 WORKFLOW.md                             # общий Developer Pipeline
 docs/agents/triage-labels.md            # общие readiness-роли
+.github/workflows/inside-harness-health.yml  # health в CI по тегу установленной версии
 ```
+
+Остальные managed-файлы (трекер, шаблон PR, `.github/scripts/.gitignore`) перечислены в package
+manifest. Сторонние actions в managed workflows закреплены полным SHA коммита с комментарием
+версии; проверка пакета в `health` отклоняет плавающий тег.
 
 Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
 OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они
@@ -120,14 +125,17 @@ Rollback читает package и adapters из выбранного Git ref Work
 1. Изменить canonical package в Workspace.
 2. Обновить `manifest.json` и provenance, если изменился upstream.
 3. Запустить unit tests.
-4. Обновить один pilot repository, проверить `diff`, `health` и native discovery.
-5. После подтверждения владельца закоммитить Workspace и создать release tag.
-6. Обновить остальные repositories отдельными reviewable changes.
+4. Обновить один pilot repository локально, проверить `diff`, `health` и native discovery.
+5. После подтверждения владельца закоммитить Workspace и создать release tag
+   `inside-engineering-v<version>` на merge-коммите.
+6. Открыть PR раскатки в pilot и остальные repositories отдельными reviewable changes.
 
 Version tag обязателен: он связывает package-версию с точным Workspace commit и служит стабильным
-Git ref для rollback. GitHub Release необязателен и создаётся только когда нужны отдельные release
-notes или downloadable assets. Текущий installer не скачивает GitHub Release: `update` читает
-canonical package из Workspace, а `rollback --to` — из указанного Workspace Git ref.
+Git ref для rollback. CI каждого repository кроме Workspace проверяет `health` по тегу своей
+установленной версии, поэтому PR раскатки открывается только после публикации тега. GitHub Release
+необязателен и создаётся только когда нужны отдельные release notes или downloadable assets. Текущий
+installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а
+`rollback --to` — из указанного Workspace Git ref.
 
 Upstream не обновляется автоматически. User-level profiles, MCP, hooks и автоматические runtime
 changes в product harness не входят. Если integration становится recurring, она добавляется в

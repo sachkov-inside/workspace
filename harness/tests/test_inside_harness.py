@@ -430,6 +430,45 @@ class HarnessCliTest(unittest.TestCase):
         self.run_cli("update", str(self.repo), "--profile", "core")
         self.run_cli("health", str(self.repo))
 
+    def test_installed_tracker_scripts_ignore_python_bytecode(self) -> None:
+        self.install()
+        cache = self.repo / ".github/scripts/__pycache__"
+        cache.mkdir()
+        (cache / "inside_tracker.cpython-312.pyc").write_bytes(b"\0")
+        status = subprocess.run(
+            ["git", "-C", str(self.repo), "status", "--porcelain", "--untracked-files=all", ".github/scripts"],
+            check=True, text=True, capture_output=True,
+        ).stdout
+        self.assertNotIn("__pycache__", status)
+        self.assertIn(".github/scripts/.gitignore", status)
+
+    def test_installed_repository_checks_harness_health_in_ci(self) -> None:
+        self.install()
+        workflow = (self.repo / ".github/workflows/inside-harness-health.yml").read_text()
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("github.repository != 'sachkov-inside/workspace'", workflow)
+        self.assertIn('--branch "inside-engineering-v${version}"', workflow)
+        self.assertIn("inside-harness\" health .", workflow)
+        self.assertIn("contents: read", workflow)
+
+    def test_package_rejects_a_managed_workflow_action_without_a_commit_pin(self) -> None:
+        package = Path(self.temp.name) / "package"
+        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
+        workflow = package / "github/inside-agent-sessions.yml"
+        pinned = workflow.read_text()
+        HARNESS["validate_package"](package, load_manifest(package))
+        for reference in (
+            "actions/upload-artifact@v7.0.1",
+            "actions/upload-artifact@v7",
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # latest",
+        ):
+            workflow.write_text(re.sub(r"actions/upload-artifact@\S+( # \S+)?", reference, pinned))
+            with self.subTest(reference=reference), self.assertRaisesRegex(HarnessError, "commit SHA"):
+                HARNESS["validate_package"](package, load_manifest(package))
+        workflow.write_text(pinned + "      - uses: ./.github/actions/local-step\n")
+        HARNESS["validate_package"](package, load_manifest(package))
+
     def test_install_rejects_an_unknown_profile(self) -> None:
         result = self.run_cli(
             "install", str(self.repo), "--profile", "unknown", expected=2
