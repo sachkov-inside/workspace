@@ -5,6 +5,7 @@
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
 | [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | public | Общий product context, Developer Pipeline и cross-repo решения |
+| [`sachkov-inside/ai-engineering`](https://github.com/sachkov-inside/ai-engineering) | `sachkov-inside` | `repositories/ai-engineering` | private | Программа, методика и подготовка запуска курса; собственный harness и Project 3 |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Устарел (deprecated с 2026-09-15): публичный landing Inside; задачи, PR и раскатка harness не ведутся, сайт и `main` не трогаются |
 | [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | public | Membership-платформа и её product/technical docs |
 | [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content) | `sachkov-inside` | `repositories/inside-content` | private | Локальные оригиналы материалов/серий и редакционный процесс |
@@ -41,6 +42,12 @@ Workspace не становится runtime или build dependency нового
 `project-foundation` harness; software engineering package приложений ему не устанавливается.
 
 ## Правила границ
+
+Решение владельца 19.09.2026: направление AI Engineering ведёт решения о курсе и подготовку
+запуска в отдельном repository и [Project 3](https://github.com/orgs/sachkov-inside/projects/3).
+Это scoped исключение из маршрута всех продуктовых задач через Workspace. Оригиналы материалов,
+код Platform/Telegram и общие коммерческие правила остаются у прежних владельцев.
+Код учебного Agent Cloud не является кодом Inside Platform; его repository пока не выбран.
 
 - Новые repositories создаются в организации `sachkov-inside` и по умолчанию имеют private
   visibility. `workspace`, `platform` и `inside-telegram` открыты намеренно (решение владельца
