@@ -602,6 +602,64 @@ class HarnessCliTest(unittest.TestCase):
         result = self.run_cli("health", str(self.repo), expected=2)
         self.assertIn("pointer escapes repository", result.stderr)
 
+    def test_health_requires_claude_bridge_for_nested_agents_document(self) -> None:
+        self.install()
+        nested = self.repo / "apps/api/AGENTS.md"
+        nested.parent.mkdir(parents=True)
+        nested.write_text("# API agent rules\n")
+
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("apps/api/AGENTS.md needs a Claude Code bridge", result.stderr)
+
+        bridge = self.repo / "apps/api/CLAUDE.md"
+        bridge.write_text("# API\n")
+        result = self.run_cli("health", str(self.repo), expected=2)
+        self.assertIn("apps/api/AGENTS.md needs a Claude Code bridge", result.stderr)
+
+        bridge.write_text("@AGENTS.md\n")
+        self.run_cli("health", str(self.repo))
+
+    def test_health_ignores_nested_agents_document_in_ignored_directory(self) -> None:
+        self.install()
+        (self.repo / ".gitignore").write_text("vendor/\n")
+        vendored = self.repo / "vendor/tool/AGENTS.md"
+        vendored.parent.mkdir(parents=True)
+        vendored.write_text("# Vendored rules\n")
+
+        self.run_cli("health", str(self.repo))
+
+    def test_health_accepts_agents_document_shipped_inside_a_skill(self) -> None:
+        self.install()
+        skill = self.repo / "tools/skills/example"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("---\nname: example\ndescription: Example.\n---\n")
+        (skill / "AGENTS.md").write_text("# Skill guidance compiled for agents\n")
+
+        self.run_cli("health", str(self.repo))
+
+    def test_health_rejects_broken_pointer_in_product_specification_and_adr(self) -> None:
+        documents = {
+            "product/brief.md": "# Brief\n",
+            "docs/specifications/checkout.md": "# Checkout\n",
+            "docs/adr/0001-checkout-shape.md": "---\nstatus: accepted\n---\n\n# Checkout shape\n",
+        }
+        for relative, content in documents.items():
+            with self.subTest(document=relative):
+                self.install()
+                document = self.repo / relative
+                document.parent.mkdir(parents=True, exist_ok=True)
+                document.write_text(content + "\n[Missing](notes/missing.md)\n")
+
+                result = self.run_cli("health", str(self.repo), expected=2)
+                self.assertIn(f"{relative}: local pointer does not resolve: notes/missing.md", result.stderr)
+
+                target = document.parent / "notes/missing.md"
+                target.parent.mkdir()
+                target.write_text("# Present\n")
+                self.run_cli("health", str(self.repo))
+                document.unlink()
+                shutil.rmtree(target.parent)
+
     def test_health_rejects_machine_local_path_in_direct_reference(self) -> None:
         self.install()
         product = self.repo / "product/README.md"

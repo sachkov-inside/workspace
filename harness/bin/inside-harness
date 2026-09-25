@@ -50,6 +50,8 @@ NATIVE_INTEGRATIONS = {
 }
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)")
 MACHINE_LOCAL_PATH = re.compile(r"(?:/(?:Users|home|Applications)/|[A-Za-z]:\\\\)")
+CLAUDE_BRIDGE_IMPORT = re.compile(r"^@AGENTS\.md\s*$", re.MULTILINE)
+DECISION_DOCUMENT_ROOTS = (Path("product"), Path("docs/specifications"), Path("docs/adr"))
 SECRET_ENVIRONMENT_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 WORKFLOW_ACTION = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<reference>\S+)(?P<comment>.*)$")
 PINNED_ACTION = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
@@ -785,6 +787,52 @@ def validate_agent_documents(repo: Path) -> None:
         raise HarnessError("Agent documentation is not portable:\n" + "\n".join(sorted(set(failures))))
 
 
+def repository_markdown_documents(repo: Path) -> list[Path]:
+    listed = run(
+        ["git", "-C", str(repo), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.md"]
+    ).stdout
+    return sorted(
+        repo / relative
+        for relative in {value for value in listed.split("\0") if value}
+        if (repo / relative).is_file()
+    )
+
+
+def validate_claude_bridges(repo: Path, documents: list[Path]) -> None:
+    excluded = (SNAPSHOT_REL, PORTABLE_REL, CLAUDE_SKILLS_REL)
+    failures = []
+    for path in documents:
+        relative = path.relative_to(repo)
+        if relative.name != AGENTS_REL.name or relative == AGENTS_REL:
+            continue
+        if any(relative.is_relative_to(root) for root in excluded):
+            continue
+        # A skill may ship an AGENTS.md as its own content, not as directory instructions.
+        if any((repo / parent / "SKILL.md").is_file() for parent in relative.parents):
+            continue
+        bridge = path.with_name(CLAUDE_MD_REL.name)
+        if not bridge.is_file() or CLAUDE_BRIDGE_IMPORT.search(bridge.read_text()) is None:
+            failures.append(
+                f"{relative} needs a Claude Code bridge: "
+                f"{relative.with_name(CLAUDE_MD_REL.name)} importing @AGENTS.md"
+            )
+    if failures:
+        raise HarnessError("Nested agent instructions are not discoverable:\n" + "\n".join(failures))
+
+
+def validate_decision_documents(repo: Path, documents: list[Path]) -> None:
+    failures = []
+    for path in documents:
+        relative = path.relative_to(repo)
+        if not any(relative.is_relative_to(root) for root in DECISION_DOCUMENT_ROOTS):
+            continue
+        for target, resolved in local_markdown_targets(path, repo):
+            if not resolved.exists():
+                failures.append(f"{relative}: local pointer does not resolve: {target}")
+    if failures:
+        raise HarnessError("Product documentation has broken pointers:\n" + "\n".join(failures))
+
+
 def validate_integration_inventory(repo: Path) -> None:
     discovered = {path for path in NATIVE_INTEGRATIONS if (repo / path).is_file()}
     inventory_path = repo / INTEGRATIONS_REL
@@ -850,6 +898,9 @@ def validate_repository_architecture(repo: Path) -> None:
         )
 
     validate_agent_documents(repo)
+    documents = repository_markdown_documents(repo)
+    validate_claude_bridges(repo, documents)
+    validate_decision_documents(repo, documents)
     validate_integration_inventory(repo)
 
     adr_root = repo / "docs/adr"
