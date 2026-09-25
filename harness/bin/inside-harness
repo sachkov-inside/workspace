@@ -51,7 +51,12 @@ NATIVE_INTEGRATIONS = {
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)")
 MACHINE_LOCAL_PATH = re.compile(r"(?:/(?:Users|home|Applications)/|[A-Za-z]:\\\\)")
 CLAUDE_BRIDGE_IMPORT = re.compile(r"^@AGENTS\.md\s*$", re.MULTILINE)
-PRODUCT_DOCUMENT_ROOTS = (Path("product"), Path("docs/specifications"), Path("docs/adr"))
+PRODUCT_DOCUMENT_ROOTS = (
+    Path("product"),
+    Path("docs/product"),
+    Path("docs/specifications"),
+    Path("docs/adr"),
+)
 SECRET_ENVIRONMENT_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 WORKFLOW_ACTION = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<reference>\S+)(?P<comment>.*)$")
 PINNED_ACTION = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")

@@ -81,6 +81,14 @@ class HarnessRolloutTest(unittest.TestCase):
         git("commit", "-q", "--allow-empty", "-m", "earlier rollout", cwd=clone)
         git("push", "-q", "origin", BRANCH, cwd=clone)
 
+    def advance_main(self, remote: Path) -> None:
+        clone = self.root / "later-work"
+        git("clone", "-q", str(remote), str(clone))
+        (clone / "NOTES.md").write_text("Unrelated work on main.\n")
+        git("add", "NOTES.md", cwd=clone)
+        git("commit", "-qm", "main moved", cwd=clone)
+        git("push", "-q", "origin", "main", cwd=clone)
+
     def rollout(self, *targets: str, expected: int = 0) -> subprocess.CompletedProcess[str]:
         targets_file = self.root / "targets.json"
         targets_file.write_text(json.dumps({"schemaVersion": 1, "targets": list(targets)}))
@@ -121,7 +129,7 @@ class HarnessRolloutTest(unittest.TestCase):
 
         self.assertIn("example/telegram: current", result.stdout)
         self.assertEqual(git("branch", "--list", BRANCH, cwd=remote).strip(), "")
-        self.assertEqual(self.gh_calls(), [])
+        self.assertEqual(self.gh_calls("pr", "create"), [])
 
     def test_leftover_branch_after_merge_counts_as_current(self) -> None:
         remote = self.consumer("example/cases", behind=False)
@@ -132,6 +140,29 @@ class HarnessRolloutTest(unittest.TestCase):
 
         self.assertIn("example/cases: current", result.stdout)
         self.assertEqual(self.gh_calls("pr", "create"), [])
+
+    def test_leftover_branch_is_ignored_after_main_moves_on(self) -> None:
+        remote = self.consumer("example/cases", behind=False)
+        self.push_rollout_branch(remote, updated=False)
+        self.advance_main(remote)
+        self.env["FAKE_GH_PULL_REQUESTS"] = '[{"number": 5, "state": "MERGED"}]'
+
+        result = self.rollout("example/cases")
+
+        self.assertIn("example/cases: current", result.stdout)
+        self.assertEqual(self.gh_calls("pr", "create"), [])
+
+    def test_new_rollout_replaces_a_merged_leftover_branch(self) -> None:
+        remote = self.consumer("example/cases", behind=True)
+        self.push_rollout_branch(remote, updated=False)
+        self.advance_main(remote)
+        self.env["FAKE_GH_PULL_REQUESTS"] = '[{"number": 5, "state": "MERGED"}]'
+
+        result = self.rollout("example/cases")
+
+        self.assertIn("example/cases: opened", result.stdout)
+        self.assertIn("main moved", git("log", "--format=%s", BRANCH, cwd=remote))
+        self.assertNotIn("earlier rollout", git("log", "--format=%s", BRANCH, cwd=remote))
 
     def test_open_pull_request_gets_new_commit_not_a_duplicate(self) -> None:
         remote = self.consumer("example/cases", behind=True)
@@ -171,7 +202,12 @@ class HarnessRolloutTest(unittest.TestCase):
 
     def test_invalid_targets_are_rejected_before_any_clone(self) -> None:
         targets_file = self.root / "targets.json"
-        for content in ("not json", "[]", '{"schemaVersion": 1, "targets": ["platform"]}'):
+        for content in (
+            "not json",
+            "[]",
+            '{"schemaVersion": 2, "targets": []}',
+            '{"schemaVersion": 1, "targets": ["platform"]}',
+        ):
             with self.subTest(content=content):
                 targets_file.write_text(content)
                 result = subprocess.run(

@@ -640,6 +640,7 @@ class HarnessCliTest(unittest.TestCase):
     def test_health_rejects_broken_pointer_in_product_specification_and_adr(self) -> None:
         documents = {
             "product/brief.md": "# Brief\n",
+            "docs/product/brief.md": "# Application brief\n",
             "docs/specifications/checkout.md": "# Checkout\n",
             "docs/adr/0001-checkout-shape.md": "---\nstatus: accepted\n---\n\n# Checkout shape\n",
         }

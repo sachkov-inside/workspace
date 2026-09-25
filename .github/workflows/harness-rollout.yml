@@ -55,6 +55,7 @@ jobs:
             echo
             sed 's/^/- /' "$RUNNER_TEMP/rollout.txt"
           } >> "$GITHUB_STEP_SUMMARY"
+          # 3 is EXIT_BLOCKED in harness/bin/harness-rollout.
           if [ "$status" -eq 3 ]; then
             echo "::warning::Harness rollout is blocked: secret HARNESS_ROLLOUT_TOKEN is not configured. Roll out manually with inside-harness update."
             exit 0

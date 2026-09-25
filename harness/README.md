@@ -81,6 +81,6 @@ release notes or downloadable assets. The current installer does not download Gi
 `update` reads the canonical Workspace package and `rollback --to` reads the selected Workspace
 Git ref.
 
-Upstream skill sources are never pulled automatically; only the release rollout above is
-automated. There are no machine-local links, user-level project profiles, or
-complex lock files. Repository skill profiles are explicit, versioned package selections.
+Upstream skill sources are never pulled automatically; only the release rollout above is automated.
+There are no machine-local links, user-level project profiles, or complex lock files. Repository
+skill profiles are explicit, versioned package selections.

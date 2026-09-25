@@ -143,10 +143,10 @@ Git ref для rollback. CI каждого repository кроме Workspace пр�
 installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а
 `rollback --to` — из указанного Workspace Git ref.
 
-Upstream не обновляется автоматически; автоматизирована только раскатка выпуска. User-level profiles, MCP, hooks и автоматические runtime
-changes в product harness не входят. Если integration становится recurring, она добавляется в
-конкретный repository через native project config и проверяется его `health`; credentials остаются
-в native auth или environment.
+Upstream не обновляется автоматически; автоматизирована только раскатка выпуска. User-level
+profiles, MCP, hooks и автоматические runtime changes в product harness не входят. Если integration
+становится recurring, она добавляется в конкретный repository через native project config и
+проверяется его `health`; credentials остаются в native auth или environment.
 
 Общий delivery lifecycle называется Developer Pipeline и описан в [`WORKFLOW.md`](WORKFLOW.md).
 Product harness поставляет composable skills для него, но не владеет GitHub settings, branches,

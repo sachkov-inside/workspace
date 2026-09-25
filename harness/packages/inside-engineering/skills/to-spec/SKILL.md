@@ -58,7 +58,7 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 
 ## Documents and rules
 
-The durable facts this work changes (product behaviour, business rules, domain terms, architecture seams, public contracts, developer commands, delivery workflow, agent routing), the document that owns each fact, and every new or changed rule for agents or code with its source: an accepted Specification, an ADR, an owner decision, or an environment fact confirmed by a check. Write "None: code, schemas and tests are the authority" when the work changes no durable fact. Implementation reconciles its diff against this section.
+The durable facts this work changes, as `Documentation impact` in the repository-root `WORKFLOW.md` defines them, with the document that owns each fact; and every new or changed rule for agents or code with its source, as `Rule sources` defines it. Write `None — code/schema/tests are the authority` when the work changes no durable fact. Implementation reconciles its diff against this section.
 
 ## Testing Decisions
 

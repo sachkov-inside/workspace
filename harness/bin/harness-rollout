@@ -85,12 +85,17 @@ def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path
     title = f"Раскатать harness inside-engineering {version}"
     clone = work / repository.replace("/", "__")
     run(["git", "clone", "--quiet", remote, str(clone)])
-    remote_branch = bool(run(["git", "ls-remote", "--heads", "origin", branch], cwd=clone).strip())
-    if remote_branch:
+    pull_requests = rollout_pull_requests(repository, branch)
+    open_numbers = [item["number"] for item in pull_requests if item["state"] == "OPEN"]
+    closed_numbers = [item["number"] for item in pull_requests if item["state"] == "CLOSED"]
+    leftover = run(["git", "ls-remote", "--heads", "origin", branch], cwd=clone).split("\t")[0].strip()
+    if open_numbers:
+        # Build on the open pull request so its review history stays intact.
         run(["git", "fetch", "--quiet", "origin", branch], cwd=clone)
         run(["git", "checkout", "--quiet", "-B", branch, "FETCH_HEAD"], cwd=clone)
     else:
-        run(["git", "checkout", "--quiet", "-B", branch], cwd=clone)
+        # Without an open pull request, start from the current main, never from a stale branch.
+        run(["git", "checkout", "--quiet", "-B", branch, "origin/main"], cwd=clone)
 
     run([sys.executable, str(CLI), "update", str(clone)])
     changed = bool(run(["git", "status", "--porcelain"], cwd=clone).strip())
@@ -98,17 +103,17 @@ def roll_out(repository: str, *, version: str, tag: str, remote: str, work: Path
         name, email = COMMIT_AUTHOR
         run(["git", "add", "--all"], cwd=clone)
         run(["git", "-c", f"user.name={name}", "-c", f"user.email={email}", "commit", "--quiet", "-m", title], cwd=clone)
-    # Compare content, not ancestry: a squash-merged rollout branch is never an ancestor of main.
     if not run(["git", "diff", "--name-only", "origin/main", "HEAD"], cwd=clone).strip():
         return "current"
-
-    pull_requests = rollout_pull_requests(repository, branch)
-    open_numbers = [item["number"] for item in pull_requests if item["state"] == "OPEN"]
-    closed_numbers = [item["number"] for item in pull_requests if item["state"] == "CLOSED"]
     if not open_numbers and closed_numbers:
         return f"declined #{closed_numbers[0]}: the owner closed this release's rollout; not reopened"
+
+    push = ["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"]
+    if leftover and not open_numbers:
+        # The leftover belongs to a merged rollout; replace it only if nobody moved it meanwhile.
+        push.insert(2, f"--force-with-lease=refs/heads/{branch}:{leftover}")
     if changed:
-        run(["git", "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"], cwd=clone)
+        run(push, cwd=clone)
     if open_numbers:
         return f"updated #{open_numbers[0]}" if changed else f"open #{open_numbers[0]}"
     url = run(
