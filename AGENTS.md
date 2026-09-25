@@ -15,6 +15,7 @@ product surface or application.
 - For product terminology, Series/content decisions, editorial handoff, repository ownership
   or ADR placement, read `docs/agents/domain.md`.
 - For coding and review rules, read `CODING_STANDARDS.md`.
+- For which document owns a changed fact, read `docs/agents/documentation-maintenance.md`.
 
 ## Verification
 

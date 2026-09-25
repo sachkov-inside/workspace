@@ -1,4 +1,4 @@
-# inside-engineering 0.4.10
+# inside-engineering 0.4.11
 
 This package contains 30 skills selected through repository profiles:
 
@@ -64,6 +64,20 @@ their recurring branches are already covered by this smaller set.
   `inside-harness` package validation enforces; the managed `inside-harness-health.yml` runs
   `health` in every installed repository against the Workspace release tag of its version, and a
   managed `.github/scripts/.gitignore` ignores Python bytecode.
+- Agent knowledge lives in the repository: `WORKFLOW.md` adds `Rule sources` (a new rule needs a
+  Specification, ADR, owner decision, or confirmed environment fact, otherwise it is an owner
+  proposal), `Documentation impact` (reconcile changed durable facts with their owning documents
+  and the Specification), and `Session learning` (move session knowledge to a script, issue, or
+  owning document, never runtime-local memory); `to-spec` adds a `Documents and rules` section,
+  `implement` points to the new sections, the `code-review` Spec axis checks missing document
+  updates and unsourced rules, and the pull request template asks for both.
+- `WORKFLOW.md` lets the writing agent fast-forward the primary checkout after its merge, integrates
+  published branches by merge instead of rebase, reads `mergeable` when no check starts, reads the
+  reported head by command, and states how review ended; the shared `AGENTS.md` block asks for a
+  decision criterion when a choice waits on measurement; tracker automation documents unique
+  session identifiers and owner adoption of an assigned issue.
+- `inside-harness health` requires a Claude Code bridge beside every nested `AGENTS.md` and checks
+  local pointers in product, specification, and ADR documents.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

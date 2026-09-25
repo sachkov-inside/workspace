@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    "sachkov-inside/platform",
+    "sachkov-inside/inside-telegram",
+    "sachkov-inside/workshop-cases"
+  ]
+}

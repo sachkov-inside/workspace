@@ -1,0 +1,43 @@
+name: Harness rollout
+
+# Opens one update pull request in every active consumer after a harness release tag.
+# Consumers are listed in harness/rollout-targets.json; merging stays with their CI and owner.
+on:
+  push:
+    tags: ["inside-engineering-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-rollout
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Open update pull requests in consumers
+        env:
+          # Contents and pull-request write access to every consumer repository.
+          GH_TOKEN: ${{ secrets.HARNESS_ROLLOUT_TOKEN }}
+        run: |
+          set -euo pipefail
+          status=0
+          python3 harness/bin/harness-rollout > "$RUNNER_TEMP/rollout.txt" || status=$?
+          cat "$RUNNER_TEMP/rollout.txt"
+          {
+            echo "## Harness rollout"
+            echo
+            sed 's/^/- /' "$RUNNER_TEMP/rollout.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -eq 3 ]; then
+            echo "::warning::Harness rollout is blocked: secret HARNESS_ROLLOUT_TOKEN is not configured. Roll out manually with inside-harness update."
+            exit 0
+          fi
+          exit "$status"
