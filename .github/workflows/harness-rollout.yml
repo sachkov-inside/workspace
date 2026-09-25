@@ -40,7 +40,8 @@ jobs:
           fi
       - name: Open update pull requests in consumers
         env:
-          # Contents and pull-request write access to every consumer repository.
+          # Contents, pull-request and workflow write access to every consumer repository:
+          # a rollout changes managed files under .github/workflows.
           GH_TOKEN: ${{ secrets.HARNESS_ROLLOUT_TOKEN }}
         run: |
           set -euo pipefail

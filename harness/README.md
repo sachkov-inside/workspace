@@ -72,9 +72,10 @@ the chosen ref already contains this harness layout.
    branch starts from `main`, replacing a leftover of a merged rollout; a rollout the owner closed
    is not reopened. Each pull request passes that repository's CI and waits for its owner merge; add
    repository-local changes the release needs as commits on the same branch. The workflow needs the
-   `HARNESS_ROLLOUT_TOKEN` secret with contents and pull-request write access to the consumers.
-   Without it the run reports the rollout as blocked, and consumers are updated one at a time by
-   hand with `update`, reviewing their Git diffs.
+   `HARNESS_ROLLOUT_TOKEN` secret with contents, pull-request, and workflow write access to the
+   consumers, because a rollout changes managed files under `.github/workflows`. Without it the run
+   reports the rollout as blocked, and consumers are updated one at a time by hand with `update`,
+   reviewing their Git diffs.
 
 The version tag is required: it binds the package version to an exact Workspace commit and gives
 `rollback --to` a stable Git ref. A GitHub Release is optional and is useful only for separate
