@@ -134,8 +134,8 @@ Version tag обязателен: он связывает package-версию �
 Git ref для rollback. CI каждого repository кроме Workspace проверяет `health` по тегу своей
 установленной версии, поэтому PR раскатки открывается только после публикации тега. GitHub Release
 необязателен и создаётся только когда нужны отдельные release notes или downloadable assets. Текущий
-installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а `rollback
---to` — из указанного Workspace Git ref.
+installer не скачивает GitHub Release: `update` читает canonical package из Workspace, а
+`rollback --to` — из указанного Workspace Git ref.
 
 Upstream не обновляется автоматически. User-level profiles, MCP, hooks и автоматические runtime
 changes в product harness не входят. Если integration становится recurring, она добавляется в

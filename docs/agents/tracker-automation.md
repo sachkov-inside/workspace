@@ -9,8 +9,7 @@ pagination, failure and event-boundary fitness. All installed copies are version
 Issues and PRs hold facts; Projects display them. Developer Pipeline uses Inbox, Ready, In progress,
 Review, Blocked, Acceptance and Done. Human Backlog uses Todo, In Progress and Done. Only Workspace
 issues may carry `backlog:human`. Human outcomes keep their manually accepted open state and close
-explicitly.
-Priority, Area and product decisions are not inferred from prose.
+explicitly. Priority, Area and product decisions are not inferred from prose.
 
 - Closed issues project to Done, retaining `completed` or `not_planned` on the issue.
 - Merged PRs project to Done. Closed, unmerged PR rows are archived. Draft PRs project to In progress;
