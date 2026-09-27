@@ -469,6 +469,51 @@ class HarnessCliTest(unittest.TestCase):
         workflow.write_text(pinned + "      - uses: ./.github/actions/local-step\n")
         HARNESS["validate_package"](package, load_manifest(package))
 
+    def test_package_rejects_a_managed_workflow_job_on_a_moving_runner(self) -> None:
+        package = Path(self.temp.name) / "package"
+        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
+        workflow = package / "github/inside-agent-sessions.yml"
+        pinned = workflow.read_text()
+        HARNESS["validate_package"](package, load_manifest(package))
+        for runner in ("ubuntu-latest", "${{ matrix.runner }}", "[self-hosted, linux]"):
+            workflow.write_text(re.sub(r"runs-on: \S+", f"runs-on: {runner}", pinned))
+            with self.subTest(runner=runner), self.assertRaisesRegex(HarnessError, "pinned runner"):
+                HARNESS["validate_package"](package, load_manifest(package))
+
+    def test_package_rejects_a_managed_workflow_job_outside_the_block_form(self) -> None:
+        package = Path(self.temp.name) / "package"
+        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
+        workflow = package / "github/inside-harness-health.yml"
+        block = workflow.read_text()
+        HARNESS["validate_package"](package, load_manifest(package))
+        flow_job = "  test: { runs-on: ubuntu-latest, timeout-minutes: 5 }\n"
+        for text in (block + flow_job, block.split("jobs:\n", 1)[0] + "jobs: {}\n"):
+            workflow.write_text(text)
+            with self.assertRaisesRegex(HarnessError, "block-style"):
+                HARNESS["validate_package"](package, load_manifest(package))
+
+    def test_package_rejects_a_managed_workflow_job_without_a_timeout(self) -> None:
+        package = Path(self.temp.name) / "package"
+        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
+        workflow = package / "github/inside-harness-health.yml"
+        bounded = workflow.read_text()
+        HARNESS["validate_package"](package, load_manifest(package))
+        for timeout in ("", "    timeout-minutes: ${{ inputs.timeout }}\n", "      timeout-minutes: 5\n"):
+            workflow.write_text(re.sub(r"    timeout-minutes: \d+\n", timeout, bounded))
+            with self.subTest(timeout=timeout), self.assertRaisesRegex(HarnessError, "timeout-minutes"):
+                HARNESS["validate_package"](package, load_manifest(package))
+
+    def test_harness_health_supersedes_only_pull_request_runs(self) -> None:
+        workflow = (
+            WORKSPACE / "harness/packages/inside-engineering/github/inside-harness-health.yml"
+        ).read_text()
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
+        self.assertIn("github.event.pull_request.number || github.sha", workflow)
+        sessions = (
+            WORKSPACE / "harness/packages/inside-engineering/github/inside-agent-sessions.yml"
+        ).read_text()
+        self.assertIn("group: inside-agent-session-writer\n  cancel-in-progress: false", sessions)
+
     def test_install_rejects_an_unknown_profile(self) -> None:
         result = self.run_cli(
             "install", str(self.repo), "--profile", "unknown", expected=2
