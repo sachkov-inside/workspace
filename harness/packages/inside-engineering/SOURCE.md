@@ -90,6 +90,8 @@ their recurring branches are already covered by this smaller set.
   canonical package; it points to `Owner corrections` instead of restating the mechanical versus
   judgement test and drops the user-global `AGENTS.md` scope, which lies outside the product
   harness. `ask-matt` lists it.
+- Tracker automation documents that start keeps the branch of a session that holds the task and
+  that a task delivered by several PRs switches branches by `release`, then `start`.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other
