@@ -25,14 +25,14 @@
       "repository": "https://github.com/microsoft/playwright-cli",
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     },
-    "vercel-react-best-practices": {
-      "repository": "https://github.com/vercel-labs/agent-skills",
-      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
-    },
     "retro": {
       "repository": "https://github.com/mattpocock/skills",
       "path": "skills/in-progress/retro",
       "commit": "0243b6ec4ca02f5a188506d0c0342e3617a7dee1"
+    },
+    "vercel-react-best-practices": {
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
     }
   },
   "managedFiles": [

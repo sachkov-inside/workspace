@@ -23,7 +23,7 @@ Credentials remain outside Git and the verification command is run explicitly by
 
 The package contains the Developer Pipeline, pull request handoff template, triage labels, the
 completed-parent lifecycle script, and two skill profiles. `core` contains Matt Pocock's complete
-stable suite plus `karpathy-guidelines`; `frontend` adds four browser/UI skills. Exact contents and
+stable suite plus `retro` and `karpathy-guidelines`; `frontend` adds four browser/UI skills. Exact contents and
 sources are in `packages/inside-engineering/manifest.json` and `SOURCE.md`.
 
 ## Commands

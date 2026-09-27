@@ -16,10 +16,10 @@ excluded, except `retro`, imported by owner decision of 2026-09-27 (workspace#23
 | --- | --- | --- | --- |
 | Matt Pocock stable suite (25) | [`mattpocock/skills`](https://github.com/mattpocock/skills), release `v1.2.3`, commit `885e2ca4d842d139e9aef4e48d366c63cb1b8013` | Base import on 2026-08-19; Inside adaptations below | MIT; package `LICENSE` |
 | `impeccable` | [`pbakaus/impeccable`](https://github.com/pbakaus/impeccable) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | Apache-2.0 upstream |
-| `retro` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/in-progress/retro` | Commit `0243b6ec4ca02f5a188506d0c0342e3617a7dee1`; Inside adaptations below | MIT; package `LICENSE` |
 | `karpathy-guidelines` | [Andrej Karpathy's original guidance](https://x.com/karpathy/status/2015883857489522876) | Landing `bdd0177905df723ca4e4e2fb9288a4d8dc95701b` | MIT declared in skill metadata |
 | `modern-web-guidance` | [`GoogleChrome/modern-web-guidance-src`](https://github.com/GoogleChrome/modern-web-guidance-src) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | Apache-2.0 software; CC-BY-4.0 guides |
 | `playwright-cli` | [`microsoft/playwright-cli`](https://github.com/microsoft/playwright-cli) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | Apache-2.0 upstream |
+| `retro` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/in-progress/retro` | Commit `0243b6ec4ca02f5a188506d0c0342e3617a7dee1`; Inside adaptations below | MIT; package `LICENSE` |
 | `vercel-react-best-practices` | [`vercel-labs/agent-skills`](https://github.com/vercel-labs/agent-skills) | Landing `cfa90027f5450dc3fcd05de13415168c1354044d` | MIT declared in skill metadata |
 
 The package-level `LICENSE` applies to the Matt Pocock suite and `retro` only. Each additional
@@ -85,9 +85,11 @@ their recurring branches are already covered by this smaller set.
 - `WORKFLOW.md` adds `Owner corrections`: an owner correction is a lesson that gets a check when
   mechanical or a `CODING_STANDARDS.md` rule when a judgement call, with the correction as its
   owner-decision source; `implement` and the pull request template point to it. The owner-invoked
-  `retro` applies the same test to a whole session, presents candidates in the owner's language
-  with evidence, durable home and source, then delivers the approved ones and routes managed
-  harness changes to the canonical package; `ask-matt` lists it.
+  `retro` applies the same test to a whole session, presents candidates with evidence, durable
+  home and source, then delivers the approved ones and routes managed harness changes to the
+  canonical package; it points to `Owner corrections` instead of restating the mechanical versus
+  judgement test and drops the user-global `AGENTS.md` scope, which lies outside the product
+  harness. `ask-matt` lists it.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other

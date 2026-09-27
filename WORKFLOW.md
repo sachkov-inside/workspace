@@ -341,10 +341,10 @@ cannot read it. Knowledge added this way follows `Rule sources`.
 
 ### Owner corrections
 
-An owner correction is a lesson: the owner rejects or corrects an agent's result, such as a missed
-requirement, a wrong framework primitive or a disliked choice. Fix the result, then decide whether
-the lesson reaches beyond this change. A one-off lesson lives in pull request history. A recurring
-lesson gets its durable home in the order `Review closure` sets:
+An owner correction is the owner rejecting or correcting an agent's result: a missed requirement, a
+wrong framework primitive, a disliked choice. Fix the result, then classify the correction. One tied
+only to this change's content, such as a value or a wording, lives in pull request history. Every
+other correction is a lesson and gets its durable home in the order `Review closure` sets:
 
 - a mechanical mistake (a fixed pattern, a banned API, an import shape, a file location) gets a
   type, test, lint rule or guardrail;
@@ -353,9 +353,10 @@ lesson gets its durable home in the order `Review closure` sets:
 
 The correction is the rule's owner-decision source under `Rule sources`: cite its date and where
 the owner gave it, and word the rule within what the owner said. A broader generalization is a
-proposal for the owner. Deliver the lesson in the current pull request when it concerns the change,
-otherwise in a small follow-up pull request or issue, and list it with the session's learning. The
-owner-invoked `/retro` applies the same test to a whole session.
+proposal for the owner. Deliver the lesson in the pull request where the owner gave the
+correction, or in a small follow-up pull request when there is none; only a check too large for
+that becomes an issue. List the lesson with the session's learning. The owner-invoked `/retro`
+applies the same test to a whole session.
 
 ### Implementation report
 

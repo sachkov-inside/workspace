@@ -61,10 +61,11 @@ harness/
 
 Package содержит общий Developer Pipeline с review closure, architecture fitness и pruning,
 triage labels, lifecycle script для автоматического закрытия completed parent issues и два skill
-profile. `core` содержит stable-набор Matt Pocock и `karpathy-guidelines`; `frontend` добавляет
-`impeccable`, `modern-web-guidance`, `playwright-cli` и `vercel-react-best-practices`.
-`in-progress` и `misc` Matt Pocock не импортированы. Точный состав и provenance зафиксированы в
-package metadata и `SOURCE.md`.
+profile. `core` содержит stable-набор Matt Pocock, `retro` и `karpathy-guidelines`; `frontend`
+добавляет `impeccable`, `modern-web-guidance`, `playwright-cli` и `vercel-react-best-practices`.
+Из `in-progress` Matt Pocock импортирован только `retro` по решению владельца от 27.09.2026
+(#234); остальное `in-progress` и `misc` не импортировано. Точный состав и provenance
+зафиксированы в package metadata и `SOURCE.md`.
 
 В каждом repository installer создаёт:
 
