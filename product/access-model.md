@@ -92,9 +92,11 @@
 
 ### Подтверждение основания прежнего участника
 
-- Прежние покупатели курса и подписчики Tribute подтверждают статус через бота Inside. Обычный
-  `/start` проверяет известные основания для связанной TelegramIdentity; ссылка владельца
-  `/start a_<code>` запускает ту же проверку с выбранным правилом активации.
+- Прежние покупатели курса и подписчики Tribute подтверждают статус только по ссылке владельца
+  `/start a_<code>`: владелец публикует её от имени бота кнопкой «Получить доступ» в группе
+  прежнего курса (объявление активации). Обычный `/start` оснований не проверяет и прав не
+  выдаёт: человек идёт по обычным воронкам бота. Неподтверждённое основание по ссылке — ответ с
+  дальнейшим шагом и запись в очередь разбора владельца ([Telegram #115](https://github.com/sachkov-inside/inside-telegram/issues/115)).
 - Доказуемое основание — членство в группе прежнего курса или запись реестра Tribute. Общий чат
   Inside основанием не является, даже когда ссылка владельца опубликована в нём.
 - Бот передаёт основание Platform как SourceEntitlement по протоколу активации. Какие права выдать,
@@ -152,16 +154,16 @@
 Чат по разовой покупке в коде уже следует за правом на продукт без даты окончания и не
 заканчивается вместе с `support`, поэтому решение #204 о группе код не меняет.
 
-Решения 27.09.2026 Platform и Telegram ещё не исполняют (по спецификации
-[#238](https://github.com/sachkov-inside/workspace/issues/238); поставка —
-[Platform #775](https://github.com/sachkov-inside/platform/issues/775) и
-[Telegram #113](https://github.com/sachkov-inside/inside-telegram/issues/113)):
-
-- предложение не хранит сроки прав: право на продукт выдаётся без срока, сопровождение — всегда
-  6 месяцев;
-- допуска к предложению нет: опубликованное предложение подписки видят все;
-- права по основанию выдаются только по ссылке активации: `/start` основания не проверяет, вход
-  через Telegram на сайте прав не выдаёт.
+Решения 27.09.2026 по спецификации [#238](https://github.com/sachkov-inside/workspace/issues/238)
+поставлены в код: сроки прав и допуск к предложению —
+[Platform #775](https://github.com/sachkov-inside/platform/issues/775) (`benefitPeriods`,
+`eligibility: former_tribute_subscribers`); подтверждение основания по кнопке владельца —
+[Telegram #113](https://github.com/sachkov-inside/inside-telegram/issues/113) и
+[#115](https://github.com/sachkov-inside/inside-telegram/issues/115). Не поставлено: страница
+оплаты показывает сроки редакции 4 оферты, а не предложения
+([Platform #780](https://github.com/sachkov-inside/platform/issues/780)); допуск задаётся через
+`offers.save` или MCP, а не в форме авторства ([Platform #781](https://github.com/sachkov-inside/platform/issues/781)).
+В production ничего из этого не включено.
 Остальные клетки и переходы соответствуют коду Platform и Telegram на 15.09.2026; возврат в чат
 после исключения ботом Tribute поставлен в [Telegram #45](https://github.com/sachkov-inside/inside-telegram/issues/45).
 
@@ -209,6 +211,11 @@
 
 Каждая клетка — сценарий `<строка>/<столбец>` в таблице сценариев Platform
 [#648](https://github.com/sachkov-inside/platform/issues/648), например `product-material/one-time-purchase`.
+Покупку Offer таблица проверяет отдельными сценариями ([#775](https://github.com/sachkov-inside/platform/issues/775)):
+`course-offer-terms` (материалы и группа без срока, сопровождение 6 месяцев),
+`offer-own-terms` (другие сроки Offer), `offer-terms-change-keeps-earlier-purchase`
+(изменение Offer не меняет прежние покупки), `subscription-offer-without-tribute-ground` и
+`subscription-offer-with-tribute-ground` (допуск к подписке).
 «В составе» означает: да, если X входит в состав назначения; иначе как `account-without-rights`.
 «Объединение» означает: открыто, если открывает хотя бы одно действующее основание.
 
@@ -336,7 +343,7 @@ Tribute (раздел «Допуск к предложению»); открыт�
 | Спецификация и ADR | Platform: [тарифы и назначения](https://github.com/sachkov-inside/platform/blob/main/docs/specifications/subscription-enrollments.md), [ContentAccess](https://github.com/sachkov-inside/platform/blob/main/docs/specifications/content-access-authorization-v1.md), [ADR 0024](https://github.com/sachkov-inside/platform/blob/main/docs/adr/0024-one-access-capability-vocabulary.md) | Как Platform исполняет модель: основания, состав, `ContentAccess` | Platform |
 | Таблица сценариев | Platform [#648](https://github.com/sachkov-inside/platform/issues/648) | Исполняемая форма матрицы и переходов в `pnpm check`; падает при расхождении поведения или пропуске клетки | Platform |
 | Исполнение в чате | Telegram, [контракт `community-v2`](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/contracts/community-v2/protocol.md) | Вход, запрет, возврат после бота Tribute, выключенные удаления | Telegram |
-| Подтверждение основания в боте | Telegram, [активация курса](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/operations/course-activation.md) и контракт активации | `/start`, ссылка владельца, ответ без основания, очередь разбора | Telegram |
+| Подтверждение основания в боте | Telegram, [активация курса](https://github.com/sachkov-inside/inside-telegram/blob/main/docs/operations/course-activation.md) и контракт активации | Объявление активации с кнопкой, ссылка владельца, ответ без основания, очередь разбора | Telegram |
 
 Новое правило доступа — продуктовое решение владельца: сначала меняется этот документ, затем
 Platform в одной поставке меняет спецификацию, код и таблицу сценариев с теми же именами
