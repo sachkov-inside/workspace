@@ -339,6 +339,24 @@ current pull request when it concerns the change, otherwise in a small follow-up
 issue. Memory local to one runtime or machine is not a home for project knowledge; other agents
 cannot read it. Knowledge added this way follows `Rule sources`.
 
+### Owner corrections
+
+An owner correction is a lesson: the owner rejects or corrects an agent's result, such as a missed
+requirement, a wrong framework primitive or a disliked choice. Fix the result, then decide whether
+the lesson reaches beyond this change. A one-off lesson lives in pull request history. A recurring
+lesson gets its durable home in the order `Review closure` sets:
+
+- a mechanical mistake (a fixed pattern, a banned API, an import shape, a file location) gets a
+  type, test, lint rule or guardrail;
+- a judgement call gets a rule in the repository-root `CODING_STANDARDS.md`, which the Standards
+  axis of `code-review` enforces; create the file when the repository has none.
+
+The correction is the rule's owner-decision source under `Rule sources`: cite its date and where
+the owner gave it, and word the rule within what the owner said. A broader generalization is a
+proposal for the owner. Deliver the lesson in the current pull request when it concerns the change,
+otherwise in a small follow-up pull request or issue, and list it with the session's learning. The
+owner-invoked `/retro` applies the same test to a whole session.
+
 ### Implementation report
 
 After final review closure and current-head pull request CI closure, the writing agent updates the

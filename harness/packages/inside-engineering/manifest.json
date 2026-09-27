@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "inside-engineering",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "Shared engineering and frontend workflows for Sachkov Inside repositories.",
   "source": {
     "repository": "https://github.com/mattpocock/skills",
@@ -28,6 +28,11 @@
     "vercel-react-best-practices": {
       "repository": "https://github.com/vercel-labs/agent-skills",
       "landingSnapshot": "cfa90027f5450dc3fcd05de13415168c1354044d"
+    },
+    "retro": {
+      "repository": "https://github.com/mattpocock/skills",
+      "path": "skills/in-progress/retro",
+      "commit": "0243b6ec4ca02f5a188506d0c0342e3617a7dee1"
     }
   },
   "managedFiles": [
@@ -103,6 +108,7 @@
     "prototype",
     "research",
     "resolving-merge-conflicts",
+    "retro",
     "setup-matt-pocock-skills",
     "tdd",
     "teach",
@@ -134,6 +140,7 @@
       "prototype",
       "research",
       "resolving-merge-conflicts",
+      "retro",
       "setup-matt-pocock-skills",
       "tdd",
       "teach",
@@ -165,6 +172,7 @@
       "prototype",
       "research",
       "resolving-merge-conflicts",
+      "retro",
       "setup-matt-pocock-skills",
       "tdd",
       "teach",
