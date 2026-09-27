@@ -124,9 +124,9 @@ and any other writer chooses a unique identifier. The same session may start aga
 or `review` on its held branch: from those phases start refuses another valid `--branch` with
 `Active session branch cannot be changed implicitly`. A task delivered by several PRs moves to the
 next branch by `release` with a reason, then `start` with the new `--branch`. That start succeeds
-only while the issue's `closedByPullRequestsReferences` holds no open PR, drafts included; otherwise it
-refuses with `Existing PR requires an explicit owner handoff before another writer`. An
-intermediate non-closing PR does not block it.
+only while the issue's `closedByPullRequestsReferences` holds no open PR, drafts included;
+otherwise it refuses with `Existing PR requires an explicit owner handoff before another writer`.
+An intermediate non-closing PR does not block it.
 
 Handoff needs an open non-draft PR on the held branch in `closedByPullRequestsReferences`. That
 connection also contains PRs linked manually in the Development panel, and GitHub closes the issue
