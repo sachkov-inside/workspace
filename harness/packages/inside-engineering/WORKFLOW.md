@@ -347,7 +347,7 @@ only to this change's content, such as a value or a wording, lives in pull reque
 other correction is a lesson and gets its durable home in the order `Review closure` sets:
 
 - a mechanical mistake (a fixed pattern, a banned API, an import shape, a file location) gets a
-  type, test, lint rule or guardrail;
+  type, test, lint rule, or guardrail;
 - a judgement call gets a rule in the repository-root `CODING_STANDARDS.md`, which the Standards
   axis of `code-review` enforces; create the file when the repository has none.
 
