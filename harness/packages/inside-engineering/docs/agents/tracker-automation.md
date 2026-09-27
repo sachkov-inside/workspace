@@ -121,10 +121,10 @@ even over a manual active state; parent auto-completion still requires completed
 Blockers keep the policy above. A new start request under a session identifier that is already
 `active` is refused: the same writer recovers the request named in the refusal with `--request`,
 and any other writer chooses a unique identifier. The same session may start again from `blocked`
-or `review` on its held branch: while a session holds the task, start refuses another `--branch`
-with `Active session branch cannot be changed implicitly`. A task delivered by several PRs moves to
-the next branch by `release` with a reason, then `start` with the new `--branch`. That start
-succeeds only while no open PR in the issue's `closedByPullRequestsReferences` exists; otherwise it
+or `review` on its held branch: from those phases start refuses another valid `--branch` with
+`Active session branch cannot be changed implicitly`. A task delivered by several PRs moves to the
+next branch by `release` with a reason, then `start` with the new `--branch`. That start succeeds
+only while the issue's `closedByPullRequestsReferences` holds no open PR, drafts included; otherwise it
 refuses with `Existing PR requires an explicit owner handoff before another writer`. An
 intermediate non-closing PR does not block it.
 
