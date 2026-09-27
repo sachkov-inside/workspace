@@ -135,7 +135,7 @@ function artifactView(t,kind){
   if(!a)return `<p class="muted">Артефакта «${esc((KINDS.find(k=>k[0]===kind)||[])[1])}» нет.</p>`;
   const {meta,body}=fm(a.markdown||'');
   const head=`<div class="src"><span class="small muted">${Object.entries(meta).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ')}${a.modified?' · изменён '+ago(a.modified):''}</span><span class="tag t-agent">агент написал</span></div>`;
-  const cmd=`plannotator annotate ${a.path} --result-file ${a.path.replace(/[^/]+\.md$/,'review.md')}`;
+  const cmd=`plannotator annotate ${a.path} --gate --json --result-file ${a.path.replace(/[^/]+\.md$/,'review.json')}`;
   const annotate=a.markdown?`<p style="margin-top:10px"><button class="copy" data-copy="${esc(cmd)}">Скопировать команду: разметить в Plannotator</button></p>`:'';
   return `${a.markdown?head+'<div class="md">'+mdHtml(body)+'</div>':''}${annotate}${kind==='delivery'?deliveryFacts(a.facts,t.folder):''}`}
 
@@ -161,7 +161,7 @@ function VariantB(){
   const counts=f?Object.entries((f.requirements||[]).reduce((m,r)=>(m[r.status]=(m[r.status]||0)+1,m),{})).map(([k,n])=>`<span class="tag ${(REQ[k]||[])[1]}">${n} · ${(REQ[k]||[k])[0]}</span>`).join(''):'';
   const main=t?(()=>{const kind=sel.kind||defaultKind(t);return `<div class="b-verdict"><h2>${esc(t.owner_action||t.title)}</h2></div>
      <div class="b-verdict"><span class="small muted">${esc(t.id)} · ${esc(t.title)} · ${stageName(t.stage)}</span>${counts}${prLine(t)}</div>
-     <div class="b-actions"><button class="primary" data-stub="accept">Принять</button><button data-stub="return">Вернуть с замечанием</button><button class="copy" data-copy="plannotator annotate ${esc((t.artifacts[kind]||{}).path||'')}">Разметить в Plannotator</button></div>
+     <div class="b-actions"><button class="primary" data-stub="accept">Принять</button><button data-stub="return">Вернуть с замечанием</button><button class="copy" data-copy="plannotator annotate ${esc((t.artifacts[kind]||{}).path||'')} --gate --json --result-file ${esc(((t.artifacts[kind]||{}).path||'').replace(/[^/]+\.md$/,'review.json'))}">Разметить в Plannotator</button></div>
      ${tabs(t,kind)}<div>${artifactView(t,kind)}</div>`})():'<p class="muted">Нечего решать.</p>';
   return `<div class="b-wrap"><aside class="b-list">
      <div><h3>Нужно твоё решение · ${need.length}</h3>${need.map(item).join('')||'<p class="muted small">Пусто</p>'}</div>
