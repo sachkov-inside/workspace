@@ -480,6 +480,18 @@ class HarnessCliTest(unittest.TestCase):
             with self.subTest(runner=runner), self.assertRaisesRegex(HarnessError, "pinned runner"):
                 HARNESS["validate_package"](package, load_manifest(package))
 
+    def test_package_rejects_a_managed_workflow_job_outside_the_block_form(self) -> None:
+        package = Path(self.temp.name) / "package"
+        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
+        workflow = package / "github/inside-harness-health.yml"
+        block = workflow.read_text()
+        HARNESS["validate_package"](package, load_manifest(package))
+        flow_job = "  test: { runs-on: ubuntu-latest, timeout-minutes: 5 }\n"
+        for text in (block + flow_job, block.split("jobs:\n", 1)[0] + "jobs: {}\n"):
+            workflow.write_text(text)
+            with self.assertRaisesRegex(HarnessError, "block-style"):
+                HARNESS["validate_package"](package, load_manifest(package))
+
     def test_package_rejects_a_managed_workflow_job_without_a_timeout(self) -> None:
         package = Path(self.temp.name) / "package"
         shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
@@ -490,16 +502,6 @@ class HarnessCliTest(unittest.TestCase):
             workflow.write_text(re.sub(r"    timeout-minutes: \d+\n", timeout, bounded))
             with self.subTest(timeout=timeout), self.assertRaisesRegex(HarnessError, "timeout-minutes"):
                 HARNESS["validate_package"](package, load_manifest(package))
-
-    def test_package_rejects_a_managed_workflow_without_concurrency(self) -> None:
-        package = Path(self.temp.name) / "package"
-        shutil.copytree(WORKSPACE / "harness/packages/inside-engineering", package)
-        workflow = package / "github/inside-harness-health.yml"
-        grouped = workflow.read_text()
-        HARNESS["validate_package"](package, load_manifest(package))
-        workflow.write_text(re.sub(r"(?m)^concurrency:\n(?:  .*\n)+", "", grouped))
-        with self.assertRaisesRegex(HarnessError, "concurrency"):
-            HARNESS["validate_package"](package, load_manifest(package))
 
     def test_harness_health_supersedes_only_pull_request_runs(self) -> None:
         workflow = (

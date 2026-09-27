@@ -84,8 +84,8 @@ docs/agents/triage-labels.md            # общие readiness-роли
 Остальные managed-файлы (трекер, шаблон PR, `.github/scripts/.gitignore`) перечислены в package
 manifest. Сторонние actions в managed workflows закреплены полным SHA коммита с комментарием
 версии; проверка пакета в `health` отклоняет плавающий тег. Каждый job managed workflow работает на
-закреплённом runner (`ubuntu-24.04`, не `ubuntu-latest`) с `timeout-minutes`, а у каждого workflow
-есть группа `concurrency`; проверка пакета отклоняет workflow без любого из трёх.
+закреплённом runner (`ubuntu-24.04`, не `ubuntu-latest`) с `timeout-minutes`; проверка пакета
+отклоняет job без любого из двух.
 
 Обе runtime-директории ведут в один committed snapshot. Это устраняет двойные копии и неоднозначный
 OpenCode discovery. Repo-specific skills можно добавлять в snapshot под уникальными именами; они

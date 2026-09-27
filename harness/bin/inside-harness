@@ -234,26 +234,26 @@ def validate_workflow_actions(workflow: Path) -> None:
 
 
 def validate_workflow_jobs(workflow: Path) -> None:
-    """Managed workflows run in every repository: a concurrency group, and each job has a fixed
-    runner image and a timeout.
+    """Managed workflows run in every repository: each job has a fixed runner image and a timeout.
 
     Reads the block-style `jobs:` mapping the package uses, with jobs at two spaces and their keys
-    at four; a job in another form has no matching key and fails closed.
+    at four; a job in another form fails closed.
     """
-    text = workflow.read_text()
-    if re.search(r"(?m)^concurrency:\n  group: \S", text) is None:
-        raise HarnessError(f"Managed workflow must declare a top-level concurrency group: {workflow}")
     jobs: dict[str, list[str]] = {}
     in_jobs = False
-    for line in text.splitlines():
+    for line in workflow.read_text().splitlines():
         if line and not line[0].isspace():
             in_jobs = line.rstrip() == "jobs:"
             continue
-        match = WORKFLOW_JOB.match(line) if in_jobs else None
+        if not in_jobs or not line.strip() or line.lstrip().startswith("#"):
+            continue
+        match = WORKFLOW_JOB.match(line)
         if match is not None:
             jobs[match["name"]] = []
-        elif in_jobs and jobs:
+        elif line.startswith("    ") and jobs:
             jobs[next(reversed(jobs))].append(line)
+        else:
+            raise HarnessError(f"Managed workflow job must be block-style: {workflow}: {line.strip()}")
     if not jobs:
         raise HarnessError(f"Managed workflow has no block-style jobs: {workflow}")
     for name, lines in jobs.items():

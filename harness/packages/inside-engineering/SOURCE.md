@@ -78,10 +78,9 @@ their recurring branches are already covered by this smaller set.
   session identifiers and owner adoption of an assigned issue.
 - `inside-harness health` requires a Claude Code bridge beside every nested `AGENTS.md` and checks
   local pointers in product, specification, and ADR documents.
-- Managed workflows run every job on `ubuntu-24.04` with a timeout, and each workflow declares a
-  concurrency group; `inside-harness` package validation enforces all three. Harness health lets a
-  newer push to a pull request supersede its run, and the central agent-session writer keeps its
-  one global group.
+- Managed workflows run every job on `ubuntu-24.04` with a timeout, which `inside-harness` package
+  validation enforces. Harness health gains a concurrency group in which a newer push to a pull
+  request supersedes its run; the central agent-session writer keeps its one global group.
 
 Upstream updates are never pulled automatically. Review the upstream diff, import a deliberate
 revision here, bump `manifest.json`, test a pilot repository, and only then update other
