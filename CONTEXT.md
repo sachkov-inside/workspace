@@ -28,8 +28,15 @@ _Avoid_: MembershipEntitlement, WorkshopEntitlement, Lifetime Access Grant
 **Offer**:
 A versioned commercial description of a set of benefits with independent for-sale, assignable and
 archived states, separate from a Guide, payment and Access Grant. Its payment option states the
-price, period and sale mode.
+price, period and sale mode. Each benefit it grants carries its own term — a number of months or no
+end date — which a purchase keeps from the Offer snapshot.
 _Avoid_: Guide, Order, Payment, Access Grant
+
+**Offer Eligibility**:
+A restriction that makes an Offer visible and purchasable only to Accounts holding a named basis,
+such as the subscription Offer for former Tribute subscribers; in Russian, «Допуск к предложению».
+It does not change rights already granted.
+_Avoid_: Sale flag, assignability, hidden Offer
 
 **Access Scope**:
 The benefit or resource an Access Grant covers: Materials within a Content Scope, a particular
@@ -87,6 +94,12 @@ _Avoid_: Never-expiring subscription, future all-access purchase, permanent Tele
 A right an Account holds without a Subscription Enrollment or Product Purchase: an owner's or
 carried-over Access Grant, or the legacy member bridge; in Russian, «Прямое право».
 _Avoid_: Manual tier assignment, gift subscription, purchase
+
+**SourceEntitlement**:
+A verified external basis of a former participant — membership in the former course group or a
+record in the Tribute registry — that the Telegram application passes to Platform; in Russian,
+«Основание прежнего участника». Platform chooses the resulting rights through an activation rule.
+_Avoid_: Telegram presence, Membership Signal, Access Grant
 
 **Account**:
 Platform's stable private identity for one authenticated human. It owns Platform permissions and
