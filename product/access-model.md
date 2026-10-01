@@ -160,9 +160,9 @@
 [Platform #775](https://github.com/sachkov-inside/platform/issues/775) (`benefitPeriods`,
 `eligibility: former_tribute_subscribers`); подтверждение основания по кнопке владельца —
 [Telegram #113](https://github.com/sachkov-inside/inside-telegram/issues/113) и
-[#115](https://github.com/sachkov-inside/inside-telegram/issues/115). Страница оплаты и описание продукта называют сроки
-предложения с подключением редакции 5 оферты
-([Platform #780](https://github.com/sachkov-inside/platform/issues/780)). Не поставлено: допуск задаётся через
+[#115](https://github.com/sachkov-inside/inside-telegram/issues/115). Не поставлено: страница оплаты и описание продукта
+начнут называть сроки предложения с подключением редакции 5 оферты
+([Platform #780](https://github.com/sachkov-inside/platform/issues/780)); допуск задаётся через
 `offers.save` или MCP, а не в форме авторства ([Platform #781](https://github.com/sachkov-inside/platform/issues/781)).
 В production ничего из этого не включено.
 Остальные клетки и переходы соответствуют коду Platform и Telegram на 15.09.2026; возврат в чат
