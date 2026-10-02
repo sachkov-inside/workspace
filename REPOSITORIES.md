@@ -4,10 +4,10 @@
 
 | Repository | Owner | Local path | Visibility | Назначение |
 |---|---|---|---|---|
-| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | public | Общий product context, Developer Pipeline и cross-repo решения |
+| [`sachkov-inside/workspace`](https://github.com/sachkov-inside/workspace) | `sachkov-inside` | `.` | public | Общие продуктовые и юридические документы; без задач и процесса разработки |
 | [`sachkov-inside/ai-engineering`](https://github.com/sachkov-inside/ai-engineering) | `sachkov-inside` | `repositories/ai-engineering` | private | Программа, методика и подготовка запуска курса; собственный harness и Project 3 |
 | [`sachkov-inside/inside-landing`](https://github.com/sachkov-inside/inside-landing) | `sachkov-inside` | `repositories/landing` | public | Устарел (deprecated с 2026-09-15): публичный landing Inside; задачи, PR и раскатка harness не ведутся, сайт и `main` не трогаются |
-| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | public | Membership-платформа и её product/technical docs |
+| [`sachkov-inside/platform`](https://github.com/sachkov-inside/platform) | `sachkov-inside` | `repositories/platform` | public | Membership-платформа, её product/technical docs и процесс разработки Inside |
 | [`sachkov-inside/inside-content`](https://github.com/sachkov-inside/inside-content) | `sachkov-inside` | `repositories/inside-content` | private | Локальные оригиналы материалов/серий и редакционный процесс |
 | [`sachkov-inside/workshop-cases`](https://github.com/sachkov-inside/workshop-cases) | `sachkov-inside` | `repositories/workshop-cases` | private | Закрытый authoring source для versioned Tracks, Laboratories и Production Cases |
 | [`sachkov-inside/inside-telegram`](https://github.com/sachkov-inside/inside-telegram) | `sachkov-inside` | `repositories/telegram` | public | Telegram BotContact, identity linking и Membership Evidence provider |
@@ -60,7 +60,5 @@ Workspace не становится runtime или build dependency нового
   surface; Workspace индексирует его ссылкой.
 - Machine-local пути, symlinks на workspace и runtime imports из соседних repositories не являются
   допустимыми зависимостями.
-- Общий product harness устанавливается из canonical source Workspace как versioned project-local
-  copy; lifecycle описан в [`HARNESS.md`](HARNESS.md).
-- Общий harness не меняет user-level settings. Repo-specific harness развивается внутри своего
-  repository независимо.
+- Процесс разработки Inside принадлежит `platform`; `inside-telegram` получает его копию одной
+  командой из `platform`.
