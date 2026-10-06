@@ -1,33 +1,35 @@
 # Sachkov Inside workspace
 
-Workspace всего проекта Sachkov Inside. Здесь хранятся общие продуктовые и юридические документы и
-подтверждённые решения. Код отдельных частей продукта живёт в самостоятельных Git repositories.
+Этот репозиторий сохраняет исходные документы и историю решений Sachkov Inside.
+Актуальные документы, термины, код и процесс разработки принадлежат
+[`platform`](https://github.com/sachkov-inside/platform).
 
-## Документы и репозитории
+## Актуальные документы и код
 
-Для текущей модели материалов и серий читать
-[brief материалов и серий](product/content-series-authoring-brief.md), для понятий —
-[CONTEXT.md](CONTEXT.md), для начала редакционной работы —
-[handoff](product/series-planning-handoff.md).
+- [Продуктовые документы](https://github.com/sachkov-inside/platform/tree/main/docs/product)
+  определяют продукт, модель материалов и серий, доступ и редакционную передачу.
+- [Юридические документы](https://github.com/sachkov-inside/platform/tree/main/docs/legal)
+  содержат текущие редакции и статусы юридических текстов.
+- [GLOSSARY.md](https://github.com/sachkov-inside/platform/blob/main/GLOSSARY.md)
+  определяет общие термины Inside.
+- [REPOSITORIES.md](https://github.com/sachkov-inside/platform/blob/main/REPOSITORIES.md)
+  определяет владельцев кода, документов, задач и выпуска.
+- [WORKFLOW.md](https://github.com/sachkov-inside/platform/blob/main/WORKFLOW.md)
+  задаёт процесс разработки Inside.
+- [Приложение Telegram](https://github.com/sachkov-inside/platform/tree/main/apps/telegram)
+  находится в `platform/apps/telegram` и использует общий процесс platform.
 
-Owning repositories и их роли перечислены один раз в [REPOSITORIES.md](REPOSITORIES.md).
-Общая архитектура первой поставки Platform описана в
-[shared specification](docs/specifications/platform-v1.md); текущий продуктовый scope — в brief выше.
+[`inside-content`](https://github.com/sachkov-inside/inside-content) и
+[`workshop-cases`](https://github.com/sachkov-inside/workshop-cases) остаются отдельными репозиториями.
+Их роли описаны в актуальной карте REPOSITORIES.md выше.
+Новые задачи ведутся в репозитории, который владеет результатом.
 
-Каждый repository автономен: имеет собственную историю, настройки, CI и собственные инструкции.
-Build, test и deploy дочернего repository не должны зависеть от наличия этого workspace на диске.
+## Исторические документы и статус перехода
 
-Задач и процесса разработки здесь нет. Процесс разработки Inside принадлежит repository
-[`platform`](https://github.com/sachkov-inside/platform): его `WORKFLOW.md` и skills;
-`inside-telegram` получает их копию. Задачи заводятся в repository, который владеет результатом.
+Все прежние документы этого репозитория сохранены как исторические источники.
+Они помогают проверить происхождение решений, но текущие правила следует читать в platform по ссылкам выше.
 
-## VS Code
-
-Открыть весь проект как multi-root workspace:
-
-```bash
-code inside.code-workspace
-```
-
-VS Code покажет workspace-документы и каждый repository отдельным корнем. Git operations нужно
-выполнять в выбранном repository, а не сразу над всей директорией.
+Репозиторий пока не архивирован; локальный переход ещё не завершён.
+Завершение перехода и архивация ведутся в
+[platform#962](https://github.com/sachkov-inside/platform/issues/962) в рамках
+[workspace#253](https://github.com/sachkov-inside/workspace/issues/253).
